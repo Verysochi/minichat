@@ -212,14 +212,12 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
    В потоке они занимали место и сдвигали текст. */
 .msg-reply-btn,.msg-fwd-btn{position:absolute;top:-17px;height:30px;border-radius:15px;border:1px solid var(--surface3);
   background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
-  opacity:0;transform:scale(.8);transition:all .22s cubic-bezier(.34,1.56,.64,1);z-index:3;padding:0}
+  opacity:1;transform:scale(1);transition:all .22s cubic-bezier(.34,1.56,.64,1);z-index:3;padding:0}
 /* «Ответить» — стрелка слева, «Поделиться» — 🔗 справа */
 .msg-reply-btn{left:2px;width:30px;font-size:15px}
 .msg-fwd-btn{right:2px;width:30px;font-size:14px}
 .msg:hover .msg-reply-btn,.msg:focus-within .msg-reply-btn,
 .msg:hover .msg-fwd-btn,.msg:focus-within .msg-fwd-btn{opacity:1;transform:scale(1)}
-/* На тач-экранах наведения нет — показываем всегда */
-@media (hover:none){.msg-reply-btn,.msg-fwd-btn{opacity:1;transform:scale(1)}}
 .msg-reply-btn:hover,.msg-fwd-btn:hover{background:var(--accent-soft);border-color:var(--primary);transform:scale(1.12)}
 .msg.sent{align-self:flex-end;background:var(--primary);color:var(--primary-text);border-bottom-right-radius:4px}
 .msg.received{align-self:flex-start;background:var(--surface2);border-bottom-left-radius:4px}
@@ -235,9 +233,10 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
    клик по «кнопке верхнего сообщения» попадал в кнопку нижнего. */
 .msg-foot{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:3px}
 .msg-foot .msg-time{margin-top:0}
-.msg-actions{display:inline-flex;gap:2px;opacity:.5;transition:opacity .2s}
+/* Раньше кнопки реакций были полупрозрачными и «загорались» только при наведении —
+   на телефоне наведения нет, и они выглядели мёртвыми. Теперь всегда в полную силу. */
+.msg-actions{display:inline-flex;gap:2px;opacity:1;transition:opacity .2s}
 .msg:hover .msg-actions,.msg.highlighted .msg-actions{opacity:1}
-@media (hover:none){.msg-actions{opacity:.85}}
 .avatar.xs{width:20px;height:20px;font-size:9px;min-width:20px}
 .avatar.sm{width:28px;height:28px;font-size:12px;min-width:28px}
 /* ===== РЕАКЦИИ ПО ЛЮДЯМ =====
@@ -256,7 +255,14 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* «Кто оценил» — мелкая подпись под кнопкой реакций в группах */
 .who-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:1px 4px;white-space:nowrap}
 .who-btn:hover{color:var(--primary)}
-/* (мобильные размеры облачка и поля ввода — см. блок @media ниже по файлу) */
+/* Имя отправителя теперь кликабельно (открывает профиль) */
+.msg-sender{cursor:pointer;display:flex;align-items:center;gap:5px}
+.msg-sender:active{opacity:.7}
+.ms-name{text-decoration:underline;text-decoration-color:transparent;transition:text-decoration-color .15s}
+.msg-sender:hover .ms-name{text-decoration-color:currentColor}
+/* Обёртка реакций на новостях/постах/комментариях */
+.rock-wrap{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.rock-wrap .who-btn{cursor:pointer}
 .msg-react-btn{width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;position:relative;flex-shrink:0;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
 .msg-react-btn:hover{transform:scale(1.12);border-color:var(--primary)}
 /* Счётчик реакций — маленький бейдж в правом верхнем углу кнопки (только группы) */
@@ -1100,8 +1106,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="rec-preview" id="recPreview">
     <audio controls id="recPreviewAudio" style="display:none"></audio>
     <video controls id="recPreviewVideo" style="display:none"></video>
-    <button class="preview-btn preview-send" onclick="sendRecorded()">➤</button>
-    <button class="preview-btn preview-del" onclick="cancelRecorded()">🗑</button>
+    <!-- Отдельной кнопки отправки нет: голосовое уходит обычной ➤ внизу -->
+    <button class="preview-btn preview-del" title="Удалить запись" onclick="cancelRecorded()">🗑</button>
   </div>
   <div id="chatMediaContainer" class="media-container" style="display:none;margin:0 8px"></div>
   <div id="mentionPopup" style="display:none"></div>
@@ -1343,7 +1349,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null,recordedSending=false;
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
 let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
@@ -1361,7 +1367,10 @@ const ADMIN_EMAIL='sochinewlife@gmail.com';
 const ADMIN_NAME="Админ";
 // Совпадает ли подтверждённая Firebase-почта с админской. Единственный источник правды.
 function isAdminEmail(email){return !!ADMIN_EMAIL&&!!email&&String(email).toLowerCase()===ADMIN_EMAIL.toLowerCase();}
-const MAX_REC_SEC=30,MAX_REC_INLINE=4500000,MAX_AVATAR=1800000,CHUNK=800000,MAX_MEDIA_ITEMS=10;
+// Лимита длительности записи больше нет: файл грузится кусками в files/,
+// поэтому размер не упирается в одно поле сообщения.
+// MAX_REC_SAFE — страховка от залипшей кнопки записи, чтобы не залить базу.
+const MAX_REC_SAFE=30*60,MAX_REC_INLINE=4500000,MAX_AVATAR=1800000,CHUNK=800000,MAX_MEDIA_ITEMS=10;
 const PALETTE=['#f0f0f0','#6c5ce7','#e74c3c','#00b894','#0984e3','#fdcb6e','#e84393','#00cec9','#ff7675','#55efc4'];
 const FRAMES=[{id:'',name:'Без рамки'},{id:'gold',name:'Золотая'},{id:'silver',name:'Серебро'},{id:'neon',name:'Неон'},{id:'rainbow',name:'Радуга'}];
 const TOTEMS=[{id:'cat',name:'Кот',emoji:'🐱'},{id:'dog',name:'Собака',emoji:'🐶'},{id:'frog',name:'Лягушка',emoji:'🐸'},{id:'panda',name:'Панда',emoji:'🐼'},{id:'sapsan',name:'Сапсан',emoji:'🦅'},{id:'fox',name:'Лисица',emoji:'🦊'},{id:'monkey',name:'Обезьянка',emoji:'🐵'},{id:'tiger',name:'Тигр',emoji:'🐯'},{id:'elephant',name:'Слон',emoji:'🐘'},{id:'parrot',name:'Попугай',emoji:'🦜'}];
@@ -2857,11 +2866,8 @@ function sendMessage(){
   const input=document.getElementById('msgInput'),text=input.value.trim();
   if(!currentChatId)return;
   if(!dmGuard())return;
-  if(recordedDataUrl){
-    const key=db.ref('messages/'+currentChatId).push().key;
-    commitMessage(currentChatId,key,{sender:currentUser.uid,ts:Date.now(),type:recordedType,data:recordedDataUrl},previewFor(recordedType));
-    cancelRecorded();
-  }
+  // Голосовое отправляется ТОЖЕ этой кнопкой ➤ — отдельной кнопки отправки больше нет
+  if(recordedDataUrl){sendRecorded();}
   if(!text&&chatMediaQueue.length===0)return;
   const go=()=>{
     if(chatMediaQueue.length){
@@ -2918,11 +2924,70 @@ function renderDeleteLogs(){
     b.appendChild(d);});
 }
 // ===== РЕАКЦИИ =====
+// Реакции на новости/посты/комментарии.
+// Раньше здесь жил только 🤘 одной кнопкой: выбрать другую эмоцию было нельзя,
+// а панель выбора не рендерилась вовсе. Теперь — те же 5 реакций, что и в чате,
+// плюс список тех, кто поставил.
 function rockButtonHtml(reacts,myReact,basePath,id,context){
-  const count=reacts?Object.values(reacts).filter(v=>v==='🤘').length:0;
-  const isRocked=myReact==='🤘';
-  // data-* нужны, чтобы обновлять счётчик реакций НА МЕСТЕ, без перерисовки всей страницы
-  return '<button class="rock-btn'+(isRocked?' rocked':'')+'" data-rbase="'+escA(basePath)+'" data-rid="'+escA(id)+'" data-rctx="'+escA(context)+'" onclick="event.stopPropagation();toggleRock(\''+basePath+'\',\''+id+'\',\''+context+'\')"><span class="rock-emoji">🤘</span><span class="rock-count">'+count+'</span></button>';
+  const others=Object.keys(reacts||{}).filter(u=>u!==currentUser.uid);
+  let h='<span class="rock-wrap">';
+  // чужие реакции — аватар + эмодзи (по тому же принципу, что в чатах)
+  others.slice(0,5).forEach(u=>{
+    const i=ALL_USERS[u];
+    if(!i)return;
+    h+='<span class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+': '+esc(reacts[u])+'">'+
+       '<span class="avatar xs" style="width:16px;height:16px;font-size:8px;min-width:16px">'+esc((displayNameOf(i)||'?')[0].toUpperCase())+'</span>'+
+       '<span class="rw-emoji">'+esc(reacts[u])+'</span></span>';
+  });
+  if(others.length>5)h+='<span class="who-btn">+'+(others.length-5)+'</span>';
+  // моя реакция / кнопка выбора
+  const lab=myReact||'☺';
+  h+='<button class="rock-btn'+(myReact?' rocked':'')+'" data-rbase="'+escA(basePath)+'" data-rid="'+escA(id)+'" data-rctx="'+escA(context)+'" '+
+     'title="'+(myReact?'Твоя реакция: '+escA(myReact)+' (нажми, чтобы убрать)':'Поставить реакцию')+'" '+
+     'onclick="event.stopPropagation();'+(myReact
+        ?'rockRemove(\''+basePath+'\',\''+id+'\')'
+        :'openRockPicker(this,\''+basePath+'\',\''+id+'\',\''+context+'\')')+'">'+
+     '<span class="rock-emoji">'+lab+'</span>'+
+     (myReact?'<span class="react-count">'+Object.keys(reacts).length+'</span>':'')+'</button>';
+  if(Object.keys(reacts||{}).length)
+    h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReactedNews(\''+basePath+'\',\''+id+'\')">👤 '+Object.keys(reacts).length+'</button>';
+  return h+'</span>';
+}
+// Панель выбора реакции для новостей/постов/комментариев
+let rockPickerEl=null;
+function openRockPicker(btn,basePath,id,context){
+  closeRockPicker();
+  const p=document.createElement('div');
+  p.className='reaction-train show';
+  p.style.position='absolute';p.style.zIndex='360';
+  p.innerHTML=REACTIONS.map(r=>'<button class="r-btn" onclick="event.stopPropagation();rockPick(\''+basePath+'\',\''+id+'\',\''+context+'\',\''+r+'\');closeRockPicker()">'+r+'</button>').join('');
+  document.body.appendChild(p);
+  const b=btn.getBoundingClientRect();
+  p.style.left=Math.max(8,Math.min(window.innerWidth-p.offsetWidth-8,b.left-20))+'px';
+  p.style.top=Math.max(8,b.top-p.offsetHeight-8)+'px';
+  rockPickerEl=p;
+  setTimeout(()=>document.addEventListener('click',closeRockPicker,{once:true}),0);
+}
+function closeRockPicker(){if(rockPickerEl&&rockPickerEl.parentNode)rockPickerEl.parentNode.removeChild(rockPickerEl);rockPickerEl=null;}
+function rockPick(basePath,id,context,emoji){setMsgReaction(basePath,id,context,emoji);
+  if(context==='news'&&lastNews&&lastNews[id]&&lastNews[id].authorUid)notifyUser(lastNews[id].authorUid,'react','Реакция на новость',emoji+' '+displayNameOf(currentUser)+' оценил(а) твою новость',{newsId:id});
+  else if(context==='post'&&lastUserPosts&&lastUserPosts[id]&&lastUserPosts[id].authorUid)notifyUser(lastUserPosts[id].authorUid,'react','Реакция на пост',emoji+' '+displayNameOf(currentUser)+' оценил(а) твой пост',{postId:id});}
+function rockRemove(basePath,id){db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid).remove();}
+// Кто поставил — для новостей/постов
+function showWhoReactedNews(basePath,id){
+  const src=basePath.indexOf('news')===0?lastNews:(lastUserPosts||{})[id];
+  const reacts=(src&&src.reactions)||{};
+  const rows=Object.keys(reacts).map(u=>({u:u,e:reacts[u],i:ALL_USERS[u]||{}}));
+  if(!rows.length){toast('Реакций нет');return;}
+  const ov=document.getElementById('fwdSrcMenu');
+  ov.innerHTML='<div class="mini-card" style="max-width:300px;text-align:left">'+
+    '<div class="card-title" style="text-align:center">Кто оценил</div>'+
+    rows.map(r=>'<div class="user-item" style="padding:7px 4px;cursor:pointer" onclick="closeFwdSrcMenu();openUserProfile(\''+r.u+'\')">'+
+      avatarHtml(r.i,'sm',r.i.name)+'<div class="user-info"><div class="user-name">'+esc(displayNameOf(r.i)||nameOf(r.u))+
+      (r.u===currentUser.uid?' <span style="color:var(--text3)">(ты)</span>':'')+'</div></div>'+
+      '<span style="font-size:19px">'+esc(r.e)+'</span></div>').join('')+
+    '<button class="btn btn-outline" style="margin-top:6px;width:100%" onclick="closeFwdSrcMenu()">Закрыть</button></div>';
+  ov.classList.add('active');
 }
 // Обновляет только сами кнопки реакций — колонка/лента остаются нетронутыми,
 // поэтому страница не «дёргается» при постановке реакции.
@@ -2940,9 +3005,25 @@ function patchRockButtons(){
       node=found;
     }
     const r=(node&&node.reactions)||{};
-    const c=Object.values(r).filter(v=>v==='🤘').length;
-    b.querySelector('.rock-count').textContent=c;
-    b.classList.toggle('rocked',r[currentUser.uid]==='🤘');
+    const mine=r[currentUser.uid]||null;
+    // Раньше тут искали только 🤘 и писали в .rock-count, которого в новой
+    // разметке может не быть — на этом падало. Теперь обновляем аккуратно.
+    const btn=b.querySelector('.rock-btn'),em=btn&&btn.querySelector('.rock-emoji');
+    if(em)em.textContent=mine||'☺';
+    if(btn){
+      btn.classList.toggle('rocked',!!mine);
+      btn.title=mine?('Твоя реакция: '+mine+' (нажми, чтобы убрать)'):'Поставить реакцию';
+      btn.onclick=new Function('event.stopPropagation();'+(mine
+        ?'rockRemove("'+b.getAttribute('data-rbase')+'","'+id+'")'
+        :'openRockPicker(this,"'+b.getAttribute('data-rbase')+'","'+id+'","'+ctx+'")'));
+    }
+    const wr=b.parentElement;
+    if(wr){
+      const nb=wr.querySelector('.react-count');
+      if(nb)nb.textContent=Object.keys(r).length;
+      const wb=wr.querySelector('.who-btn');
+      if(wb&&Object.keys(r).length)wb.textContent='👤 '+Object.keys(r).length;
+    }
   });
 }
 // Подпись данных без реакций/просмотров: если она не изменилась — перерисовка не нужна
@@ -3105,8 +3186,14 @@ function bubbleInner(m,key,senderInside){
   if(translations[key])c+='<div class="auto-trans"><div class="auto-trans-label">🌐 автоперевод</div>'+esc(translations[key])+'</div>';
   if(senderInside)c+=senderInside;
   return c;}
-function senderLine(m,inside){if(!(currentIsGroup&&m.sender!==currentUser.uid))return '';
-  return '<div class="msg-sender'+(inside?' msg-sender-inside':'')+'" style="color:'+colorOf(ALL_USERS[m.sender])+'">'+esc(nameOf(m.sender))+gAdminMark(currentChatId,m.sender)+'</div>';}
+// Раньше тут было только цветное имя — тапать было нечего, и на телефоне
+// открыть профиль отправителя было невозможно. Теперь аватар + имя, тап открывает профиль.
+function senderLine(m,inside){
+  if(!(currentIsGroup&&m.sender!==currentUser.uid))return '';
+  const i=ALL_USERS[m.sender]||{},nm=nameOf(m.sender);
+  return '<div class="msg-sender'+(inside?' msg-sender-inside':'')+'" onclick="event.stopPropagation();openUserProfile(\''+m.sender+'\')" style="color:'+colorOf(i)+'">'+
+    '<span class="ms-name">'+esc(nm)+'</span>'+gAdminMark(currentChatId,m.sender)+'</div>';
+}
 function msgActionsHtml(m,key){
   // Реакции видно ПО ЧЕЛОВЕКАМ:
   //  — моя реакция живёт на кнопке справа;
@@ -3725,13 +3812,30 @@ function toggleRecord(mode){
 // на кнопку «＋», чтобы было видно, что идёт запись.
     const mb=document.querySelector('#chatInputBar .more-btn');
     if(mb)mb.classList.add('recording');
-    recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SEC)stopRecording();},250);
+    recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
 }
 function stopRecording(){if(!isRecording)return;isRecording=false;clearInterval(recTimer);if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();document.querySelectorAll('#chatInputBar .recording').forEach(b=>b.classList.remove('recording'));document.getElementById('msgInput').placeholder='Сообщение...';}
-function sendRecorded(){if(!recordedDataUrl)return;
+// Голосовое больше не впивается прямо в сообщение: раньше data-URL летел в базу
+// одним куском и упирался в 4.5 МБ, поэтому стоял искусственный лимит 30 секунд.
+// Теперь файл грузится кусками (files/<key>/chunks), а в сообщении только ссылка —
+// поэтому длину записи можно не ограничивать.
+function sendRecorded(){
+  if(!recordedDataUrl||recordedSending)return;
+  const type=recordedType,data=recordedDataUrl;
+  recordedSending=true;
   const key=db.ref('messages/'+currentChatId).push().key;
-  commitMessage(currentChatId,key,{sender:currentUser.uid,ts:Date.now(),type:recordedType,data:recordedDataUrl},previewFor(recordedType));cancelRecorded();}
+  const fk='rec'+currentChatId+'_'+key;
+  const old=document.getElementById('msgInput').placeholder;
+  document.getElementById('msgInput').placeholder='⏳ Отправляю голосовое…';
+  uploadChunked(fk,data,{name:(type==='video'?'video':'audio')+'.webm',size:data.length})
+    .then(()=>commitMessage(currentChatId,key,
+      {sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:type,name:(type==='video'?'Голосовое видео':'Голосовое')},
+      previewFor(type)))
+    .then(()=>{recordedSending=false;cancelRecorded();document.getElementById('msgInput').placeholder=old;})
+    .catch(e=>{recordedSending=false;document.getElementById('msgInput').placeholder=old;
+      console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
+}
 function cancelRecorded(){recordedDataUrl=null;recordedType=null;const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');pa.pause();pa.removeAttribute('src');pa.style.display='none';pv.pause();pv.removeAttribute('src');pv.style.display='none';document.getElementById('recPreview').classList.remove('active');}
 
 // ===== ЗВОНКИ =====
