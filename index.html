@@ -1219,7 +1219,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 17:25';
+const BUILD='05.10.2026 17:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1351,16 +1351,29 @@ function checkSession(){
 }
 // Каждый вход получает свой токен в users/<uid>/toks — поэтому вторая вкладка
 // или телефон не вышибают первый вход, а выход с устройства гасит только его токен.
-function makeSession(uid){const t=Math.random().toString(36).slice(2)+Date.now().toString(36);
+function makeSession(uid,single){const t=Math.random().toString(36).slice(2)+Date.now().toString(36);
   localStorage.setItem('mc_uid',uid);localStorage.setItem('mc_token',t);
   localStorage.setItem('mc_exp',String(Date.now()+SESSION_TTL));
   const TO=uid+'/toks';
   return db.ref(TO).once('value').then(s=>{
     const o=s.val()||{},now=Date.now(),upd={};
-    Object.keys(o).forEach(k=>{if(now-(Number(o[k])||0)>30*24*3600*1000)upd[k]=null;});  // чистим старые (>30 дней)
+    if(single){Object.keys(o).forEach(k=>upd[k]=null);}   // админ: только один живой вход, прежние гасятся
+    else Object.keys(o).forEach(k=>{if(now-(Number(o[k])||0)>30*24*3600*1000)upd[k]=null;});
     upd[t]=now;
     return db.ref(TO).update(upd);
   }).catch(()=>db.ref(TO+'/'+t).set(Date.now()));}
+// Проверяем, что токен ещё жив в базе. Админ, вошедший с другого устройства,
+// стирает прежние токены — и этот вход вышибается тут же, без ожидания F5.
+function ensureSessionAlive(){
+  if(!currentUser||!currentUser.isAdmin)return;      // один-вход-режим нужен только админу
+  const u=currentUser.uid,t=localStorage.getItem('mc_token');
+  if(!u||!t){forceLogout('⏰ Вход истёк — войди заново');return;}
+  db.ref('users/'+u).once('value').then(s=>{
+    const i=s.val();
+    if(!i||!((i.toks&&i.toks[t])||i.sessionToken===t))
+      forceLogout('🔒 Вход с другого устройства — здесь разлогинено');
+  }).catch(()=>{});   // нет прав на чтение — не выкидываем зря
+}
 // Гасим токен ТОЛЬКО этого устройства (остальные входы остаются живы)
 function dropSessionToken(){const u=localStorage.getItem('mc_uid'),t=localStorage.getItem('mc_token');
   if(u&&t)try{db.ref('users/'+u+'/toks/'+t).remove();}catch(e){}}
@@ -1414,7 +1427,8 @@ function enterApp(uid,info){
   db.ref('users/'+uid).update({online:true,lastSeen:Date.now()});
   db.ref('users/'+uid+'/online').onDisconnect().set(false);
   db.ref('users/'+uid+'/lastSeen').onDisconnect().set(Date.now());
-  clearInterval(hbTimer);hbTimer=setInterval(()=>{if(currentUser)db.ref('users/'+currentUser.uid).update({online:true,lastSeen:Date.now()});},25000);
+  clearInterval(hbTimer);hbTimer=setInterval(()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:true,lastSeen:Date.now()});ensureSessionAlive();}},25000);
+  ensureSessionAlive();   // и сразу при входе, чтобы поймать подмену сессии без ожидания 25 секунд
   // Жёсткий лимит сессии: 10 минут от момента входа — потом разлогин до повторного входа
   clearInterval(sessionTimer);sessionTimer=setInterval(()=>{
     if(!currentUser)return;
@@ -1616,7 +1630,7 @@ const REQUIRE_EMAIL_VERIFY=false;
   else localStorage.removeItem('mc_rl');
   localStorage.removeItem('mc_rp');        // старый открытый пароль из localStorage — чистим
   logLogin(uid,info,'password');
-  await makeSession(uid);
+  await makeSession(uid,!!info.isAdmin);
   enterApp(uid,info);
 }
 // Повторная отправка письма подтверждения
@@ -1672,7 +1686,7 @@ async function finishGoogleLogin(result){
     if(info.firebaseUid!==u.uid)db.ref('users/'+uid+'/firebaseUid').set(u.uid).catch(()=>{});
     if(info.authEmail!==email)db.ref('users/'+uid+'/authEmail').set(email).catch(()=>{});
     logLogin(uid,info,'google');
-    await makeSession(uid);enterApp(uid,info);
+    await makeSession(uid,true);enterApp(uid,info);   // админ всегда: один активный вход
   }catch(er){console.error(er);e.textContent='Ошибка входа: '+(er.message||er);}
 }
 // Вопрос капчи генерируется при открытии формы, а не при отправке — иначе
