@@ -1313,7 +1313,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 20:55';
+const BUILD='05.10.2026 21:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4270,9 +4270,43 @@ function postNews(){
   if(!currentUser.isAdmin){toast('Только админ');return;}
   if(postingBusy)return;
   const inp=document.getElementById('newsInput'),title=document.getElementById('newsTitle').value.trim(),text=inp.value.trim();
-  if(editingNewsId){if(!text&&!title){toast('Пусто');return;}
-    const up={};if(title)up.title=title;up.text=text;
-    db.ref('news/'+editingNewsId).update(up).then(()=>{toast('✅ Изменено',true);cancelEdit();});return;}
+  if(editingNewsId){
+    // Раньше здесь media ВООБЩЕ не учитывалось: добавленное фото уходило в очередь
+    // и молча пропадало — «Сохранить» ничего не меняло. Ошибки тоже глотались.
+    const list=newsMediaQueue.slice(0,MAX_MEDIA_ITEMS);
+    if(!text&&!title&&!list.length){toast('Пусто');return;}
+    if(postingBusy)return;
+    postingBusy=true;
+    const btn=document.getElementById('newsSubmitBtn');
+    const oldBtn=btn?btn.textContent:'';
+    if(btn)btn.textContent='⏳ Сохраняю…';
+    const key=editingNewsId;
+    const finish=()=>{
+      const up={};
+      up.title=title;                       // пустое имя = заголовок снят, а не «оставить старый»
+      up.text=text;
+      if(list.length){
+        up.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));
+        up.ext=1;up.mediaKey=list[0].key;up.mediaType=list[0].type;
+        up.mediaName=list[0].name;up.thumb=list[0].thumb||null;
+      }
+      up.editedAt=Date.now();
+      return db.ref('news/'+key).update(up);
+    };
+    const done=()=>{
+      postingBusy=false;newsMediaQueue=[];renderMediaContainer('news');
+      if(btn)btn.textContent=oldBtn||'💾 Сохранить';
+      cancelEdit();toast('✅ Изменено',true);
+    };
+    const fail=e=>{
+      postingBusy=false;                       // медиа оставляем в очереди — не потеряно
+      if(btn)btn.textContent=oldBtn||'💾 Сохранить';
+      console.error('postNews edit failed',e);
+      toast('❌ Не сохранилось: '+(e&&e.code||'ошибка'));
+    };
+    const p=list.length?uploadMediaList(key,list).then(finish):finish();
+    p.then(done).catch(fail);
+    return;}
   if(!text&&!title&&!newsMediaQueue.length){toast('Нужен заголовок, текст или медиа');return;}
   // защита от дубля: такая же новость только что опубликована
   if(lastNews){
@@ -4335,8 +4369,38 @@ function renderProposals(){
     if(p.mediaList)p.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});
   });
 }
-function editNews(id){const n=lastNews&&lastNews[id];if(!n)return;editingNewsId=id;document.getElementById('newsInput').value=n.text||'';document.getElementById('newsTitle').value=n.title||'';document.getElementById('composerTitle').textContent='✏️ Редактирование';document.getElementById('newsSubmitBtn').textContent='💾 Сохранить';document.getElementById('newsCancelBtn').style.display='inline-flex';showScreen('newsScreen');}
-function cancelEdit(){editingNewsId=null;document.getElementById('newsInput').value='';document.getElementById('newsTitle').value='';document.getElementById('composerTitle').textContent='Новая новость';document.getElementById('newsSubmitBtn').textContent='📣 Опубликовать';document.getElementById('newsCancelBtn').style.display='none';}
+function editNews(id){
+  const n=lastNews&&lastNews[id];if(!n)return;
+  editingNewsId=id;
+  // Медиа нового набора НЕ подставляем в очередь — иначе они перезаписали бы
+  // уже опубликованные. Показываем их отдельно, чтобы было видно, что останется.
+  newsMediaQueue=[];
+  document.getElementById('newsInput').value=n.text||'';
+  document.getElementById('newsTitle').value=n.title||'';
+  document.getElementById('composerTitle').textContent='✏️ Редактирование';
+  document.getElementById('newsSubmitBtn').textContent='💾 Сохранить';
+  document.getElementById('newsCancelBtn').style.display='inline-flex';
+  showScreen('newsScreen');
+  renderMediaContainer('news');
+  const old=document.getElementById('newsEditMedia');
+  if(old)old.remove();
+  if(n.mediaList&&n.mediaList.length){
+    const box=document.createElement('div');
+    box.id='newsEditMedia';
+    box.className='media-container';
+    box.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin:0 8px 6px';
+    box.innerHTML='<div style="width:100%;font-size:11px;color:var(--text3)">Уже опубликовано ('+n.mediaList.length+'): новые фото добавятся к ним</div>'+
+      n.mediaList.map(m=>{
+        if(m.type==='video')return '<video class="media-thumb" src="'+m.key+'" style="width:70px;height:70px;border-radius:8px;object-fit:cover"></video>';
+        return '<img class="media-thumb" src="'+(m.thumb||m.key)+'" style="width:70px;height:70px;border-radius:8px;object-fit:cover">';
+      }).join('');
+    const host=document.getElementById('newsMediaContainer');
+    if(host&&host.parentNode)host.parentNode.insertBefore(box,host);
+    n.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});
+  }
+}
+function cancelEdit(){editingNewsId=null;newsMediaQueue=[];renderMediaContainer('news');
+  document.getElementById('newsInput').value='';document.getElementById('newsTitle').value='';document.getElementById('composerTitle').textContent='Новая новость';document.getElementById('newsSubmitBtn').textContent='📣 Опубликовать';document.getElementById('newsCancelBtn').style.display='none';}
 function deleteNews(id){if(!confirm('Удалить новость?'))return;db.ref('news/'+id).remove().then(()=>toast('🗑'));}
 function toggleWho(base,id){const k=base+':'+id;openWho[k]=!openWho[k];if(base==='news')renderNews();else{renderProfileColumn();renderViewColumn();renderMyColumn();}}
 function whoListHtml(base,id,n){
