@@ -1206,7 +1206,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='04.10.2026 20:45';
+const BUILD='05.10.2026 16:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1268,7 +1268,21 @@ function fileIcon(name){const ext=(name||'').split('.').pop().toLowerCase();retu
 function fileIconLarge(name){const ext=(name||'').split('.').pop().toLowerCase();const icons=Object.assign({},FILE_ICONS,{exe:'⚙️',apk:'📱',iso:'💿',dmg:'💿',torrent:'🔗',epub:'📖',mobi:'📖',csv:'📊',xml:'📄',yaml:'📄',yml:'📄',md:'📄',rtf:'📄',odt:'📄',ods:'📄',odp:'📄',ttf:'🔤',otf:'🔤',woff:'🔤',woff2:'🔤',eot:'🔤',psd:'🎨',ai:'🎨',sketch:'🎨',fig:'🎨',xd:'🎨',blend:'🎨',obj:'📦',fbx:'📦',stl:'📦',step:'📦',iges:'📦',dwg:'📐',dxf:'📐',tsv:'📊',log:'📄',bak:'💾',tmp:'📄',ini:'⚙️',cfg:'⚙️',conf:'⚙️',reg:'📄',bat:'📄',sh:'📄',ps1:'📄',cmd:'📄',deb:'📦',rpm:'📦',msi:'📦',pkg:'📦',app:'📦',ipa:'📦',jar:'📦',war:'📦',ear:'📦',dll:'📄',so:'📄',dylib:'📄',a:'📄',lib:'📄',o:'📄',class:'📄',pyc:'📄',pyo:'📄',pyd:'📄',pyw:'📄',pyx:'📄',pxd:'📄',c:'📄',cpp:'📄',cc:'📄',cxx:'📄',h:'📄',hpp:'📄',hh:'📄',hxx:'📄',inl:'📄',ipp:'📄',swift:'📄',kt:'📄',kts:'📄',java:'📄',scala:'📄',groovy:'📄',clj:'📄',cljs:'📄',edn:'📄',erl:'📄',hrl:'📄',ex:'📄',exs:'📄',elm:'📄',hs:'📄',lhs:'📄',ml:'📄',mli:'📄',fs:'📄',fsx:'📄',fsi:'📄',vb:'📄',vbs:'📄',bas:'📄',frm:'📄',cls:'📄',pas:'📄',dpr:'📄',dfm:'📄',asm:'📄',rs:'📄',go:'📄',dart:'📄',lua:'📄',pl:'📄',pm:'📄',t:'📄',r:'📄',R:'📄',jl:'📄',nb:'📄',wl:'📄',wls:'📄',do:'📄',ado:'📄',sas:'📄',spss:'📄',dta:'📄',rdata:'📄',rds:'📄',rda:'📄',RData:'📄',RDS:'📄',sav:'📄',por:'📄',xpt:'📄',jsonl:'📄',ndjson:'📄',json5:'📄',jsonc:'📄',jsonnet:'📄',libsonnet:'📄',hcl:'📄',tf:'📄',tfvars:'📄',tfstate:'📄',nomad:'📄',consul:'📄',vault:'📄',packer:'📄',vagrant:'📄',dockerfile:'📄',dockerignore:'📄',containerignore:'📄',gitignore:'📄',gitattributes:'📄',gitmodules:'📄',gitkeep:'📄',editorconfig:'📄',eslintrc:'📄',prettierrc:'📄',babelrc:'📄',npmrc:'📄',yarnrc:'📄',nvmrc:'📄',nodeversion:'📄',pythonversion:'📄',rubyversion:'📄',gemfile:'📄',rakefile:'📄',guardfile:'📄',capfile:'📄',puppetfile:'📄',berksfile:'📄',cheffile:'📄',jenkinsfile:'📄',travis:'📄',gitlabci:'📄',circleci:'📄',github:'📄',azurepipelines:'📄',bitbucketpipelines:'📄',appveyor:'📄',codeship:'📄',drone:'📄',heroku:'📄',netlify:'📄',vercel:'📄',firebase:'📄',supabase:'📄',render:'📄',railway:'📄',fly:'📄',deno:'📄',bun:'📄',pnpm:'📄',yarn:'📄',npm:'📄',npx:'📄',tsc:'📄',webpack:'📄',rollup:'📄',vite:'📄',parcel:'📄',gulp:'📄',grunt:'📄',browserify:'📄',babel:'📄',typescript:'📄',flow:'📄',jest:'📄',mocha:'📄',jasmine:'📄',karma:'📄',protractor:'📄',cypress:'📄',playwright:'📄',puppeteer:'📄',selenium:'📄',webdriver:'📄',appium:'📄',detox:'📄',espresso:'📄',xcuitest:'📄',test:'📄',spec:'📄',feature:'📄',story:'📄',stories:'📄',snap:'📄',storybook:'📄',chromatic:'📄',loki:'📄',percy:'📄',applitools:'📄',screener:'📄',reg:'📄',backstop:'📄',gemini:'📄',looker:'📄'});return icons[ext]||'📄';}
 // Запись админа в базе. Пароля здесь больше нет — он не нужен, вход только через Google.
 // Права всё равно определяются не отсюда, а по подтверждённой почте (isAdminEmail).
+// Ждём готовности Firebase Auth. Пока auth=null, база закрыта правилами и любой
+// запрос отклоняется (permission_denied) — отсюда были выбросы на F5.
+function authReady(){
+  let a=null;try{a=firebase.auth();}catch(e){return Promise.resolve(null);}
+  if(a.currentUser)return Promise.resolve(a.currentUser);
+  return new Promise(res=>{
+    let done=false,un=null;
+    const fin=u=>{if(done)return;done=true;clearTimeout(tm);if(un)try{un();}catch(e){}res(u||null);};
+    const tm=setTimeout(()=>fin(null),8000);
+    try{un=a.onAuthStateChanged(fin);}catch(e){fin(null);}
+  });
+}
 async function ensureAdminExists(){
+  const u=await authReady();
+  if(!u)return null;                 // без авторизации база недоступна — не мешаем восстановлению сессии
   const s=await db.ref('users').orderByChild('login').equalTo(ADMIN_EMAIL).once('value');
   if(s.exists()){const uid=Object.keys(s.val())[0],i=s.val()[uid];const up={};
     if(!i.isAdmin)up.isAdmin=true;if(i.name!==ADMIN_NAME)up.name=ADMIN_NAME;if(!i.userCode)up.userCode=genCode();
@@ -1281,7 +1295,7 @@ async function ensureAdminExists(){
   await db.ref('approvals/'+uid).set(true);   // админ всегда одобрен сам себя
   return uid;
 }
-const SESSION_TTL=10*60*1000;   // 10 минут — потом жёсткий выход до повторного входа
+const SESSION_TTL=12*60*60*1000;   // 12 часов; пока человек активен — продлевается скользящим счётом (см. touchSession)
 function sessionExpired(){
   const exp=parseInt(localStorage.getItem('mc_exp')||'0',10);
   if(!exp)return true;                       // старые записи без срока — считаем протухшими
@@ -1290,7 +1304,7 @@ function sessionExpired(){
 function clearSession(){['mc_uid','mc_token','mc_exp','mc_adm'].forEach(k=>localStorage.removeItem(k));}
 // Надпись про «войди заново через Google» — её видит ТОЛЬКО админ
 // (только он входит через Google); остальным показываем нейтральную фразу.
-function sessionExpiredMsg(isAdmin){return isAdmin?'⏰ Сессия истекла (10 мин) — войди заново через Google':'⏰ Сессия истекла — войди заново';}
+function sessionExpiredMsg(isAdmin){return isAdmin?'⏰ Сессия истекла (12 ч) — войди заново через Google':'⏰ Сессия истекла — войди заново';}
 function checkSession(){
   const rl=localStorage.getItem('mc_rl');
   localStorage.removeItem('mc_rp');   // старый пароль мог лежать открытым текстом — вычищаем
@@ -1304,7 +1318,7 @@ function checkSession(){
   // происходит с auth=null, правила его отклоняют, и пользователя выкидывает на вход.
   const auth=firebase.auth();
   const proceed=()=>db.ref('users/'+uid).once('value').then(s=>{const i=s.val();
-    if(i&&i.sessionToken===tk){
+    if(i&&((i.toks&&i.toks[tk])||i.sessionToken===tk)){   // toks — список живых входов; sessionToken — старый формат
       enterApp(uid,i);
       // Возвращаем ту страницу, где человек был до F5 (админку, чаты, профиль…)
       const sc=localStorage.getItem('mc_screen');
@@ -1312,18 +1326,35 @@ function checkSession(){
     }else{clearSession();showScreen('loginScreen');}})
     .catch(()=>{clearSession();showScreen('loginScreen');});
   if(auth.currentUser){proceed();return;}
-  const unsub=auth.onAuthStateChanged(u=>{
-    unsub();
+  let unsub=null,handled=false;
+  const guard=setTimeout(()=>{if(handled)return;handled=true;if(unsub)unsub();
+    clearSession();showScreen('loginScreen');},15000);   // Auth не ответил — не висем на экране вечно
+  unsub=auth.onAuthStateChanged(u=>{
+    if(handled)return;handled=true;clearTimeout(guard);if(unsub)unsub();
     if(u)proceed();
     else{clearSession();showScreen('loginScreen');}
   });
 }
+// Каждый вход получает свой токен в users/<uid>/toks — поэтому вторая вкладка
+// или телефон не вышибают первый вход, а выход с устройства гасит только его токен.
 function makeSession(uid){const t=Math.random().toString(36).slice(2)+Date.now().toString(36);
   localStorage.setItem('mc_uid',uid);localStorage.setItem('mc_token',t);
   localStorage.setItem('mc_exp',String(Date.now()+SESSION_TTL));
-  return db.ref('users/'+uid+'/sessionToken').set(t);}
+  const TO=uid+'/toks';
+  return db.ref(TO).once('value').then(s=>{
+    const o=s.val()||{},now=Date.now(),upd={};
+    Object.keys(o).forEach(k=>{if(now-(Number(o[k])||0)>30*24*3600*1000)upd[k]=null;});  // чистим старые (>30 дней)
+    upd[t]=now;
+    return db.ref(TO).update(upd);
+  }).catch(()=>db.ref(TO+'/'+t).set(Date.now()));}
+// Гасим токен ТОЛЬКО этого устройства (остальные входы остаются живы)
+function dropSessionToken(){const u=localStorage.getItem('mc_uid'),t=localStorage.getItem('mc_token');
+  if(u&&t)try{db.ref('users/'+u+'/toks/'+t).remove();}catch(e){}}
+function touchSession(){if(!currentUser)return;localStorage.setItem('mc_exp',String(Date.now()+SESSION_TTL));}
 async function boot(){
-  await ensureAdminExists();checkSession();
+  // Ошибка здесь не должна мешать входу — сессия восстанавливается следом
+  try{await ensureAdminExists();}catch(e){}
+  checkSession();
   try{if(firebase.auth)firebase.auth().getRedirectResult().then(r=>{if(r&&r.user)finishGoogleLogin(r);}).catch(()=>{});}catch(e){}
   if(!localStorage.getItem('mc_notif_asked')){localStorage.setItem('mc_notif_asked','1');try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();}catch(e){}}
   document.addEventListener('pointerdown',()=>{try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}},{once:true});
@@ -1374,6 +1405,7 @@ function enterApp(uid,info){
   clearInterval(sessionTimer);sessionTimer=setInterval(()=>{
     if(!currentUser)return;
     if(sessionExpired())forceLogout(sessionExpiredMsg(currentUser.isAdmin));
+    else touchSession();   // активен — продлеваем, чтобы не выкидывало посреди работы
   },10000);
   if(window.isSecureContext&&navigator.geolocation&&!localStorage.getItem('mc_geo_asked')){
     localStorage.setItem('mc_geo_asked','1');
@@ -1385,6 +1417,7 @@ function enterApp(uid,info){
 function forceLogout(msg){
   offAll();if(isRecording)stopRecording();cancelRecorded();clearInterval(hbTimer);clearInterval(sessionTimer);sessionTimer=null;
   if(currentUser)try{db.ref('users/'+currentUser.uid).update({online:false,lastSeen:Date.now()});}catch(e){}
+  dropSessionToken();
   clearSession();
   try{if(firebase.auth)firebase.auth().signOut();}catch(e){}
   currentUser=null;currentChatId=null;currentOtherUid=null;document.title='MiniChat';
@@ -1394,6 +1427,7 @@ function forceLogout(msg){
 function doLogout(){
   offAll();if(isRecording)stopRecording();cancelRecorded();clearInterval(hbTimer);clearInterval(sessionTimer);sessionTimer=null;if(callState)hangup(false);
   if(currentUser)db.ref('users/'+currentUser.uid).update({online:false,lastSeen:Date.now()});
+  dropSessionToken();
   clearSession();
   try{if(firebase.auth)firebase.auth().signOut();}catch(e){}
   currentUser=null;currentChatId=null;currentOtherUid=null;document.title='MiniChat';showScreen('loginScreen');
@@ -4264,7 +4298,8 @@ function editUserEmail(uid){
 function toggleBan(uid,field){const i=ALL_USERS[uid];const on=i&&i.ban&&i.ban[field];
   const L={full:['☠️ Полный бан','Сможет зайти в приложение'],noGroups:['⛔ Запрет групп','Сможет вступать в группы'],noChat:['🤐 Запрет писать','Сможет отправлять сообщения']}[field]||['Бан','включён'];
   db.ref('users/'+uid+'/ban/'+field).set(on?null:true)
-    .then(()=>toast(on?(L[0]+' снят'):(L[0]+' включён. '+L[1]),true))
+    .then(()=>{if(!on&&field==='full')db.ref('users/'+uid+'/toks').remove();   // полный бан гасит все живые входы
+      return toast(on?(L[0]+' снят'):(L[0]+' включён. '+L[1]),true);})
     .catch(()=>toast('❌ Не сработало — нет прав на записи'));}
 // Заведение пользователя. Клиент Firebase НЕ умеет создавать аккаунт с паролем другому
 // человеку — это умеет только Admin SDK на сервере. Поэтому схема такая:
