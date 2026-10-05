@@ -379,7 +379,10 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .admin-section h3{font-size:15px;margin-bottom:10px;color:var(--text2);text-transform:uppercase}
 .admin-card{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px}
 .admin-user{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--surface2);gap:6px}
-/* Плавающая «Отменить» после удаления чата */
+/* Кликабельная подпись «От …» в пересланном сообщении */
+.fwd-src.tap{cursor:pointer;transition:background .15s ease}
+.fwd-src.tap:hover{background:var(--surface2)}
+.fwd-src.tap:active{transform:scale(.99)}
 .undo-bar{position:fixed;left:50%;bottom:26px;transform:translate(-50%,26px);z-index:1200;opacity:0;transition:all .22s ease;
   display:flex;align-items:center;gap:6px;padding:11px 18px;border:none;border-radius:24px;cursor:pointer;
   background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;
@@ -1059,6 +1062,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     </div>
     <div class="card">
       <div class="card-title">Участники (по алфавиту)</div>
+      <div id="giJoinReqs" style="display:none"></div>
       <div id="giMembers"></div>
     </div>
     <div class="card" id="giDanger"></div>
@@ -1157,6 +1161,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="btn btn-outline" style="margin-top:6px" onclick="closeChooser()">Отмена</button>
   </div>
 </div>
+<div class="mini-overlay" id="fwdSrcMenu" onclick="if(event.target===this)closeFwdSrcMenu()"></div>
 <div class="mini-overlay" id="fwdChooser" onclick="if(event.target===this)closeFwdChooser()">
   <div class="mini-card" style="max-width:380px;text-align:left">
     <div class="card-title" id="fwdTitle" style="text-align:center">↪️ Куда переслать?</div>
@@ -1226,13 +1231,13 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 19:10';
+const BUILD='05.10.2026 19:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-let currentUser=null,ALL_USERS={},ALL_GROUPS={},lastNews=null,lastPending=null,lastNotifs=null,lastChatData=null;
+let currentUser=null,ALL_USERS={},ALL_GROUPS={},lastNews=null,lastPending=null,lastNotifs=null,lastChatData=null,lastGroupJoinReq=null,watchGroupJoinReqs=null;
 let lastFriends=null,lastFriendReq=null,lastGroupInv=null,lastBlocks=null,lastUserPosts=null,lastPassResets=null,lastProposals=null,lastDeleteLogs=null,lastSessionLogs=null,lastLoginAttempts=null;
 let sessionsView='admin';   // какая колонка сессий открыта на телефоне
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
@@ -1394,8 +1399,26 @@ async function boot(){
   document.addEventListener('pointerdown',()=>{try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}},{once:true});
   window.addEventListener('beforeunload',()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:false,lastSeen:Date.now()});if(callState)hangup(false);}});
   document.addEventListener('click',e=>{if(highlightedMsg&&!e.target.closest('.msg')&&!e.target.closest('.reaction-train'))clearHighlight();});
+  // Один обработчик на всю ленту: тап по подписи «От …» в пересланном сообщении
+  document.addEventListener('click',e=>{
+    const t=e.target.closest&&e.target.closest('.fwd-src.tap');
+    if(!t)return;
+    if(e.target.closest('.msg-actions'))return;   // не мешаем кнопкам реакций/удаления
+    e.stopPropagation();
+    fwdSourceMenu(t);
+  });
   // всплывающая панель реакций привязана к экрану — при прокрутке ленты прячем её
   document.addEventListener('scroll',e=>{if(highlightedMsg&&e.target&&e.target.classList&&e.target.classList.contains('messages'))clearHighlight();},true);
+  // Заявки на вступление: нужны только внутри групп, поэтому подписка включается
+  // при открытии экрана группы и снимается, когда он закрыт.
+  let joinReqRef=null;
+  watchGroupJoinReqs=function(gid){
+    if(joinReqRef){joinReqRef.off();joinReqRef=null;}
+    if(!gid)return;
+    joinReqRef=db.ref('groupJoinRequests/'+gid);
+    joinReqRef.on('value',s=>{lastGroupJoinReq=lastGroupJoinReq||{};lastGroupJoinReq[gid]=s.val()||{};
+      if(typeof renderGroupInfo==='function'&&document.getElementById('groupInfoScreen').classList.contains('active'))renderGroupInfo();});
+  };
   window.addEventListener('resize',()=>{if(highlightedMsg)clearHighlight();});
   document.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
@@ -1488,7 +1511,8 @@ function showScreen(id){
   if(id==='myColumnScreen')renderMyColumn();
   if(id==='friendsScreen'){renderPeople();renderFriends();renderFind();}
   if(id==='newsScreen'){freshSeenBefore=parseInt(localStorage.getItem('mc_news_seen')||'0',10);localStorage.setItem('mc_news_seen',Date.now());document.getElementById('newsClearBtn').style.display=currentUser.isAdmin?'flex':'none';renderNews();const sc=document.getElementById('newsScroll');if(sc)sc.scrollTop=0;}
-  if(id==='groupInfoScreen')renderGroupInfo();
+  if(id==='groupInfoScreen'){renderGroupInfo();if(watchGroupJoinReqs)watchGroupJoinReqs(currentIsGroup?currentChatId:null);}
+  else if(watchGroupJoinReqs)watchGroupJoinReqs(null);
   if(id==='notifScreen')renderNotifs();
   if(id==='viewProfileScreen'){renderViewColumn();const w=document.querySelector('#viewProfileScreen .profile-wrap');if(w)w.scrollTop=0;}
 }
@@ -3008,18 +3032,62 @@ function toggleReactionPanel(key,ev){
 // ===== ПЕРЕСЫЛКА СООБЩЕНИЙ (ЛС ↔ группа) =====
 // Откуда пришло сообщение: иконка + название группы или ЛС
 function fwdSrcHtml(m){
-  // Подпись «От …»: из какого чата пришло сообщение + тип чата (ЛС / группа)
+  // Подпись «От …»: кликабельная — по тапу открывается меню действий
+  // (добавить в друзья / вступить в группу), чтобы найденное можно было
+  // сразу перенести к себе, не ища контакт вручную.
+  // Случай нажатия ловит один делегированный обработчик в boot() — по data-*,
+  // поэтому перерисовка ленты ничего не теряет.
   if(m.fwdChatType==='group'){
     const g=ALL_GROUPS[m.fwdChatId];
     const av=g?groupAvatarHtml(g,'sm'):'<div class="avatar" style="background:var(--green)">👥</div>';
-    return '<div class="fwd-src" title="Из группы">'+av+'<span>От: '+esc(m.fwdChatName||(g&&g.name)||'Группа')+'</span><span class="fwd-tag">группа</span></div>';
+    const nm=m.fwdChatName||(g&&g.name)||'Группа';
+    return '<div class="fwd-src tap" data-fwd-gid="'+escA(m.fwdChatId)+'" data-fwd-name="'+escA(nm)+'" title="Из группы — нажми">'+av+
+      '<span>От: '+esc(nm)+'</span><span class="fwd-tag">группа</span></div>';
   }
   if(m.fwdChatType==='dm'){
     const pu=m.fwdChatPeer;
     const av=avatarHtml(ALL_USERS[pu],'sm',m.fwdChatName||nameOf(pu,'кто-то'));
-    return '<div class="fwd-src" title="Из личных сообщений">'+av+'<span>От: '+esc(m.fwdChatName||nameOf(pu,'кто-то'))+'</span><span class="fwd-tag">ЛС</span></div>';
+    const nm=m.fwdChatName||nameOf(pu,'кто-то');
+    return '<div class="fwd-src tap" data-fwd-uid="'+escA(pu||'')+'" data-fwd-name="'+escA(nm)+'" title="Из личных сообщений — нажми">'+av+
+      '<span>От: '+esc(nm)+'</span><span class="fwd-tag">ЛС</span></div>';
   }
   return m.fwdChatName?'<div class="fwd-src"><span>От: '+esc(m.fwdChatName)+'</span></div>':'';
+}
+// Меню по нажатию на подпись «От …» в пересланном сообщении
+function fwdSourceMenu(el){
+  const gid=el.getAttribute('data-fwd-gid'),uid=el.getAttribute('data-fwd-uid');
+  const nm=el.getAttribute('data-fwd-name')||'Неизвестно';
+  const rows=[];
+  if(gid){
+    const g=ALL_GROUPS[gid];
+    if(g&&g.members&&g.members[currentUser.uid])rows.push({t:'Открыть группу',fn:"jumpToChat('"+gid+"')"});
+    else if(g)rows.push({t:'Вступить в группу',fn:"requestGroupJoin('"+gid+"','"+nm.replace(/'/g,"")+"')"});
+    else rows.push({t:'Группа недоступна (нет в списке)',fn:null});
+  }else if(uid){
+    if(uid===currentUser.uid)rows.push({t:'Это ты',fn:null});
+    else if(isFriend(uid))rows.push({t:'Открыть переписку',fn:"openChat('"+currentUser.uid+'_"+uid+"','"+uid+"')"});
+    else rows.push({t:'Добавить в друзья',fn:"sendFriendRequest('"+uid+"')"});
+  }else rows.push({t:'Источник неизвестен',fn:null});
+  const ov=document.getElementById('fwdSrcMenu');
+  if(!ov)return;
+  ov.innerHTML='<div class="mini-card" style="max-width:320px;text-align:left">'+
+    '<div class="card-title" style="text-align:center">'+esc(nm)+'</div>'+
+    rows.map(r=>'<button class="btn '+(r.fn?'btn-outline':'btn-outline')+'" style="width:100%;margin-top:6px"'+
+      (r.fn?' onclick="'+r.fn+';closeFwdSrcMenu()"':' disabled')+'>'+esc(r.t)+'</button>').join('')+
+    '<button class="btn btn-outline" style="margin-top:6px" onclick="closeFwdSrcMenu()">Закрыть</button></div>';
+  ov.classList.add('active');
+}
+function closeFwdSrcMenu(){const ov=document.getElementById('fwdSrcMenu');if(ov)ov.classList.remove('active');}
+// Заявка на вступление в группу — решает админ группы (не глобальный админ)
+function requestGroupJoin(gid,name){
+  if(!gid){toast('Группа неизвестна');return;}
+  const g=ALL_GROUPS[gid];
+  if(g&&g.members&&g.members[currentUser.uid]){toast('Ты уже в группе');jumpToChat(gid);return;}
+  if((lastGroupJoinReq||{})[gid]){toast('Заявка уже отправлена — жди одобрения');return;}
+  db.ref('groupJoinRequests/'+gid+'/'+currentUser.uid).set({ts:Date.now(),name:displayNameOf(currentUser)})
+    .then(()=>{lastGroupJoinReq=lastGroupJoinReq||{};lastGroupJoinReq[gid]=true;
+      toast('📨 Заявка отправлена админу группы',true);closeFwdSrcMenu();})
+    .catch(()=>toast('❌ Не вышло отправить заявку'));
 }
 // Временная панель после пересылки: «Перейти в чат» — открывает чат-назначения
 let fwdJumpTimer=null;
@@ -3704,6 +3772,17 @@ function sendGroupInvite(gid,uid){const g=groupOf(gid);if(!g)return;
 function acceptGroupInv(gid){db.ref('groups/'+gid+'/members/'+currentUser.uid).set(Date.now()).then(()=>db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove()).then(()=>toast('🎉 Ты в группе',true));}
 function declineGroupInv(gid){db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove();}
 function removeMember(gid,uid){if(!confirm('Убрать?'))return;const up={};up['members/'+uid]=null;up['admins/'+uid]=null;up['muted/'+uid]=null;up['unread/'+uid]=null;db.ref('groups/'+gid).update(up).then(()=>toast('Убран'));}
+// Заявка на вступление: впускаем и чистим заявку
+function acceptGroupJoin(gid,uid){
+  db.ref('groups/'+gid+'/members/'+uid).set(Date.now())
+    .then(()=>db.ref('groupJoinRequests/'+gid+'/'+uid).remove())
+    .then(()=>{notifyUser(uid,'gin','Ты в группе','🎉 Админ группы принял твою заявку',{gid});
+      toast('✅ Добавлен в группу',true);renderGroupInfo();})
+    .catch(()=>toast('❌ Не вышло'));
+}
+function declineGroupJoin(gid,uid){
+  db.ref('groupJoinRequests/'+gid+'/'+uid).remove().then(()=>{toast('Заявка отклонена');renderGroupInfo();});
+}
 function toggleGroupAdmin(gid,uid){const g=groupOf(gid);const on=g.admins&&g.admins[uid];db.ref('groups/'+gid+'/admins/'+uid).set(on?null:true).then(()=>toast(on?'🛡 Снял права':'🛡 Назначил админом',true));}
 function toggleMute(gid,uid){const g=groupOf(gid);const on=g.muted&&g.muted[uid];db.ref('groups/'+gid+'/muted/'+uid).set(on?null:true).then(()=>toast(on?'🔇 Размутел':'🔇 Замьютил',true));}
 function transferOwner(gid,uid){if(!confirm('Передать владельца?'))return;const up={};up['ownerId']=uid;up['admins/'+currentUser.uid]=null;db.ref('groups/'+gid).update(up).then(()=>toast('👑 Передано',true));}
@@ -3756,6 +3835,25 @@ function renderGroupInfo(){
     const d=document.createElement('div');d.className='user-item';d.style.cursor='default';
     d.innerHTML=avatarHtml(i,'sm',i&&i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(own?' 👑':'')+(ga&&!own?' 🛡':'')+(mut?' 🔇':'')+(uid===me?' (Вы)':'')+'</div><div style="color:var(--text3);font-size:11px">с '+since+' · '+(i&&i.online?'🟢':' '+formatTime(i&&i.lastSeen))+'</div></div><div style="display:flex;gap:4px">'+ctl+'</div>';
     mem.appendChild(d);});
+  // Заявки на вступление — их видит только админ группы (или владелец)
+  const jb=document.getElementById('giJoinReqs');
+  const reqs=(lastGroupJoinReq||{})[gid]||{};
+  const keys=Object.keys(reqs);
+  if(!jb)return 0;
+  if(!manage||!keys.length){jb.style.display='none';jb.innerHTML='';return 0;}
+  jb.style.display='block';
+  jb.innerHTML='<div class="card-title" style="margin:14px 0 4px">📨 Заявки на вступление: '+keys.length+'</div>';
+  keys.sort((a,b)=>(reqs[b].ts||0)-(reqs[a].ts||0)).forEach(uid=>{
+    const d=document.createElement('div');d.className='user-item';
+    const i=ALL_USERS[uid];
+    d.innerHTML=avatarHtml(i,'sm',(reqs[uid]&&reqs[uid].name)||i&&i.name)+
+      '<div class="user-info"><div class="user-name" style="color:'+colorOf(i)+'">'+esc((reqs[uid]&&reqs[uid].name)||nameOf(uid))+'</div>'+
+      '<div style="color:var(--text3);font-size:11px">хочет вступить · '+fmtFull(reqs[uid].ts)+'</div></div>'+
+      '<div style="display:flex;gap:6px">'+
+      '<button class="btn btn-primary btn-sm" style="width:auto" onclick="acceptGroupJoin(\''+gid+'\',\''+uid+'\')">✅ Впустить</button>'+
+      '<button class="btn btn-danger btn-sm" style="width:auto" onclick="declineGroupJoin(\''+gid+'\',\''+uid+'\')">✖</button></div>';
+    jb.appendChild(d);
+  });
   let danger=isMember(gid)?'<button class="btn btn-danger" onclick="leaveGroup()">🚪 Покинуть группу</button>':'';
   if(canManage(gid))danger+='<button class="btn btn-danger" style="margin-top:8px" onclick="deleteGroup()">🗑 Удалить группу</button>';
   document.getElementById('giDanger').innerHTML=danger;

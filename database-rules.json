@@ -121,6 +121,16 @@
       }
     },
 
+    "groupJoinRequests": {
+      "$gid": {
+        ".read": "auth != null && (root.child('groups').child($gid).child('members').child(auth.uid).exists() || auth.token.email == 'sochinewlife@gmail.com')",
+        "$uid": {
+          ".write": "auth != null && ((auth.uid === $uid && root.child('groups').child($gid).exists() && root.child('groups').child($gid).child('members').child(auth.uid).exists() === false) || root.child('groups').child($gid).child('admins').child(auth.uid).exists() || root.child('groups').child($gid).child('ownerId').val() === auth.uid || auth.token.email == 'sochinewlife@gmail.com')",
+          ".validate": "newData.child('name').isString() && newData.child('ts').isNumber()"
+        }
+      }
+    },
+
     "calls": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
       "$callId": {
