@@ -222,7 +222,32 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .msg-actions{display:inline-flex;gap:2px;opacity:.5;transition:opacity .2s}
 .msg:hover .msg-actions,.msg.highlighted .msg-actions{opacity:1}
 @media (hover:none){.msg-actions{opacity:.85}}
-.msg-react-btn{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;position:relative;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
+.avatar.xs{width:20px;height:20px;font-size:9px;min-width:20px}
+.avatar.sm{width:28px;height:28px;font-size:12px;min-width:28px}
+/* ===== РЕАКЦИИ ПО ЛЮДЯМ =====
+   .react-who — чужая реакция: аватар с рамкой по цвету человека + его эмодзи
+   .react-sum — все поставили одно и то же: эмодзи + счётчик
+   МОЯ реакция — на .msg-react-btn.mine, справа */
+.react-who{display:flex;align-items:center;gap:1px;padding:1px 5px 1px 1px;border-radius:14px;cursor:pointer;
+  background:var(--surface2);border:1.5px solid var(--surface3);transition:transform .18s ease,box-shadow .18s ease}
+.react-who:hover{transform:translateY(-2px) scale(1.06);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.rw-emoji{font-size:12px;line-height:1}
+.react-sum{display:flex;align-items:center;gap:2px;padding:2px 6px;border-radius:14px;cursor:pointer;
+  background:var(--accent-soft);border:1.5px solid var(--primary);font-size:13px;line-height:1;
+  transition:transform .18s ease}
+.react-sum:hover{transform:translateY(-2px) scale(1.06)}
+.msg-react-btn.mine{border-color:var(--primary);background:var(--accent-soft);font-size:14px}
+/* «Кто оценил» — мелкая подпись под кнопкой реакций в группах */
+.who-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:1px 4px;white-space:nowrap}
+.who-btn:hover{color:var(--primary)}
+/* Облачко чата на телефоне — крупнее, кнопки не давят */
+@media (max-width:640px){
+  .msg{max-width:88%}
+  .msg-actions{gap:3px;flex-wrap:wrap}
+  .input-bar textarea{min-height:44px}
+}
+.msg-react-btn{width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;position:relative;flex-shrink:0;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
+.msg-react-btn:hover{transform:scale(1.12);border-color:var(--primary)}
 /* Счётчик реакций — маленький бейдж в правом верхнем углу кнопки (только группы) */
 .react-count{position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;
   background:var(--primary);color:var(--primary-text);font-size:10px;font-weight:700;line-height:15px;
@@ -357,11 +382,24 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .dl-name{font-size:13px;font-weight:600;word-break:break-all}
 .dl-size{font-size:11px;opacity:.7;margin:2px 0 5px}
 .typing{color:var(--green);font-size:12px;padding:2px 14px;min-height:16px;flex-shrink:0}
-.input-bar{display:flex;align-items:flex-end;padding:6px 8px;gap:3px;background:var(--surface);border-top:1px solid var(--surface2);flex-shrink:0}
-.input-bar textarea{flex:1;padding:9px 12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:20px;color:var(--text);font-size:15px;font-family:inherit;resize:none;outline:none;max-height:100px;min-height:38px}
-.send-btn{width:38px;height:38px;border-radius:50%;border:none;color:var(--primary-text);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--primary)}
+.input-bar{display:flex;align-items:flex-end;padding:6px 8px;gap:6px;background:var(--surface);border-top:1px solid var(--surface2);flex-shrink:0}
+.input-bar textarea{flex:1;min-width:0;padding:10px 12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:20px;color:var(--text);font-size:16px;font-family:inherit;resize:none;outline:none;max-height:100px;min-height:42px}
+/* Кнопки прикрепления на телефоне жмут текст и перекрывают всё — поэтому
+   на узких экранах они свёрнуты в ОДНУ кнопку, список выезжает вверх. */
 .attach-btn{width:34px;height:34px;border-radius:50%;border:none;color:var(--text);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface2)}
 .attach-btn.recording{background:var(--red);animation:pulse 1s infinite}
+.send-btn{width:42px;height:42px;border-radius:50%;border:none;color:var(--primary-text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--primary)}
+/* Кнопка «ещё» открывает меню вложений вместо четырёх кнопок подряд */
+.more-btn{width:42px;height:42px;border-radius:50%;border:none;color:var(--text);font-size:19px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface2)}
+.more-btn:active{background:var(--surface3)}
+/* Выпадающее меню вложений */
+.attach-menu{display:none;flex-direction:column;gap:6px;padding:8px;background:var(--surface);
+  border:1px solid var(--surface3);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.attach-menu.open{display:flex}
+.attach-menu .row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;
+  background:var(--surface2);border:none;color:var(--text);font-size:14px;font-family:inherit;text-align:left}
+.attach-menu .row:active{background:var(--surface3)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .rec-preview{display:none;align-items:center;gap:6px;padding:6px 10px;background:var(--surface2);flex-shrink:0}
 .rec-preview.active{display:flex}
@@ -1050,11 +1088,15 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div id="chatMediaContainer" class="media-container" style="display:none;margin:0 8px"></div>
   <div id="mentionPopup" style="display:none"></div>
     <div id="replyPreview" style="display:none"></div>
+    <div class="attach-menu" id="attachMenu">
+      <button class="row" onclick="closeAttachMenu();addMediaToContainer('chat')">🖼 Фото или видео</button>
+      <button class="row" onclick="closeAttachMenu();toggleRecord('audio')">🎤 Голосовое сообщение</button>
+      <button class="row" onclick="closeAttachMenu();toggleRecord('video')">🎥 Видео сообщение</button>
+      <button class="row" onclick="closeAttachMenu();addFileToContainer()">📎 Любой файл</button>
+    </div>
     <div class="input-bar" id="chatInputBar">
-    <button class="attach-btn" onclick="addMediaToContainer('chat')" title="Фото/видео (галерея или камера)">🖼</button>
-    <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')">🎤</button>
-    <button class="attach-btn" id="vidBtn" onclick="toggleRecord('video')">🎥</button>
-    <button class="attach-btn" onclick="addFileToContainer()" title="Любой файл">📎</button>
+    <button class="more-btn" onclick="toggleAttachMenu()" title="Прикрепить">＋</button>
+    <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" style="display:none">🎤</button>
     <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this);sendTyping();onMentionInput(this)"></textarea>
     <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
@@ -1271,7 +1313,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 20:35';
+const BUILD='05.10.2026 20:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3048,22 +3090,40 @@ function bubbleInner(m,key,senderInside){
 function senderLine(m,inside){if(!(currentIsGroup&&m.sender!==currentUser.uid))return '';
   return '<div class="msg-sender'+(inside?' msg-sender-inside':'')+'" style="color:'+colorOf(ALL_USERS[m.sender])+'">'+esc(nameOf(m.sender))+gAdminMark(currentChatId,m.sender)+'</div>';}
 function msgActionsHtml(m,key){
-  // Реакция показывается НА КНОПКЕ: если есть реакции — видно эмодзи и счётчик,
-  // отдельных бейджей в сообщении нет. Клик открывает панель выбора.
+  // Реакции видно ПО ЧЕЛОВЕКАМ:
+  //  — моя реакция живёт на кнопке справа;
+  //  — чужие идут слева: аватар + эмодзи (подсвечивает имя и рамку по цвету);
+  //  — если реакция одна и та же у нескольких — эмодзи на кнопке + счётчик.
+  // Улыбку-эмодзи на кнопке убрали: она не читалась как «реакции».
   const reacts=m.reactions||{};
-  const byEmoji={};REACTIONS.forEach(r=>byEmoji[r]=[]);
-  Object.entries(reacts).forEach(([uid,e])=>{if(byEmoji[e])byEmoji[e].push(uid);});
-  const act=REACTIONS.filter(r=>byEmoji[r].length>0);
+  const myEmoji=reacts[currentUser.uid]||null;
+  const others=Object.keys(reacts).filter(u=>u!==currentUser.uid&&ALL_USERS[u]);
   let h='<div class="msg-actions">';
-  if(act.length){
-    const emoji=act[0], count=byEmoji[emoji].length, mine=reacts[currentUser.uid]===emoji;
-    // В ЛС счётчик прячем — там всегда один человек, цифра «1» только шумит.
-    // В группах оставляем, но оформляем аккуратно: не «1» в тексте кнопки,
-    // а маленький бейдж в углу.
-    const badge=currentIsGroup&&count>1?'<span class="react-count">'+count+'</span>':'';
-    h+='<button class="msg-react-btn'+(mine?' active':'')+'" title="Реакция: '+emoji+'" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">'+emoji+badge+'</button>';
-  } else {
-    h+='<button class="msg-react-btn" title="Реакция" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">😀</button>';
+
+  // Слева: чужие реакции списком (в группах — кто именно)
+  if(others.length){
+    const sameAll=others.every(u=>reacts[u]===myEmoji);
+    if(myEmoji&&sameAll){
+      // Все поставили одно и то же — хватает эмодзи + числа
+      h+='<button class="react-sum" title="Все поставили '+esc(myEmoji)+'" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">'+
+         esc(myEmoji)+'<span class="react-count">'+others.length+'</span></button>';
+    }else{
+      others.slice(0,6).forEach(u=>{
+        const i=ALL_USERS[u]||{};
+        h+='<button class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+': '+esc(reacts[u])+'" '+
+           'onclick="event.stopPropagation();openUserProfile(\''+u+'\')">'+
+           avatarHtml(i,'xs',displayNameOf(i)||nameOf(u))+'<span class="rw-emoji">'+esc(reacts[u])+'</span></button>';
+      });
+      if(others.length>6)h+='<button class="react-who" title="И ещё '+(others.length-6)+'" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">+'+(others.length-6)+'</button>';
+    }
+  }
+
+  // Справа: моя реакция или кнопка выбора
+  if(myEmoji){
+    h+='<button class="msg-react-btn mine" title="Твоя реакция: '+esc(myEmoji)+' (нажми, чтобы убрать)" '+
+       'onclick="event.stopPropagation();setMsgReaction(\'messages/'+currentChatId+'\',\''+key+'\',\'msg\',\''+myEmoji+'\')">'+esc(myEmoji)+'</button>';
+  }else{
+    h+='<button class="msg-react-btn" title="Поставить реакцию" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">☺</button>';
   }
   if(!m.deleted){
     // Пересылка наружу может быть запрещена админом группы (настройка группы)
@@ -3072,6 +3132,9 @@ function msgActionsHtml(m,key){
     h+='<button class="msg-reply-btn" title="Ответить" onclick="event.stopPropagation();startReply(\''+key+'\')">↩︎</button>';
     if(!noFwd)h+='<button class="msg-fwd-btn" title="Переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">↪</button>';
     else h+='<button class="msg-fwd-btn" title="В группе запрещено пересылать наружу" onclick="event.stopPropagation();toast(\'⛔ Админ группы запретил пересылку наружу\')">↪</button>';
+    // В группах — кто именно поставил реакцию
+    if(currentIsGroup&&Object.keys(reacts).length)
+      h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">👤 '+Object.keys(reacts).length+'</button>';
   }
   if(m.sender===currentUser.uid||currentUser.isAdmin)h+='<button class="msg-del-btn" title="Удалить" onclick="event.stopPropagation();deleteMessage(\''+key+'\')">🗑</button>';
   // Панель выбора реакций обязана быть в разметке — без неё клик по кнопке
@@ -3446,13 +3509,84 @@ function openUserProfileByName(nm){
   if(hit){openUserProfile(hit);return;}
   toast('Не нашёл человека «'+nm+'»');
 }
+// ===== МЕНЮ ВЛОЖЕНИЙ =====
+// На телефоне четыре кнопки подряд занимали всю ширину и наезжали на текст.
+// Теперь одна кнопка «＋», а список выезжает вверх.
+function toggleAttachMenu(){
+  const m=document.getElementById('attachMenu');
+  if(!m)return;
+  m.classList.toggle('open');
+  if(m.classList.contains('open'))closeMentions&&closeMentions();
+}
+function closeAttachMenu(){const m=document.getElementById('attachMenu');if(m)m.classList.remove('open');}
+// Закрываем меню по клику мимо и по Escape
+document.addEventListener('click',e=>{
+  const m=document.getElementById('attachMenu');
+  if(!m||!m.classList.contains('open'))return;
+  if(e.target.closest('#attachMenu')||e.target.closest('#chatInputBar .more-btn'))return;
+  m.classList.remove('open');
+});
+// Кто поставил реакцию — список людей с их эмодзи
+function showWhoReacted(key){
+  const m=MSGS[key];if(!m)return;
+  const reacts=m.reactions||{};
+  const rows=Object.keys(reacts).map(u=>({u:u,e:reacts[u],i:ALL_USERS[u]||{}}))
+    .sort((a,b)=>(a.i.name||'').localeCompare(b.i.name||'','ru'));
+  if(!rows.length){toast('Реакций нет');return;}
+  const ov=document.getElementById('fwdSrcMenu');
+  ov.innerHTML='<div class="mini-card" style="max-width:300px;text-align:left">'+
+    '<div class="card-title" style="text-align:center">Кто оценил</div>'+
+    rows.map(r=>'<div class="user-item" style="padding:7px 4px;cursor:default">'+
+      avatarHtml(r.i,'sm',r.i.name)+
+      '<div class="user-info"><div class="user-name">'+esc(displayNameOf(r.i)||nameOf(r.u))+
+      (r.u===currentUser.uid?' <span style="color:var(--text3)">(ты)</span>':'')+'</div></div>'+
+      '<span style="font-size:19px">'+esc(r.e)+'</span></div>').join('')+
+    '<button class="btn btn-outline" style="margin-top:6px;width:100%" onclick="closeFwdSrcMenu()">Закрыть</button></div>';
+  ov.classList.add('active');
+}
+// ===== ПРОСМОТРЕНО ВСЕМИ =====
+let seenMarked=new Set();
+// Сообщение просмотрено, если у ВСЕХ участников группы есть отметка seen.
+// Обычная галочка — доставлено, две синие — прочитали все.
+function seenCount(m){
+  const g=currentIsGroup?groupOf(currentChatId):null;
+  if(!g||!g.members)return {seen:0,total:1};
+  const total=Object.keys(g.members).length;
+  const seen=m&&m.seen?Object.keys(m.seen).length:0;
+  return {seen:seen,total:total};
+}
+function groupTicksHtml(m){
+  if(!currentIsGroup)return '';
+  if(m.sender===currentUser.uid||m.sender===currentUser.uid) {}
+  const s=seenCount(m);
+  const seenIds=m.seen?Object.keys(m.seen):[];
+  const g=groupOf(currentChatId);
+  const members=g&&g.members?Object.keys(g.members):[];
+  const others=seenIds.filter(u=>u!==m.sender);
+  if(s.seen>0&&s.total>1&&members.length&&members.every(u=>u===m.sender||(m.seen&&m.seen[u])))
+    return '<span class="ticks ticks-read" title="Прочитали все участники">✓✓</span>';
+  if(others.length)
+    return '<span class="ticks" title="Прочитали: '+others.map(u=>esc(nameOf(u))).join(', ')+'">✓</span>';
+  return '';
+}
+// Отмечаем сообщение просмотренным — один раз на сообщение за сессию
+function markSeen(key,m){
+  if(!currentIsGroup||!currentUser||!currentChatId)return;
+  if(!m||m.sender===currentUser.uid)return;
+  if(!currentIsGroup||!groupOf(currentChatId))return;
+  const k=currentChatId+'/'+key;
+  if(seenMarked.has(k))return;
+  seenMarked.add(k);
+  db.ref('messages/'+k+'/seen/'+currentUser.uid).set(Date.now()).catch(()=>{seenMarked.delete(k);});
+}
 function msgInnerHtml(m,key){
   // Для медиа имя отправителя уходит ВНУРЬ пузыря — под фото/файл, а не над ним
   const media=isMediaMsg(m);
   const sl=senderLine(m,media);
-  const foot='<div class="msg-foot">'+msgActionsHtml(m,key)+'<div class="msg-time">'+formatTime(m.ts)+ticksHtml(m)+'</div></div>';
+  const foot='<div class="msg-foot">'+msgActionsHtml(m,key)+'<div class="msg-time">'+formatTime(m.ts)+ticksHtml(m)+groupTicksHtml(m)+'</div></div>';
   // Цитата ответа: снимок исходного текста ВЫШЕ пузыря. Тап открывает оригинал.
   const quote=(m.replyTo&&m.replySnap)?replyQuoteHtml(m):'';
+  markSeen(key,m);
   return quote+(media?'':sl)+bubbleInner(m,key,media?sl:'')+foot;
 }
 // Храним снимок текста, чтобы исходник удалили — а ответ остался читаемым
@@ -3569,11 +3703,14 @@ function toggleRecord(mode){
         toast('Готово! Жми ➤ или «Отправить»',true);};
       r.readAsDataURL(blob);};
     mediaRecorder.start();isRecording=true;recStart=Date.now();
-    (mode==='video'?document.getElementById('vidBtn'):document.getElementById('recBtn')).classList.add('recording');
+    // Кнопок записи в поле ввода больше нет (свернулись в меню) — подсветку вешаем
+// на кнопку «＋», чтобы было видно, что идёт запись.
+    const mb=document.querySelector('#chatInputBar .more-btn');
+    if(mb)mb.classList.add('recording');
     recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SEC)stopRecording();},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
 }
-function stopRecording(){if(!isRecording)return;isRecording=false;clearInterval(recTimer);if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();document.getElementById('recBtn').classList.remove('recording');document.getElementById('vidBtn').classList.remove('recording');document.getElementById('msgInput').placeholder='Сообщение...';}
+function stopRecording(){if(!isRecording)return;isRecording=false;clearInterval(recTimer);if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();document.querySelectorAll('#chatInputBar .recording').forEach(b=>b.classList.remove('recording'));document.getElementById('msgInput').placeholder='Сообщение...';}
 function sendRecorded(){if(!recordedDataUrl)return;
   const key=db.ref('messages/'+currentChatId).push().key;
   commitMessage(currentChatId,key,{sender:currentUser.uid,ts:Date.now(),type:recordedType,data:recordedDataUrl},previewFor(recordedType));cancelRecorded();}
