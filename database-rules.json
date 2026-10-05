@@ -132,13 +132,32 @@
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+        ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+        "used": {
+          ".write": "auth != null && data.val() !== true"
+        },
+        "usedBy": {
+          ".write": "auth != null",
+          ".validate": "newData.val() === auth.uid"
+        },
+        "usedAt": {
+          ".write": "auth != null"
+        }
       }
     },
 
     "pendingRegistrations": {
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
-      ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || !data.exists())"
+      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      "$reqId": {
+        ".write": "auth != null && !data.exists()",
+        "login": {
+          ".validate": "newData.isString() && newData.val().length < 120"
+        },
+        "ts": {
+          ".validate": "newData.isNumber()"
+        }
+      }
     },
 
     "passResets": {
@@ -158,7 +177,13 @@
 
     "sessionLogs": {
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
-      ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || !data.exists())"
+      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      "$logId": {
+        ".write": "auth != null && !data.exists() && newData.child('uid').val() != null",
+        "uid": {
+          ".validate": "auth != null && (newData.val() === auth.uid || auth.token.email == 'sochinewlife@gmail.com')"
+        }
+      }
     },
 
     "deleteLogs": {
