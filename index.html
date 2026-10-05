@@ -1219,7 +1219,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 16:45';
+const BUILD='05.10.2026 17:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1308,7 +1308,7 @@ async function ensureAdminExists(){
   await db.ref('approvals/'+uid).set(true);   // админ всегда одобрен сам себя
   return uid;
 }
-const SESSION_TTL=12*60*60*1000;   // 12 часов; пока человек активен — продлевается скользящим счётом (см. touchSession)
+const SESSION_TTL=10*60*1000;   // 10 минут — потом жёсткий выход до повторного входа
 function sessionExpired(){
   const exp=parseInt(localStorage.getItem('mc_exp')||'0',10);
   if(!exp)return true;                       // старые записи без срока — считаем протухшими
@@ -1317,7 +1317,7 @@ function sessionExpired(){
 function clearSession(){['mc_uid','mc_token','mc_exp','mc_adm'].forEach(k=>localStorage.removeItem(k));}
 // Надпись про «войди заново через Google» — её видит ТОЛЬКО админ
 // (только он входит через Google); остальным показываем нейтральную фразу.
-function sessionExpiredMsg(isAdmin){return isAdmin?'⏰ Сессия истекла (12 ч) — войди заново через Google':'⏰ Сессия истекла — войди заново';}
+function sessionExpiredMsg(isAdmin){return isAdmin?'⏰ Сессия истекла (10 мин) — войди заново через Google':'⏰ Сессия истекла — войди заново';}
 function checkSession(){
   const rl=localStorage.getItem('mc_rl');
   localStorage.removeItem('mc_rp');   // старый пароль мог лежать открытым текстом — вычищаем
@@ -1365,7 +1365,6 @@ function makeSession(uid){const t=Math.random().toString(36).slice(2)+Date.now()
 function dropSessionToken(){const u=localStorage.getItem('mc_uid'),t=localStorage.getItem('mc_token');
   if(u&&t)try{db.ref('users/'+u+'/toks/'+t).remove();}catch(e){}}
 let pendingRestore=null;   // экран, на который надо вернуться после F5 (админка, чат, профиль)
-function touchSession(){if(!currentUser)return;localStorage.setItem('mc_exp',String(Date.now()+SESSION_TTL));}
 async function boot(){
   // Ошибка здесь не должна мешать входу — сессия восстанавливается следом
   try{await ensureAdminExists();}catch(e){}
@@ -1420,7 +1419,6 @@ function enterApp(uid,info){
   clearInterval(sessionTimer);sessionTimer=setInterval(()=>{
     if(!currentUser)return;
     if(sessionExpired())forceLogout(sessionExpiredMsg(currentUser.isAdmin));
-    else touchSession();   // активен — продлеваем, чтобы не выкидывало посреди работы
   },10000);
   if(window.isSecureContext&&navigator.geolocation&&!localStorage.getItem('mc_geo_asked')){
     localStorage.setItem('mc_geo_asked','1');
