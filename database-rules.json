@@ -134,7 +134,7 @@
         ".read": "auth != null",
         ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
         "used": {
-          ".write": "auth != null && data.val() !== true"
+          ".write": "auth != null && root.child('invites').child($code).exists() && root.child('invites').child($code).child('used').val() !== true"
         },
         "usedBy": {
           ".write": "auth != null",

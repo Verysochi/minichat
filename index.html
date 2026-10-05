@@ -269,15 +269,11 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
    в ленте, высота сообщения не меняется, лента не скроллится и не дёргается */
 .reaction-train{display:none;gap:4px;padding:5px 8px;background:var(--surface);border:1px solid var(--surface3);border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.45);width:max-content;max-width:calc(100vw - 16px);position:fixed;left:0;top:0;z-index:260;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .msg.highlighted .reaction-train{display:flex}
-@keyframes trainIn{from{opacity:0;transform:translateY(8px) scale(.4)}60%{opacity:1}to{opacity:1;transform:none}}
-.msg.highlighted .reaction-train .r-btn{animation:trainIn .3s cubic-bezier(.34,1.56,.64,1) backwards}
-.msg.highlighted .reaction-train .r-btn:nth-child(1){animation-delay:.02s}
-.msg.highlighted .reaction-train .r-btn:nth-child(2){animation-delay:.07s}
-.msg.highlighted .reaction-train .r-btn:nth-child(3){animation-delay:.12s}
-.msg.highlighted .reaction-train .r-btn:nth-child(4){animation-delay:.17s}
-.msg.highlighted .reaction-train .r-btn:nth-child(5){animation-delay:.22s}
-.msg.highlighted .reaction-train .r-btn:nth-child(n+6){animation-delay:.26s}
-@media (prefers-reduced-motion:reduce){.msg.highlighted .reaction-train .r-btn{animation:none}}
+/* (анимация trainIn удалена вместе с её использованием — см. .msg.highlighted .reaction-train) */
+/* Анимацию появления убрали намеренно: zoom/transform во время анимации
+   делали getBoundingClientRect кнопок меньше реального (14px вместо 36px),
+   и панель «не вылезала». Простое появление надёжнее. */
+.msg.highlighted .reaction-train{animation:none}
 .reaction-train.show{display:flex}
 .reaction-train .r-btn{width:36px;height:36px;min-width:36px;border-radius:50%;border:none;background:var(--surface2);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .reaction-train .r-btn:active{transform:scale(.9)}
@@ -379,6 +375,13 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .admin-section h3{font-size:15px;margin-bottom:10px;color:var(--text2);text-transform:uppercase}
 .admin-card{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px}
 .admin-user{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--surface2);gap:6px}
+/* Плавающая «Отменить» после удаления чата */
+.undo-bar{position:fixed;left:50%;bottom:26px;transform:translate(-50%,26px);z-index:1200;opacity:0;transition:all .22s ease;
+  display:flex;align-items:center;gap:6px;padding:11px 18px;border:none;border-radius:24px;cursor:pointer;
+  background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;
+  border:1px solid var(--surface3);box-shadow:0 10px 34px rgba(0,0,0,.5)}
+.undo-bar.show{opacity:1;transform:translate(-50%,0)}
+.undo-bar:active{transform:translate(-50%,0) scale(.97)}
 .admin-user:last-child{border:none}
 .profile-wrap{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;align-items:center}
 .profile-name{font-size:22px;font-weight:700;margin-top:10px}
@@ -1219,7 +1222,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 18:00';
+const BUILD='05.10.2026 18:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1591,17 +1594,27 @@ async function finishEmailLogin(cred,login){
   // Ищем по двум полям. authEmail — почта из токена Firebase, её пишет только сам
   // Firebase (правила базы не дают подменить). login — то, что видно и что правит
   // админ. Поэтому исправленный адрес не ломает человеку вход.
-  let s=null,denied=false;
-  try{
-    s=await db.ref('users').orderByChild('authEmail').equalTo(email).once('value');
-    if(!s.exists())s=await db.ref('users').orderByChild('login').equalTo(email).once('value');
-  }catch(err){
-    // Не одобрен — база не даёт прочитать список пользователей. Так и надо:
-    // не выдаём по ошибке, зарегистрирован ли этот человек.
-    denied=true;
+  let s=null,info=null,uid=null,denied=false;
+  // Сначала пробуем прочитать СВОЮ запись напрямую: правила пускают auth.uid === $uid.
+  // Это единственный путь для неодобренного — общий список users ему закрыт,
+  // и раньше из-за этого вход обрывался, не доходя до отправки заявки админу.
+  if(user&&user.uid){
+    try{
+      const own=await db.ref('users/'+user.uid).once('value');
+      if(own.exists()){uid=user.uid;info=own.val();}
+    }catch(err){}
   }
-  if(denied||!s.exists()){await firebase.auth().signOut();e.textContent='Аккаунт не найден или не одобрен админом';return;}
-  const uid=Object.keys(s.val())[0],info=s.val()[uid];
+  if(!info){
+    try{
+      s=await db.ref('users').orderByChild('authEmail').equalTo(email).once('value');
+      if(!s.exists())s=await db.ref('users').orderByChild('login').equalTo(email).once('value');
+      if(s.exists()){uid=Object.keys(s.val())[0];info=s.val()[uid];}
+    }catch(err){
+      denied=true;
+    }
+  }
+  if(!info){await firebase.auth().signOut();
+    e.textContent=denied?'Аккаунт не найден или не одобрен админом':'Аккаунт не найден или не одобрен админом';return;}
   // Старая запись (uid из прошлой версии) — привязываем к ней свою Firebase-учётку.
   // Правила базы разрешают это только тому, у кого почта в токене совпадает с login записи.
   if(!info.firebaseUid)db.ref('users/'+uid+'/firebaseUid').set(user?user.uid:'').catch(()=>{});
@@ -2602,9 +2615,54 @@ function openChat(chatId,otherUid,spy){
   setTimeout(()=>{const c=document.getElementById('messagesContainer');if(c)c.scrollTop=c.scrollHeight;},120);
 }
 function markRead(cid){db.ref('messages/'+cid).once('value').then(s=>{const up={};s.forEach(c=>{const m=c.val();if(m.sender!==currentUser.uid&&!m.read){up[c.key+'/read']=true;up[c.key+'/deliv']=true;}});if(Object.keys(up).length)db.ref('messages/'+cid).update(up);});}
-function deleteChat(){if(!currentChatId||currentIsGroup)return;if(!confirm('Удалить чат и переписку у обоих?'))return;
-  const cid=currentChatId,o=currentOtherUid,up={};up['messages/'+cid]=null;up['userChats/'+currentUser.uid+'/'+cid]=null;if(o)up['userChats/'+o+'/'+cid]=null;
-  db.ref().update(up).then(()=>{toast('🗑');closeChat();});}
+function deleteChat(){
+  if(!currentChatId||currentIsGroup)return;
+  // Переписку у обоих удаляет ТОЛЬКО админ. Обычный человек чистит только
+  // свою копию чата — чужие сообщения ему не принадлежат.
+  const isAdmin=!!currentUser.isAdmin;
+  // Переписку с админом не трогает вообще никто, кроме самого админа:
+  // это его личный архив, и обычный человек не должен из неё ничего стирать.
+  const peerIsAdmin=!!(currentOtherUid&&(ALL_USERS[currentOtherUid]||{}).isAdmin);
+  if(peerIsAdmin&&!isAdmin){toast('Это чат с админом — его нельзя удалить');return;}
+  if(!confirm(isAdmin?'Удалить чат и переписку у обоих?':'Удалить чат только у себя (у собеседника останется)?'))return;
+  const cid=currentChatId,o=currentOtherUid,up={};
+  up['userChats/'+currentUser.uid+'/'+cid]=null;
+  if(isAdmin){up['messages/'+cid]=null;if(o)up['userChats/'+o+'/'+cid]=null;}
+  db.ref().update(up).then(()=>{
+    closeChat();
+    toast(isAdmin?'🗑 Чат удалён у обоих':'🗑 Чат убран из твоего списка');
+    // Отмена на 8 секунд: восстанавливаем ровно то, что снесли. Если срок вышел —
+    // удаление окончательное, сообщения у собеседника уже стёрты по-настоящему.
+    let undo=null;
+    try{undo=lastChatData&&lastChatData[cid]?Object.assign({},lastChatData[cid]):null;}catch(e){undo=null;}
+    const hadMsgs=isAdmin;
+    undoChatDeletion(cid,o,up,undo,hadMsgs,isAdmin);
+  }).catch(()=>toast('❌ Не хватило прав'));}
+// Показывает «Отменить» на 8 секунд. Данные для возврата снимаются ДО удаления —
+// поэтому при отмене мы не воскрешаем удалённые сообщения, а честно говорим об этом.
+let undoTimer=null;
+function undoChatDeletion(cid,o,up,saved,hadMsgs,isAdmin){
+  if(undoTimer)clearTimeout(undoTimer);
+  const btn=document.createElement('button');
+  btn.className='undo-bar';
+  btn.innerHTML='♻️ Отменить <span style="opacity:.6;font-size:12px">удаление чата</span>';
+  btn.onclick=async()=>{
+    clearTimeout(undoTimer);undoTimer=null;btn.remove();
+    const back={};
+    if(saved)back['userChats/'+currentUser.uid+'/'+cid]=saved;          // вернуть свой чат
+    if(isAdmin&&saved&&o)back['userChats/'+o+'/'+cid]=saved;             // и у собеседника
+    if(!Object.keys(back).length){toast('⏪ Отменить уже нельзя — переписка стёрта');return;}
+    try{
+      await db.ref().update(back);
+      toast(isAdmin?'♻️ Чат возвращён':'♻️ Чат вернулся в твой список');
+      if(hadMsgs)toast('⚠️ Сами сообщения удалены безвозвратно');
+    }catch(e){toast('❌ Не вышло вернуть');}
+  };
+  document.body.appendChild(btn);
+  // появление
+  requestAnimationFrame(()=>btn.classList.add('show'));
+  undoTimer=setTimeout(()=>{if(btn.parentNode)btn.remove();},8000);
+}
 function updateChatHeader(){
   if(!currentChatId)return;
   if(currentIsGroup){const g=groupOf(currentChatId);if(!g)return;
@@ -2691,7 +2749,7 @@ function deleteMessage(key){
   if(m.sender!==currentUser.uid&&!currentUser.isAdmin){toast('Можно удалять только свои сообщения');return;}
   if(!confirm('Удалить сообщение?'))return;
   // МЯГКОЕ удаление: текст и медиа остаются в базе — админ может восстановить.
-  db.ref('deleteLogs').push({deletedBy:currentUser.uid,deletedByName:displayNameOf(currentUser),originalSender:m.sender,originalSenderName:nameOf(m.sender),chatId:currentChatId,msgKey:key,chatName:(((document.getElementById('chatTitle')||{}).textContent)||'').trim(),type:m.type||'text',text:(m.text||previewFor(m.type,m.name)||'').slice(0,120),ts:Date.now()});
+  db.ref('deleteLogs').push({deletedBy:currentUser.uid,deletedByName:displayNameOf(currentUser),originalSender:m.sender,originalSenderName:nameOf(m.sender),chatId:currentChatId,msgKey:key,chatName:(((document.getElementById('chatTitle')||{}).textContent)||'').trim(),type:m.type||'text',text:(m.text||previewFor(m.type,m.name)||'').slice(0,600),preview:previewFor(m.type,m.name)||'',ts:Date.now()});
   db.ref('messages/'+currentChatId+'/'+key).update({deleted:true,deletedAt:Date.now()}).then(()=>toast('🗑 Удалено'));
 }
 function restoreMsg(logId){
@@ -2709,8 +2767,18 @@ function renderDeleteLogs(){
   Object.entries(lastDeleteLogs).sort((x,y)=>(y[1].ts||0)-(x[1].ts||0)).slice(0,60).forEach(([id,l])=>{
     const d=document.createElement('div');d.className='admin-user';
     const canRest=!!(l.msgKey&&l.chatId)&&!l.restored;
-    d.innerHTML='<div style="min-width:0;font-size:12px;flex:1"><div><b>'+esc(l.deletedByName||'')+'</b> удалил(а) сообщение от <b>'+esc(l.originalSenderName||'')+'</b>'+(l.chatName?' <span style="color:var(--text3)">· '+esc(l.chatName)+'</span>':'')+'</div><div style="color:var(--text3);font-size:11px">«'+esc(l.text||l.preview||'')+'» · '+fmtFull(l.ts)+'</div></div>'+
-      (l.restored?'<span style="color:var(--green);font-size:12px;white-space:nowrap">♻️ восстановлено</span>':(canRest?'<button class="header-btn" style="font-size:12px" title="Восстановить сообщение" onclick="restoreMsg(\''+id+'\')"><span class="hicon">♻️</span></button>':''));
+    const full=esc(l.text||l.preview||'');
+    const long=full.length>80;
+    // Текст обрезан на 120 символов в старых записях — показываем «показать полностью»
+    const body='<div style="color:var(--text2);font-size:12px;margin-top:3px;white-space:pre-wrap;word-break:break-word">'+
+      (long?'<span class="dlg-text">'+full.slice(0,80)+'…</span> <a href="#" class="dlg-more" style="color:var(--primary);font-size:11px">показать полностью</a>'
+           :'<span class="dlg-text">'+full+'</span>')+'</div>';
+    d.innerHTML='<div style="min-width:0;font-size:12px;flex:1"><div><b>'+esc(l.deletedByName||'')+'</b> удалил(а) сообщение от <b>'+esc(l.originalSenderName||'')+'</b>'+(l.chatName?' <span style="color:var(--text3)">· '+esc(l.chatName)+'</span>':'')+'</div>'+
+      body+'<div style="color:var(--text3);font-size:11px;margin-top:2px">'+fmtFull(l.ts)+'</div></div>'+
+      (l.restored?'<span style="color:var(--green);font-size:12px;white-space:nowrap">♻️ восстановлено</span>':(canRest?'<button class="header-btn" style="font-size:12px;flex:none" title="Восстановить сообщение" onclick="restoreMsg(\''+id+'\')"><span class="hicon">♻️</span></button>':''));
+    var more=d.querySelector('.dlg-more');
+    if(more)more.onclick=function(ev){ev.preventDefault();
+      d.querySelector('.dlg-text').textContent=full;more.remove();};
     b.appendChild(d);});
 }
 // ===== РЕАКЦИИ =====
@@ -2919,6 +2987,9 @@ function msgActionsHtml(m,key){
   }
   if(!m.deleted)h+='<button class="msg-fwd-btn" title="Переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">↩</button>';
   if(m.sender===currentUser.uid||currentUser.isAdmin)h+='<button class="msg-del-btn" title="Удалить" onclick="event.stopPropagation();deleteMessage(\''+key+'\')">🗑</button>';
+  // Панель выбора реакций обязана быть в разметке — без неё клик по кнопке
+  // нечего открывать (она рисуется в .msg.highlighted, а её элемента не было).
+  h+=reactionBadgesHtml(reacts,reacts[currentUser.uid],'messages/'+currentChatId,key,'msg',currentIsGroup);
   return h+'</div>';
 }
 // Открывает панель реакций по кнопке 😀 (то же, что тап по сообщению, но явно)
@@ -2966,20 +3037,26 @@ function openFwdChooser(key){
   fwdKey=key;shareCtx=null;
   const t=document.getElementById('fwdTitle');if(t)t.textContent='↪️ Куда переслать?';
   const rows=[];
-  // ЛС — из моего списка чатов, кроме текущего
+  // Текущий чат — первой строкой: пересылка «туда же» нужна, чтобы напомнить
+  // или прикрепить найденное в том же диалоге.
+  const curTitle=(((document.getElementById('chatTitle')||{}).textContent)||'').trim();
+  if(currentChatId&&curTitle)
+    rows.push({cid:currentChatId,tag:'сюда же',name:curTitle,av:currentIsGroup?groupAvatarHtml(ALL_GROUPS[currentChatId],'sm'):null});
+  // ЛС — из моего списка чатов
   Object.entries(lastChatData||{}).forEach(([cid,i])=>{
     if(cid===currentChatId)return;
     const ou=(i&&i.otherUid)||cid.split('_').filter(x=>x!==currentUser.uid)[0];
     rows.push({cid,tag:'ЛС',name:(i&&i.otherName)||nameOf(ou,'кто-то'),av:avatarHtml(ALL_USERS[ou],'sm',(i&&i.otherName)||nameOf(ou))});
   });
-  // Группы, где я участник, кроме текущей
+  // Группы, где я участник
   Object.entries(ALL_GROUPS).forEach(([gid,g])=>{
     if(!g.members||!g.members[currentUser.uid])return;
     if(gid===currentChatId)return;
     rows.push({cid:gid,tag:'группа',name:g.name||'Группа',av:groupAvatarHtml(g,'sm')});
   });
   if(!rows.length){toast('Некуда переслать');return;}
-  rows.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  const rest=rows.slice(1).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  rows.length=0;rest.forEach(r=>rows.push(r));
   document.getElementById('fwdList').innerHTML=rows.map(r=>
     '<button class="fwd-item" onclick="doFwd(\''+r.cid+'\')">'+r.av+'<span class="fwd-nm">'+esc(r.name)+'</span><span class="fwd-tag">'+r.tag+'</span></button>').join('');
   document.getElementById('fwdChooser').classList.add('active');
@@ -4289,8 +4366,10 @@ function renderInvites(){
     b.innerHTML='';
     es.forEach(([code,inv])=>{
       const d=document.createElement('div');d.className='admin-user';
+      // Кем использован: смотрим заявки — там лежит fuid регистрировавшегося
+      const byWho=inv.used&&inv.usedBy?nameOf(inv.usedBy,'uid '+inv.usedBy):'';
       d.innerHTML='<div style="min-width:0"><div style="font-weight:600;font-family:monospace">'+esc(code)+'</div>'+
-        '<div style="color:var(--text3);font-size:11px">'+(inv.used?'использован':'активен')+' · '+fmtFull(inv.createdAt)+'</div></div>'+
+        '<div style="color:var(--text3);font-size:11px">'+(inv.used?('использован'+(byWho?' — '+esc(byWho):'')):'активен')+' · '+fmtFull(inv.createdAt)+'</div></div>'+
         '<button class="btn btn-outline btn-sm" style="width:auto" onclick="copyInvite(\''+code+'\')">📋</button>'+
         (inv.used?'':'<button class="header-btn" style="background:var(--red)" onclick="db.ref(\'invites/'+code+'\').remove();renderInvites()"><span class="hicon">🗑</span></button>');
       b.appendChild(d);});
