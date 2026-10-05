@@ -379,6 +379,37 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .admin-section h3{font-size:15px;margin-bottom:10px;color:var(--text2);text-transform:uppercase}
 .admin-card{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px}
 .admin-user{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--surface2);gap:6px}
+/* ===== ОТВЕТ НА СООБЩЕНИЕ =====
+   .reply-quote — цитата внутри пузыря (источник), .jump-flash — подсветка найденного
+   .rp-* — превью ответа над полем ввода */
+.reply-quote{border-left:3px solid var(--primary);border-radius:8px;padding:4px 8px;margin-bottom:5px;
+  background:rgba(108,92,231,.10);cursor:pointer;max-width:100%}
+.reply-quote:active{background:rgba(108,92,231,.2)}
+.rq-name{font-size:12px;font-weight:700;color:var(--primary)}
+.rq-text{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jump-flash{animation:jumpFlash 1.6s ease}
+@keyframes jumpFlash{0%{box-shadow:0 0 0 0 rgba(108,92,231,.9)}60%{box-shadow:0 0 0 8px rgba(108,92,231,0)}100%{box-shadow:none}}
+#replyPreview{display:none;align-items:center;gap:8px;margin:0 8px 4px;padding:6px 10px;
+  background:var(--surface2);border:1px solid var(--surface3);border-radius:10px}
+.rp-icon{font-size:16px;color:var(--primary)}
+.rp-body{flex:1;min-width:0}
+.rp-name{font-size:12px;font-weight:700;color:var(--primary)}
+.rp-text{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rp-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px;flex:none}
+.msg-reply-btn{background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;transition:color .15s}
+.msg-reply-btn:hover{color:var(--primary)}
+
+/* ===== @УПОМИНАНИЯ =====
+   #mentionPopup — список участников над полем ввода, .mn-item — строка,
+   .ment — подсветка @имени внутри текста сообщения */
+#mentionPopup{position:absolute;left:8px;right:8px;max-height:220px;overflow-y:auto;z-index:340;
+  background:var(--surface);border:1px solid var(--surface3);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.mn-item{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer}
+.mn-item.sel{background:var(--accent-soft)}
+.mn-item:active{background:var(--accent-soft)}
+.mn-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ment{color:var(--primary);font-weight:600;cursor:pointer}
+
 /* Кликабельная подпись «От …» в пересланном сообщении */
 .fwd-src.tap{cursor:pointer;transition:background .15s ease}
 .fwd-src.tap:hover{background:var(--surface2)}
@@ -1017,12 +1048,14 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="preview-btn preview-del" onclick="cancelRecorded()">🗑</button>
   </div>
   <div id="chatMediaContainer" class="media-container" style="display:none;margin:0 8px"></div>
-  <div class="input-bar" id="chatInputBar">
+  <div id="mentionPopup" style="display:none"></div>
+    <div id="replyPreview" style="display:none"></div>
+    <div class="input-bar" id="chatInputBar">
     <button class="attach-btn" onclick="addMediaToContainer('chat')" title="Фото/видео (галерея или камера)">🖼</button>
     <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')">🎤</button>
     <button class="attach-btn" id="vidBtn" onclick="toggleRecord('video')">🎥</button>
     <button class="attach-btn" onclick="addFileToContainer()" title="Любой файл">📎</button>
-    <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this);sendTyping()"></textarea>
+    <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this);sendTyping();onMentionInput(this)"></textarea>
     <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
 </div>
@@ -1063,6 +1096,13 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="card">
       <div class="card-title">Участники (по алфавиту)</div>
       <div id="giJoinReqs" style="display:none"></div>
+      <div class="card" id="giNoFwdCard" style="display:none;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="giNoFwdOut" onchange="toggleNoFwdOut(currentChatId)">
+          <span id="giNoFwdOutLbl">Разрешено пересылать наружу</span>
+        </label>
+        <div style="color:var(--text3);font-size:11px;margin-top:4px">Если запрещено — участники не смогут переслать сообщения из группы в личные чаты и другие группы. Внутри группы пересылка работает.</div>
+      </div>
       <div id="giMembers"></div>
     </div>
     <div class="card" id="giDanger"></div>
@@ -1231,7 +1271,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 19:50';
+const BUILD='05.10.2026 20:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2765,9 +2805,13 @@ function sendMessage(){
       chatMediaQueue=[];renderMediaContainer('chat');
     } else {
       const key=db.ref('messages/'+currentChatId).push().key;
-      commitMessage(currentChatId,key,{sender:currentUser.uid,text,ts:Date.now(),type:'text'},text);
+      const p={sender:currentUser.uid,text,ts:Date.now(),type:'text'};
+      if(replyingTo){p.replyTo=replyingTo.key;p.replySnap={name:replyingTo.name,text:replyingTo.text,type:replyingTo.type};}
+      commitMessage(currentChatId,key,p,text);
     }
     input.value='';autoResize(input);
+    if(replyingTo){cancelReply();}
+    hideMentions();mentionPicks={};
     if(!currentIsGroup)db.ref('typing/'+currentChatId+'/'+currentUser.uid).remove();
   };
   if(!currentIsGroup&&currentOtherUid)checkBlocksAsync(currentOtherUid,r=>{if(r===true)go();else toast(r);});else go();
@@ -2991,7 +3035,7 @@ function bubbleInner(m,key,senderInside){
   else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div>';
   else if(m.type==='audio'&&d)c+='<audio controls src="'+d+'"></audio>';
   else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div>';
-  else c+='<div>'+esc(m.text)+'</div>';
+  else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
   if(m.share)c+=shareCardHtml(m);
   if(translations[key])c+='<div class="auto-trans"><div class="auto-trans-label">🌐 автоперевод</div>'+esc(translations[key])+'</div>';
@@ -3017,7 +3061,14 @@ function msgActionsHtml(m,key){
   } else {
     h+='<button class="msg-react-btn" title="Реакция" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">😀</button>';
   }
-  if(!m.deleted)h+='<button class="msg-fwd-btn" title="Переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">↩</button>';
+  if(!m.deleted){
+    // Пересылка наружу может быть запрещена админом группы (настройка группы)
+    const g=currentIsGroup?groupOf(currentChatId):null;
+    const noFwd=!!(g&&g.settings&&g.settings.noFwdOut);
+    h+='<button class="msg-reply-btn" title="Ответить" onclick="event.stopPropagation();startReply(\''+key+'\')">↩︎</button>';
+    if(!noFwd)h+='<button class="msg-fwd-btn" title="Переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">↪</button>';
+    else h+='<button class="msg-fwd-btn" title="В группе запрещено пересылать наружу" onclick="event.stopPropagation();toast(\'⛔ Админ группы запретил пересылку наружу\')">↪</button>';
+  }
   if(m.sender===currentUser.uid||currentUser.isAdmin)h+='<button class="msg-del-btn" title="Удалить" onclick="event.stopPropagation();deleteMessage(\''+key+'\')">🗑</button>';
   // Панель выбора реакций обязана быть в разметке — без неё клик по кнопке
   // нечего открывать (она рисуется в .msg.highlighted, а её элемента не было).
@@ -3257,6 +3308,14 @@ function doFwd(cid){
   closeFwdChooser();
   const m=MSGS[key];if(!m||!cid)return;
   if(m.deleted){toast('Сообщение удалено');return;}
+  // Если группа запретила выносить её сообщения наружу — пересылка за пределы группы нельзя.
+  // Внутри той же группы можно (это не «наружу»), а из ЛС — можно всегда.
+  if(currentIsGroup){
+    const g=groupOf(currentChatId)||{};
+    if(g.settings&&g.settings.noFwdOut&&cid!==currentChatId){
+      toast('⛔ Админ группы запретил пересылать наружу');return;
+    }
+  }
   if(cid.charAt(0)!=='g'){
     const ou=cid.split('_').filter(x=>x!==currentUser.uid)[0];
     const guard=canDM(ou);if(guard!==true){toast(guard);return;}
@@ -3289,12 +3348,144 @@ function doFwd(cid){
   toast('↪️ Переслано');
   showFwdJump(cid,tName);   // временная кнопка «Перейти в чат»
 }
+// ===== @УПОМИНАНИЯ: пишешь «@» — вылазит список, печатаешь — фильтруется =====
+// Активен только в группах. Список — участники текущей группы, минус сам я.
+let mentionState=null;   // {start,q,items,sel}
+function mentionCandidates(){
+  if(!currentIsGroup||!currentChatId)return [];
+  const g=groupOf(currentChatId);
+  const ids=g&&g.members?Object.keys(g.members):[];
+  return ids.filter(u=>u!==currentUser.uid)
+    .map(u=>({uid:u,name:displayNameOf(ALL_USERS[u])||nameOf(u,'Кто-то')}))
+    .filter(x=>x.name);
+}
+function onMentionInput(el){
+  autoResize(el);sendTyping();
+  if(!currentIsGroup){hideMentions();return;}
+  const pos=el.selectionStart,v=el.value,before=v.slice(0,pos);
+  // Ищем последнюю «@» без пробела между ней и курсором
+  const at=before.lastIndexOf('@');
+  if(at<0){hideMentions();return;}
+  const between=before.slice(at+1);
+  if(between.indexOf('\n')>=0||between.length>24||/\s/.test(between)){hideMentions();return;}
+  const cands=mentionCandidates();
+  if(!cands.length){hideMentions();return;}
+  const q=between.toLowerCase();
+  // Поиск по имени: если после @ есть буквы — фильтруем, иначе показываем всех
+  const items=(q?cands.filter(c=>c.name.toLowerCase().indexOf(q)>=0):cands).slice(0,8);
+  if(!items.length){hideMentions();return;}
+  mentionState={start:at,q:between,items:items,sel:0};
+  renderMentions(el);
+}
+function renderMentions(el){
+  const p=document.getElementById('mentionPopup');
+  if(!p||!mentionState)return;
+  p.innerHTML=mentionState.items.map((c,i)=>
+    '<div class="mn-item'+(i===mentionState.sel?' sel':'')+'" data-mn-u="'+escA(c.uid)+'" data-mn-n="'+escA(c.name)+'">'+
+    avatarHtml(ALL_USERS[c.uid],'sm',c.name)+'<span class="mn-name">'+esc(c.name)+'</span></div>').join('');
+  p.style.display='block';
+  // Ставим список прямо над полем ввода
+  const bar=document.getElementById('chatInputBar');
+  if(bar){p.style.bottom=(bar.offsetHeight+6)+'px';}
+}
+function hideMentions(){
+  const p=document.getElementById('mentionPopup');
+  if(p){p.style.display='none';p.innerHTML='';}
+  mentionState=null;
+}
+function applyMention(uid,name){
+  const inp=document.getElementById('msgInput');
+  if(!inp||!mentionState)return;
+  const v=inp.value,s=mentionState.start;
+  // Заменяем «@запрос» на «@Имя » с хвостом того, что было после курсора
+  const tail=v.slice(inp.selectionStart);
+  inp.value=v.slice(0,s)+'@'+name+' '+tail;
+  hideMentions();
+  inp.focus();
+  const pos=s+1+name.length+1;
+  inp.setSelectionRange(pos,pos);
+  autoResize(inp);
+  mentionPicks=mentionPicks||{};
+  mentionPicks[name]=uid;
+}
+document.addEventListener('click',e=>{
+  const it=e.target.closest&&e.target.closest('.mn-item');
+  if(!it){if(!e.target.closest('#mentionPopup'))hideMentions();return;}
+  e.preventDefault();
+  applyMention(it.getAttribute('data-mn-u'),it.getAttribute('data-mn-n'));
+});
+// Enter/стрелки в списке подсказок
+document.addEventListener('keydown',e=>{
+  if(!mentionState)return;
+  const inp=document.getElementById('msgInput');
+  if(e.key==='ArrowDown'){e.preventDefault();mentionState.sel=(mentionState.sel+1)%mentionState.items.length;renderMentions(inp);return;}
+  if(e.key==='ArrowUp'){e.preventDefault();mentionState.sel=(mentionState.sel-1+mentionState.items.length)%mentionState.items.length;renderMentions(inp);return;}
+  if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();
+    const c=mentionState.items[mentionState.sel];if(c)applyMention(c.uid,c.name);return;}
+  if(e.key==='Escape'){hideMentions();return;}
+});
+let mentionPicks=null;   // имя → uid, чтобы в отправленном тексте найти упоминание
+// Подсветка @имён в тексте сообщения + клик открывает профиль
+function mentionHtml(text){
+  if(!text)return esc(text);
+  let h=esc(text);
+  if(currentIsGroup)h=h.replace(/@([^\s@]{1,24})/g,function(mm,nm){
+    return '<span class="ment" onclick="event.stopPropagation();openUserProfileByName(\''+nm.replace(/'/g,"")+'\')">'+mm+'</span>';
+  });
+  return h;
+}
+let mentionPicks_={};
+function openUserProfileByName(nm){
+  const id=mentionPicks&&mentionPicks[nm];
+  if(id&&ALL_USERS[id]){openUserProfile(id);return;}
+  const hit=Object.keys(ALL_USERS).find(u=>displayNameOf(ALL_USERS[u])===nm);
+  if(hit){openUserProfile(hit);return;}
+  toast('Не нашёл человека «'+nm+'»');
+}
 function msgInnerHtml(m,key){
   // Для медиа имя отправителя уходит ВНУРЬ пузыря — под фото/файл, а не над ним
   const media=isMediaMsg(m);
   const sl=senderLine(m,media);
   const foot='<div class="msg-foot">'+msgActionsHtml(m,key)+'<div class="msg-time">'+formatTime(m.ts)+ticksHtml(m)+'</div></div>';
-  return (media?'':sl)+bubbleInner(m,key,media?sl:'')+foot;
+  // Цитата ответа: снимок исходного текста ВЫШЕ пузыря. Тап открывает оригинал.
+  const quote=(m.replyTo&&m.replySnap)?replyQuoteHtml(m):'';
+  return quote+(media?'':sl)+bubbleInner(m,key,media?sl:'')+foot;
+}
+// Храним снимок текста, чтобы исходник удалили — а ответ остался читаемым
+function replyQuoteHtml(m){
+  const s=m.replySnap||{};
+  const txt=(s.text||previewFor(s.type,s.name)||'').slice(0,140);
+  if(!txt)return '';
+  return '<div class="reply-quote" onclick="event.stopPropagation();jumpToMessage(\''+escA(m.replyTo)+'\')">'+
+    '<div class="rq-name">'+esc(s.name||'Сообщение')+'</div><div class="rq-text">'+esc(txt)+'</div></div>';
+}
+function jumpToMessage(key){
+  const el=document.querySelector('.msg[data-key="'+key+'"]');
+  const mc=document.getElementById('messagesContainer');
+  if(!el){toast('Исходное сообщение удалено или не найдено');return;}
+  if(mc)mc.scrollTop=el.offsetTop-mc.clientHeight/2+el.clientHeight/2;
+  el.classList.add('jump-flash');
+  setTimeout(()=>el.classList.remove('jump-flash'),1600);
+}
+let replyingTo=null;   // на какое сообщение отвечаем
+function startReply(key){
+  const m=MSGS[key];if(!m||m.deleted)return;
+  replyingTo={key:key,name:nameOf(m.sender,'Сообщение'),
+    text:(m.text||previewFor(m.type,m.name)||'').slice(0,140),type:m.type||'text'};
+  renderReplyBar();
+  const inp=document.getElementById('msgInput');
+  if(inp){inp.focus();inp.placeholder='Ответ…';}
+}
+function cancelReply(){replyingTo=null;renderReplyBar();
+  const inp=document.getElementById('msgInput');if(inp)inp.placeholder='Сообщение...';}
+function renderReplyBar(){
+  const bar=document.getElementById('replyPreview');
+  if(!bar)return;
+  if(!replyingTo){bar.style.display='none';bar.innerHTML='';return;}
+  bar.style.display='flex';
+  bar.innerHTML='<div class="rp-icon">↩</div><div class="rp-body"><div class="rp-name">'+esc(replyingTo.name)+'</div>'+
+    '<div class="rp-text">'+esc(replyingTo.text)+'</div></div>'+
+    '<button class="rp-close" onclick="event.stopPropagation();cancelReply()">✕</button>';
 }
 function appendMessage(m,key){const c=document.getElementById('messagesContainer');const d=document.createElement('div');d.dataset.key=key;
   d.className='msg '+(m.sender===currentUser.uid?'sent':'received')+(m.deleted?' deleted':'');
@@ -3771,6 +3962,13 @@ function sendGroupInvite(gid,uid){const g=groupOf(gid);if(!g)return;
   db.ref('groupInvites/'+uid+'/'+gid).set({ts:Date.now(),name:g.name,fromName:displayNameOf(currentUser)}).then(()=>{notifyUser(uid,'ginvite','Приглашение в группу','📩 Приглашение в «'+g.name+'»',{gid});toast('📨 Отправлено',true);});}
 function acceptGroupInv(gid){db.ref('groups/'+gid+'/members/'+currentUser.uid).set(Date.now()).then(()=>db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove()).then(()=>toast('🎉 Ты в группе',true));}
 function declineGroupInv(gid){db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove();}
+function toggleNoFwdOut(gid){
+  const g=groupOf(gid);if(!g)return;
+  const nf=!!(g.settings&&g.settings.noFwdOut);
+  db.ref('groups/'+gid+'/settings/noFwdOut').set(nf?null:true).then(()=>{
+    toast(nf?'✅ Пересылка наружу разрешена':'⛔ Пересылка наружу запрещена',true);
+    renderGroupInfo();}).catch(()=>toast('❌ Нет прав'));
+}
 function removeMember(gid,uid){if(!confirm('Убрать?'))return;const up={};up['members/'+uid]=null;up['admins/'+uid]=null;up['muted/'+uid]=null;up['unread/'+uid]=null;db.ref('groups/'+gid).update(up).then(()=>toast('Убран'));}
 // Заявка на вступление: впускаем и чистим заявку
 function acceptGroupJoin(gid,uid){
@@ -3815,10 +4013,19 @@ function renderGroupInfo(){
   document.getElementById('giHeadCard').innerHTML=previewCover+
     '<div style="display:flex;gap:12px;align-items:center;margin-top:-30px;position:relative">'+groupAvatarHtml(g)+'<div style="padding-top:30px"><div style="font-weight:700;font-size:17px">'+esc(g.name)+'</div><div class="status-line">'+esc(g.status||'без статуса группы')+'</div><div style="color:var(--text3);font-size:12px">участников: '+Object.keys(g.members||{}).length+' · владелец: '+esc(nameOf(g.ownerId))+'</div></div></div>';
   const ec=document.getElementById('giEditCard');ec.style.display=manage?'block':'none';
+  const nfc=document.getElementById('giNoFwdCard');if(nfc)nfc.style.display=manage?'block':'none';
   if(manage){document.getElementById('gName').value=g.name||'';document.getElementById('gStatus').value=g.status||'';}
   document.getElementById('gCoverCancel').style.display=gCoverData?'inline-flex':'none';
   document.getElementById('gCoverHint').style.display=gCoverData?'block':'none';
   document.getElementById('giCode').textContent=gid;
+  if(manage){
+    // Тумблер: можно ли выносить сообщения группы наружу (в ЛС / другие группы)
+    const nf=!!(g.settings&&g.settings.noFwdOut);
+    const tw=document.getElementById('giNoFwdOut');
+    if(tw){tw.checked=nf;
+      const lbl=document.getElementById('giNoFwdOutLbl');
+      if(lbl)lbl.textContent=nf?'Запрещено пересылать наружу':'Разрешено пересылать наружу';}
+  }
   const ac=document.getElementById('giAddCard');ac.style.display=manage?'block':'none';
   const al=document.getElementById('giAddList');al.innerHTML='';
   if(manage){Object.entries(ALL_USERS).forEach(([uid,i])=>{if(g.members&&g.members[uid])return;
