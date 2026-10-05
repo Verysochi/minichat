@@ -255,6 +255,11 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* «Кто оценил» — мелкая подпись под кнопкой реакций в группах */
 .who-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:1px 4px;white-space:nowrap}
 .who-btn:hover{color:var(--primary)}
+/* Плеер голосовых был белым внутри тёмного пузыря — резало глаз.
+   Инвертируем штатные контролы под тёмную тему. */
+.msg audio,.msg video,.rec-preview audio,.rec-preview video{filter:invert(1) hue-rotate(180deg);border-radius:10px}
+[data-theme="light"] .msg audio,[data-theme="light"] .msg video,
+[data-theme="light"] .rec-preview audio,[data-theme="light"] .rec-preview video{filter:none}
 /* Имя отправителя теперь кликабельно (открывает профиль) */
 .msg-sender{cursor:pointer;display:flex;align-items:center;gap:5px}
 .msg-sender:active{opacity:.7}
@@ -1119,8 +1124,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <button class="row" onclick="closeAttachMenu();addFileToContainer()">📎 Любой файл</button>
     </div>
     <div class="input-bar" id="chatInputBar">
-    <button class="more-btn" onclick="toggleAttachMenu()" title="Прикрепить">＋</button>
-    <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" style="display:none">🎤</button>
+    <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" title="Голосовое сообщение">🎤</button>
+    <button class="more-btn" onclick="toggleAttachMenu()" title="Прикрепить фото, видео или файл">＋</button>
     <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this);sendTyping();onMentionInput(this)"></textarea>
     <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
@@ -1337,7 +1342,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 21:50';
+const BUILD='05.10.2026 22:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3805,12 +3810,13 @@ function toggleRecord(mode){
         const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
         if(mode==='video'){pv.src=recordedDataUrl;pv.style.display='block';pa.style.display='none';}else{pa.src=recordedDataUrl;pa.style.display='block';pv.style.display='none';}
         document.getElementById('recPreview').classList.add('active');
-        toast('Готово! Жми ➤ или «Отправить»',true);};
+        // Отправляем сразу: раньше надо было ещё раз жать ➤, потом снова лезть
+        // в меню за микрофоном — отсюда «по-дебильному».
+        sendRecorded();};
       r.readAsDataURL(blob);};
     mediaRecorder.start();isRecording=true;recStart=Date.now();
-    // Кнопок записи в поле ввода больше нет (свернулись в меню) — подсветку вешаем
-// на кнопку «＋», чтобы было видно, что идёт запись.
-    const mb=document.querySelector('#chatInputBar .more-btn');
+    // Подсветка на кнопке микрофона — сразу видно, что идёт запись
+    const mb=document.getElementById('recBtn');
     if(mb)mb.classList.add('recording');
     recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
