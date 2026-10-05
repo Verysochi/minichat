@@ -1,0 +1,169 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      ".read": "auth != null && (root.child('approvals').child(auth.uid).exists() || auth.token.email == 'sochinewlife@gmail.com')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('approvals').child(auth.uid).exists() || auth.token.email == 'sochinewlife@gmail.com')",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email == 'sochinewlife@gmail.com' || (auth.token.email != null && !data.child('firebaseUid').exists() && newData.child('firebaseUid').val() === auth.uid && data.child('login').val() != null && data.child('login').val() === auth.token.email))",
+        "firebaseUid": {
+          ".validate": "auth != null && newData.val() === auth.uid"
+        },
+        "isAdmin": {
+          ".validate": "newData.val() !== true || auth.token.email == 'sochinewlife@gmail.com'"
+        },
+        "approved": {
+          ".validate": "newData.val() !== true || auth.token.email == 'sochinewlife@gmail.com'"
+        },
+        "authEmail": {
+          ".validate": "auth != null && newData.val() === auth.token.email"
+        }
+      }
+    },
+
+    "approvals": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+      }
+    },
+
+    "userChats": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      }
+    },
+
+    "messages": {
+      "$chatId": {
+        ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      }
+    },
+
+    "groups": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$gid": {
+        ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+      }
+    },
+
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)"
+      }
+    },
+
+    "friendRequests": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists())"
+      }
+    },
+
+    "news": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      "$newsId": {
+        "comments": {
+          ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+        }
+      }
+    },
+
+    "newsProposals": {
+      ".read": "auth != null && (data.child(auth.uid).exists() || auth.token.email == 'sochinewlife@gmail.com')",
+      ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || root.child('approvals').child(auth.uid).exists())"
+    },
+
+    "userPosts": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+    },
+
+    "files": {
+      "$key": {
+        ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      }
+    },
+
+    "notifs": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        ".write": "auth != null && (auth.uid === $uid || root.child('approvals').child(auth.uid).exists())"
+      }
+    },
+
+    "blocks": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)"
+      }
+    },
+
+    "typing": {
+      "$chatId": {
+        ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      }
+    },
+
+    "groupInvites": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      }
+    },
+
+    "calls": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$callId": {
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      }
+    },
+
+    "invites": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+      }
+    },
+
+    "pendingRegistrations": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || !data.exists())"
+    },
+
+    "passResets": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+    },
+
+    "loginBlocks": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+    },
+
+    "loginAttempts": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'"
+    },
+
+    "sessionLogs": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || !data.exists())"
+    },
+
+    "deleteLogs": {
+      ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+    }
+  }
+}
