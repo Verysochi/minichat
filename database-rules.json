@@ -19,7 +19,8 @@
         "authEmail": {
           ".validate": "auth != null && newData.val() === auth.token.email"
         }
-      }
+      },
+      ".indexOn": "login"
     },
     "approvals": {
       "$uid": {
@@ -38,7 +39,8 @@
       "$chatId": {
         ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
         ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
-      }
+      },
+      ".indexOn": "ts"
     },
     "groups": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
@@ -112,13 +114,15 @@
           ".write": "auth != null && ((auth.uid === $uid && root.child('groups').child($gid).exists() && root.child('groups').child($gid).child('members').child(auth.uid).exists() === false) || root.child('groups').child($gid).child('admins').child(auth.uid).exists() || root.child('groups').child($gid).child('ownerId').val() === auth.uid || auth.token.email == 'sochinewlife@gmail.com')",
           ".validate": "newData.child('name').isString() && newData.child('ts').isNumber()"
         }
-      }
+      },
+      ".indexOn": "ts"
     },
     "calls": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
       "$callId": {
         ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
-      }
+      },
+      ".indexOn": "to"
     },
     "invites": {
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
@@ -148,7 +152,8 @@
         "ts": {
           ".validate": "newData.isNumber()"
         }
-      }
+      },
+      ".indexOn": "ts"
     },
     "passResets": {
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
@@ -170,7 +175,8 @@
         "uid": {
           ".validate": "auth != null && (newData.val() === auth.uid || auth.token.email == 'sochinewlife@gmail.com')"
         }
-      }
+      },
+      ".indexOn": "uid"
     },
     "deleteLogs": {
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
