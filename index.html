@@ -222,7 +222,11 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .msg-actions{display:inline-flex;gap:2px;opacity:.5;transition:opacity .2s}
 .msg:hover .msg-actions,.msg.highlighted .msg-actions{opacity:1}
 @media (hover:none){.msg-actions{opacity:.85}}
-.msg-react-btn{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
+.msg-react-btn{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;position:relative;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
+/* Счётчик реакций — маленький бейдж в правом верхнем углу кнопки (только группы) */
+.react-count{position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;
+  background:var(--primary);color:var(--primary-text);font-size:10px;font-weight:700;line-height:15px;
+  text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.45)}
 .msg-del-btn{width:24px;height:24px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,filter .2s ease}
 .msg-fwd-btn{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
 /* Шапка пересланного: откуда (группа/ЛС) + автор + кем переслано */
@@ -1222,7 +1226,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 18:55';
+const BUILD='05.10.2026 19:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2981,7 +2985,11 @@ function msgActionsHtml(m,key){
   let h='<div class="msg-actions">';
   if(act.length){
     const emoji=act[0], count=byEmoji[emoji].length, mine=reacts[currentUser.uid]===emoji;
-    h+='<button class="msg-react-btn'+(mine?' active':'')+'" title="Реакция" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">'+emoji+' '+count+'</button>';
+    // В ЛС счётчик прячем — там всегда один человек, цифра «1» только шумит.
+    // В группах оставляем, но оформляем аккуратно: не «1» в тексте кнопки,
+    // а маленький бейдж в углу.
+    const badge=currentIsGroup&&count>1?'<span class="react-count">'+count+'</span>':'';
+    h+='<button class="msg-react-btn'+(mine?' active':'')+'" title="Реакция: '+emoji+'" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">'+emoji+badge+'</button>';
   } else {
     h+='<button class="msg-react-btn" title="Реакция" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">😀</button>';
   }
