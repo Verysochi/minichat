@@ -72,6 +72,9 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .error-msg{color:var(--red);font-size:13px;margin-top:8px;min-height:18px}
 .success-msg{color:var(--green);font-size:13px;margin-top:8px;min-height:18px}
 .header{display:flex;align-items:center;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--surface2);gap:5px;min-height:52px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+/* Заголовок растягивается и прижимает все кнопки вправо — на телефоне они
+   иначе уезжали за левый край и были не видны */
+.header h2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .header::-webkit-scrollbar{display:none}
 .header-col{flex:1;min-width:0}
 .header-col h2{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -204,7 +207,19 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* padding-bottom большой — чтобы панель реакций и подпись «переслал» влезали
    сразу, без подёргивания прокрутки в момент клика/отправки */
 .messages{flex:1;overflow-y:auto;overflow-anchor:none;padding:10px 12px 76px;display:flex;flex-direction:column;gap:5px}
-.msg{max-width:80%;padding:8px 12px;border-radius:18px;font-size:15px;line-height:1.4;word-wrap:break-word;position:relative;transition:all .2s}
+.msg{max-width:80%;padding:8px 12px;border-radius:18px;font-size:15px;line-height:1.4;word-wrap:break-word;position:relative;transition:all .2s;margin-top:2px}
+/* Стрелки вынесены в ВЕРХНИЕ УГЛА пузыря: слева «ответить», справа «поделиться».
+   В потоке они занимали место и сдвигали текст. */
+.msg-reply-btn,.msg-fwd-btn{position:absolute;top:-17px;width:30px;height:30px;border-radius:50%;border:1px solid var(--surface3);
+  background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  opacity:0;transform:scale(.8);transition:all .22s cubic-bezier(.34,1.56,.64,1);z-index:3;padding:0}
+.msg-reply-btn{left:2px}
+.msg-fwd-btn{right:2px}
+.msg:hover .msg-reply-btn,.msg:focus-within .msg-reply-btn,
+.msg:hover .msg-fwd-btn,.msg:focus-within .msg-fwd-btn{opacity:1;transform:scale(1)}
+/* На тач-экранах наведения нет — показываем всегда */
+@media (hover:none){.msg-reply-btn,.msg-fwd-btn{opacity:1;transform:scale(1)}}
+.msg-reply-btn:hover,.msg-fwd-btn:hover{background:var(--accent-soft);border-color:var(--primary);transform:scale(1.12)}
 .msg.sent{align-self:flex-end;background:var(--primary);color:var(--primary-text);border-bottom-right-radius:4px}
 .msg.received{align-self:flex-start;background:var(--surface2);border-bottom-left-radius:4px}
 /* НЕ scale() и НЕ transform: рамка полароида с фото внутри сообщения
@@ -240,12 +255,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* «Кто оценил» — мелкая подпись под кнопкой реакций в группах */
 .who-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:1px 4px;white-space:nowrap}
 .who-btn:hover{color:var(--primary)}
-/* Облачко чата на телефоне — крупнее, кнопки не давят */
-@media (max-width:640px){
-  .msg{max-width:88%}
-  .msg-actions{gap:3px;flex-wrap:wrap}
-  .input-bar textarea{min-height:44px}
-}
+/* (мобильные размеры облачка и поля ввода — см. блок @media ниже по файлу) */
 .msg-react-btn{width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;position:relative;flex-shrink:0;transition:background .18s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease,border-color .2s ease,color .2s ease}
 .msg-react-btn:hover{transform:scale(1.12);border-color:var(--primary)}
 /* Счётчик реакций — маленький бейдж в правом верхнем углу кнопки (только группы) */
@@ -434,8 +444,15 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .rp-name{font-size:12px;font-weight:700;color:var(--primary)}
 .rp-text{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rp-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px;flex:none}
-.msg-reply-btn{background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;transition:color .15s}
-.msg-reply-btn:hover{color:var(--primary)}
+/* Стрелки живут в верхних углах пузыря (см. .msg-reply-btn,.msg-fwd-btn выше) */
+.msg-reply-btn,.msg-fwd-btn{color:var(--text2);font-size:15px;line-height:1}
+/* Мобильные правки: облачко шире, кнопки не давят на текст */
+@media (max-width:640px){
+  .msg{max-width:90%;padding:9px 13px}
+  .msg-actions{gap:4px;flex-wrap:wrap}
+  .input-bar textarea{min-height:44px}
+  .attach-menu{left:6px;right:6px}
+}
 
 /* ===== @УПОМИНАНИЯ =====
    #mentionPopup — список участников над полем ввода, .mn-item — строка,
@@ -1313,7 +1330,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 21:10';
+const BUILD='05.10.2026 21:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3129,9 +3146,9 @@ function msgActionsHtml(m,key){
     // Пересылка наружу может быть запрещена админом группы (настройка группы)
     const g=currentIsGroup?groupOf(currentChatId):null;
     const noFwd=!!(g&&g.settings&&g.settings.noFwdOut);
-    h+='<button class="msg-reply-btn" title="Ответить" onclick="event.stopPropagation();startReply(\''+key+'\')">↩︎</button>';
-    if(!noFwd)h+='<button class="msg-fwd-btn" title="Переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">↪</button>';
-    else h+='<button class="msg-fwd-btn" title="В группе запрещено пересылать наружу" onclick="event.stopPropagation();toast(\'⛔ Админ группы запретил пересылку наружу\')">↪</button>';
+    h+='<button class="msg-reply-btn" title="Ответить" onclick="event.stopPropagation();startReply(\''+key+'\')">↩</button>';
+    if(!noFwd)h+='<button class="msg-fwd-btn" title="Поделиться / переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">🔗</button>';
+    else h+='<button class="msg-fwd-btn" title="В группе запрещено пересылать наружу" onclick="event.stopPropagation();toast(\'⛔ Админ группы запретил пересылку наружу\')">🔗</button>';
     // В группах — кто именно поставил реакцию
     if(currentIsGroup&&Object.keys(reacts).length)
       h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">👤 '+Object.keys(reacts).length+'</button>';
