@@ -22,6 +22,13 @@
 html,body{height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
 body.login-active .bottom-nav{display:none!important}
+/* Пока восстанавливаем сессию — экран входа не показываем, чтобы не моргал */
+body.booting .screen{display:none!important}
+#bootLoader{display:none}
+body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)}
+#bootLoader .bl-ring{width:40px;height:40px;border-radius:50%;border:3px solid var(--surface3);border-top-color:var(--primary);animation:blSpin .9s linear infinite}
+#bootLoader .bl-txt{font-size:14px;color:var(--text2)}
+@keyframes blSpin{to{transform:rotate(360deg)}}
 .screen{display:none;flex-direction:column;height:100%;position:absolute;inset:0;z-index:1;padding-bottom:56px}
 .screen.active{display:flex;z-index:2}
 #loginScreen,#registerScreen{padding-bottom:0}
@@ -603,7 +610,13 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
 </style>
 </head>
-<body class="login-active">
+<body class="login-active booting">
+
+<div id="bootLoader"><div class="bl-ring"></div><div class="bl-txt">МиниЧат…</div></div>
+<script>
+// Страховка: если что-то сломается — экран входа всё равно появится, не зависнем на загрузке
+setTimeout(function(){document.body.classList.remove('booting');},15000);
+</script>
 
 <div id="loginScreen" class="screen active">
   <div class="login-box">
@@ -1206,7 +1219,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 16:20';
+const BUILD='05.10.2026 16:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1319,10 +1332,11 @@ function checkSession(){
   const auth=firebase.auth();
   const proceed=()=>db.ref('users/'+uid).once('value').then(s=>{const i=s.val();
     if(i&&((i.toks&&i.toks[tk])||i.sessionToken===tk)){   // toks — список живых входов; sessionToken — старый формат
-      enterApp(uid,i);
       // Возвращаем ту страницу, где человек был до F5 (админку, чаты, профиль…)
+      // Показываем её в КОНЦЕ enterApp — раньше он успевал перебить её главным экраном
       const sc=localStorage.getItem('mc_screen');
-      if(sc&&sc!=='loginScreen'&&sc!=='registerScreen'&&document.getElementById(sc))showScreen(sc);
+      pendingRestore=(sc&&sc!=='loginScreen'&&sc!=='registerScreen'&&document.getElementById(sc))?sc:null;
+      enterApp(uid,i);
     }else{clearSession();showScreen('loginScreen');}})
     .catch(()=>{clearSession();showScreen('loginScreen');});
   if(auth.currentUser){proceed();return;}
@@ -1350,6 +1364,7 @@ function makeSession(uid){const t=Math.random().toString(36).slice(2)+Date.now()
 // Гасим токен ТОЛЬКО этого устройства (остальные входы остаются живы)
 function dropSessionToken(){const u=localStorage.getItem('mc_uid'),t=localStorage.getItem('mc_token');
   if(u&&t)try{db.ref('users/'+u+'/toks/'+t).remove();}catch(e){}}
+let pendingRestore=null;   // экран, на который надо вернуться после F5 (админка, чат, профиль)
 function touchSession(){if(!currentUser)return;localStorage.setItem('mc_exp',String(Date.now()+SESSION_TTL));}
 async function boot(){
   // Ошибка здесь не должна мешать входу — сессия восстанавливается следом
@@ -1412,7 +1427,7 @@ function enterApp(uid,info){
     navigator.geolocation.getCurrentPosition(p=>{db.ref('users/'+uid+'/geo').set(p.coords.latitude.toFixed(2)+', '+p.coords.longitude.toFixed(2));},()=>{},{timeout:8000});}
   cleanupOldNews();checkWeatherNews();clearInterval(weatherTimer);weatherTimer=setInterval(checkWeatherNews,3600000);
   cleanupOfflineUsers();setInterval(cleanupOfflineUsers,60000);
-  startListeners();startIncomingListener();showScreen('mainScreen');
+  startListeners();startIncomingListener();showScreen(pendingRestore||'mainScreen');pendingRestore=null;
 }
 function forceLogout(msg){
   offAll();if(isRecording)stopRecording();cancelRecorded();clearInterval(hbTimer);clearInterval(sessionTimer);sessionTimer=null;
@@ -1435,6 +1450,7 @@ function doLogout(){
 function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frLRef,frqLRef,ginLRef,blkLRef,postsLRef,incomingRef,prLRef,propLRef,delLogRef,sessLogRef,attLogRef,msgRef,typRef].forEach(r=>{if(r)r.off();});}
 
 function showScreen(id){
+  document.body.classList.remove('booting');   // загрузка закончилась — первый экран показан
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
   if(id!=='loginScreen'&&id!=='registerScreen')localStorage.setItem('mc_screen',id);
   document.body.classList.toggle('login-active',id==='loginScreen'||id==='registerScreen');
