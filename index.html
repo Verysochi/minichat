@@ -260,6 +260,38 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .msg audio,.msg video,.rec-preview audio,.rec-preview video{filter:invert(1) hue-rotate(180deg);border-radius:10px}
 [data-theme="light"] .msg audio,[data-theme="light"] .msg video,
 [data-theme="light"] .rec-preview audio,[data-theme="light"] .rec-preview video{filter:none}
+/* Кнопка реакции стояла поверх текста и закрывала его — отодвигаем её вниз,
+   под текст, отдельной строкой, и не даём ей наезжать */
+.msg-foot{position:relative}
+.msg-actions{position:relative;z-index:1;align-items:center;margin-top:3px}
+.msg-body,.msg-text{position:relative;z-index:0}
+/* Анимации реакций */
+.fx-hand{position:fixed;z-index:900;pointer-events:none;font-size:22px;line-height:1;
+  transform:translate(-50%,-50%);animation:fxRain 1.3s cubic-bezier(.25,.6,.35,1) forwards}
+@keyframes fxRain{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(0)}
+  18%{opacity:1}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.05) rotate(var(--rot))}
+}
+.fx-burst{position:fixed;z-index:900;pointer-events:none;font-size:18px;line-height:1;color:hsl(var(--hue),90%,68%);
+  transform:translate(-50%,-50%);animation:fxBurst .75s ease-out forwards}
+@keyframes fxBurst{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(0)}
+  25%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(45deg)}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.2) rotate(140deg)}
+}
+.fx-ring{position:fixed;z-index:899;pointer-events:none;font-size:34px;line-height:1;
+  transform:translate(-50%,-50%);animation:fxRing .65s cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes fxRing{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  30%{opacity:1;transform:translate(-50%,-50%) scale(1.5)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(2.6)}
+}
+/* Бейдж «сколько раз рокнул» в профиле — жёлтая рука + число */
+.rock-badge{display:inline-flex;align-items:center;gap:3px;margin-left:8px;padding:2px 8px;border-radius:12px;
+  background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.45);vertical-align:middle}
+.rb-hand{font-size:14px;line-height:1}
+.rb-n{font-size:13px;font-weight:700;color:var(--gold,#ffc107);line-height:1}
 /* Имя отправителя теперь кликабельно (открывает профиль) */
 .msg-sender{cursor:pointer;display:flex;align-items:center;gap:5px}
 .msg-sender:active{opacity:.7}
@@ -1167,6 +1199,13 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="card">
       <div class="card-title">Участники (по алфавиту)</div>
       <div id="giJoinReqs" style="display:none"></div>
+      <div class="card" id="giHiddenCard" style="display:none;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="giHidden" onchange="toggleGroupHidden(currentChatId)">
+          <span id="giHiddenLbl">Видимая группа</span>
+        </label>
+        <div style="color:var(--text3);font-size:11px;margin-top:4px">Скрытая группа не показывается в общем списке — её найти можно только по коду или из приглашения. Участники видят её как обычно.</div>
+      </div>
       <div class="card" id="giNoFwdCard" style="display:none;margin-top:8px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
           <input type="checkbox" id="giNoFwdOut" onchange="toggleNoFwdOut(currentChatId)">
@@ -1342,7 +1381,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='05.10.2026 22:10';
+const BUILD='05.10.2026 23:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2436,6 +2475,12 @@ function openLightbox(src,caption){PP_LIST=[{src:src,caption:caption||''}];PP_I=
 // Открыть зарегистрированный набор с указанного кадра
 function ppOpenSet(gid,i){const l=PP_SETS[gid];if(!l||!l.length)return;
   PP_LIST=l;PP_GID=gid;PP_I=Math.max(0,Math.min(l.length-1,i|0));ppShow();}
+// Открыть одно фото из набора с гарантией: если набор потерялся (перерисовка),
+// всё равно показываем кадр, а не делаем вид, что ничего не произошло
+function ppOpenSetSafe(gid,i,src){const l=PP_SETS[gid];
+  if(l&&l.length){ppOpenSet(gid,i);return;}
+  if(src){openLightbox(src,'');return;}
+  toast('Фото не загрузилось');}
 function ppMove(n){
   if(PP_LIST.length<2)return;
   PP_I=(PP_I+n+PP_LIST.length)%PP_LIST.length;
@@ -2656,24 +2701,27 @@ function mediaClick(key,type){
   if(mediaCache[key])openLightbox(mediaCache[key]);
   loadMediaSilent(key);
 }
+// pendingOpen: фото тапнули, а оно ещё не подгружено. Раньше в этом случае тап
+// просто молча грузил файл, и открывать надо было ВТОРОЙ раз — «не могу тыкнуть».
+let pendingOpen=null;
 function loadMedia(key){
   const btn=event&&event.target;if(btn){btn.disabled=true;btn.textContent='⏳';}
+  // запоминаем, что открыть надо сразу как только догрузится
+  pendingOpen={key:key};
   db.ref('files/'+key).once('value').then(s=>{const v=s.val();
-    if(!v){failedMedia[key]=1;toast('Медиа не найдено');afterMediaLoad(key);return;}
+    if(!v){failedMedia[key]=1;toast('Медиа не найдено');pendingOpen=null;afterMediaLoad(key);return;}
     if(v.data){mediaCache[key]=v.data;afterMediaLoad(key);return;}
     const ch=v.chunks||{},n=(v.meta&&v.meta.count)||Object.keys(ch).length;let out='',i=0;
     const step=()=>{if(i>=n){mediaCache[key]=out;afterMediaLoad(key);}else{out+=ch[i]||'';i++;setTimeout(step,0);}};step();
-  }).catch(()=>{toast('Сеть');if(btn){btn.disabled=false;btn.textContent='⬇';}});
+  }).catch(()=>{toast('Сеть');pendingOpen=null;if(btn){btn.disabled=false;btn.textContent='⬇';}});
 }
 function afterMediaLoad(key){
   if(MSGS[key])updateMsgEl(key,MSGS[key]);
-  // пересланные сообщения ссылаются на файл по mediaKey чужого чата — найдём их тоже;
-  // карточки «поделились» держат превью в share.thumbs
-  Object.keys(MSGS).forEach(k=>{
-    if(k===key||!MSGS[k])return;
-    const mm=MSGS[k];
-    if(mm.mediaKey===key||(mm.share&&mm.share.thumbs&&mm.share.thumbs.some(t=>t&&t.k===key)))updateMsgEl(k,mm);
-  });
+  // Если фото ждали по тапу — открываем сразу, без второго нажатия
+  if(pendingOpen&&pendingOpen.key===key){
+    const p=pendingOpen;pendingOpen=null;
+    setTimeout(()=>{if(MSGS[p.key])ppOpenChat(p.key);else openLightbox(mediaCache[p.key]||'');},60);
+  }
   renderNews();renderProfileColumn();renderViewColumn();renderMyColumn();renderCovers();
   ppRefreshKey(key);   // открытый кадр в фотоплеере обновляем на полное качество
 }
@@ -2929,33 +2977,96 @@ function renderDeleteLogs(){
     b.appendChild(d);});
 }
 // ===== РЕАКЦИИ =====
-// Реакции на новости/посты/комментарии.
-// Раньше здесь жил только 🤘 одной кнопкой: выбрать другую эмоцию было нельзя,
-// а панель выбора не рендерилась вовсе. Теперь — те же 5 реакций, что и в чате,
-// плюс список тех, кто поставил.
+// Сколько раз человек РОКНУЛ (уникальные новости/колонки/комментарии).
+// Считаем на лету из уже загруженных данных — отдельного счётчика в базе нет.
+function rockCountOf(uid){
+  const uniq=new Set();
+  const scan=o=>{if(!o)return;
+    Object.keys(o).forEach(id=>{const it=o[id];if(!it)return;
+      if(it.reactions&&it.reactions[uid])uniq.add(id);
+      if(it.comments)Object.keys(it.comments).forEach(cid=>{const c=it.comments[cid];if(c&&c.reactions&&c.reactions[uid])uniq.add('c:'+id+':'+cid);});
+    });};
+  scan(lastNews);scan(lastUserPosts);
+  return uniq.size;
+}
+function rockFaceHtml(uid,cls){
+  const i=ALL_USERS[uid]||{};
+  const n=displayNameOf(i)||nameOf(uid,'?');
+  if(i.avatar)return '<img class="avatar '+(cls||'')+'" src="'+i.avatar+'" style="border-color:'+(i.color||'#555')+'" title="'+escA(n)+'">';
+  return '<span class="avatar '+(cls||'')+' r-face-txt" style="background:'+(i.color||'#555')+';color:#fff;border-color:'+(i.color||'#555')+'" title="'+escA(n)+'">'+esc(n[0].toUpperCase())+'</span>';
+}
+// Бейдж «сколько раз рокнул» — справа от аватарки в профиле
+function rockBadgeHtml(uid){
+  const n=rockCountOf(uid);
+  return '<span class="rock-badge" title="Рокнул(а) '+n+' раз(а)">'+
+    '<span class="rb-hand">🤘</span>'+(n>0?'<span class="rb-n">'+n+'</span>':'')+'</span>';
+}
+// Анимация реакции: 🤘 — «дождь» рук в радиусе кнопки, остальные — быстрый взрыв.
+// Движок на CSS, без canvas: дёшево и не тормозит на телефоне.
+function fxReaction(el,emoji){
+  if(!el)return;
+  const r=el.getBoundingClientRect();
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  if(emoji==='🤘'){
+    const n=14;
+    for(let i=0;i<n;i++){
+      const s=document.createElement('span');
+      s.className='fx-hand';s.textContent='🤘';
+      const ang=(Math.PI*2*i)/n+Math.random()*0.4;
+      const dist=46+Math.random()*58;
+      s.style.left=cx+'px';s.style.top=cy+'px';
+      s.style.setProperty('--dx',(Math.cos(ang)*dist)+'px');
+      s.style.setProperty('--dy',(Math.sin(ang)*dist*0.8+34)+'px');
+      s.style.setProperty('--rot',((Math.random()*160-80))+'deg');
+      s.style.animationDelay=(i*16)+'ms';
+      document.body.appendChild(s);
+      setTimeout(()=>{if(s.parentNode)s.parentNode.removeChild(s);},1500);
+    }
+  }else{
+    const parts=['✦','✧','✷','✹'];
+    for(let i=0;i<10;i++){
+      const s=document.createElement('span');
+      s.className='fx-burst';s.textContent=parts[i%parts.length];
+      const ang=(Math.PI*2*i)/10+Math.random()*0.3;
+      const dist=52+Math.random()*46;
+      s.style.left=cx+'px';s.style.top=cy+'px';
+      s.style.setProperty('--dx',(Math.cos(ang)*dist)+'px');
+      s.style.setProperty('--dy',(Math.sin(ang)*dist)+'px');
+      s.style.setProperty('--hue',(Math.random()*60|0));
+      s.style.animationDelay=(i*14)+'ms';
+      document.body.appendChild(s);
+      setTimeout(()=>{if(s.parentNode)s.parentNode.removeChild(s);},900);
+    }
+    const g=document.createElement('span');
+    g.className='fx-ring';g.textContent=emoji;
+    g.style.left=cx+'px';g.style.top=cy+'px';
+    document.body.appendChild(g);
+    setTimeout(()=>{if(g.parentNode)g.parentNode.removeChild(g);},700);
+  }
+}
+// Вызывается сразу после постановки реакции
+function fxAfterSet(el,emoji){try{fxReaction(el,emoji);}catch(e){}}
+// Пять эмоций здесь ломали вайб и закрывали текст, поэтому вернули одну кнопку:
+// нажал — 🤘, нажал ещё раз — снял.
 function rockButtonHtml(reacts,myReact,basePath,id,context){
-  const others=Object.keys(reacts||{}).filter(u=>u!==currentUser.uid);
+  const all=Object.keys(reacts||{});
+  const others=all.filter(u=>u!==currentUser.uid);
+  const mine=myReact==='🤘';
   let h='<span class="rock-wrap">';
-  // чужие реакции — аватар + эмодзи (по тому же принципу, что в чатах)
-  others.slice(0,5).forEach(u=>{
-    const i=ALL_USERS[u];
-    if(!i)return;
-    h+='<span class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+': '+esc(reacts[u])+'">'+
-       '<span class="avatar xs" style="width:16px;height:16px;font-size:8px;min-width:16px">'+esc((displayNameOf(i)||'?')[0].toUpperCase())+'</span>'+
-       '<span class="rw-emoji">'+esc(reacts[u])+'</span></span>';
+  others.slice(0,6).forEach(u=>{
+    const i=ALL_USERS[u];if(!i)return;
+    h+='<span class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+'">'+rockFaceHtml(u,'xs')+'</span>';
   });
-  if(others.length>5)h+='<span class="who-btn">+'+(others.length-5)+'</span>';
-  // моя реакция / кнопка выбора
-  const lab=myReact||'☺';
-  h+='<button class="rock-btn'+(myReact?' rocked':'')+'" data-rbase="'+escA(basePath)+'" data-rid="'+escA(id)+'" data-rctx="'+escA(context)+'" '+
-     'title="'+(myReact?'Твоя реакция: '+escA(myReact)+' (нажми, чтобы убрать)':'Поставить реакцию')+'" '+
-     'onclick="event.stopPropagation();'+(myReact
+  if(others.length>6)h+='<span class="who-btn">+'+(others.length-6)+'</span>';
+  h+='<button class="rock-btn'+(mine?' rocked':'')+'" data-rbase="'+escA(basePath)+'" data-rid="'+escA(id)+'" data-rctx="'+escA(context)+'" '+
+     'title="'+(mine?'Убрать реакцию 🤘':'Поставить 🤘')+'" '+
+     'onclick="event.stopPropagation();'+(mine
         ?'rockRemove(\''+basePath+'\',\''+id+'\')'
-        :'openRockPicker(this,\''+basePath+'\',\''+id+'\',\''+context+'\')')+'">'+
-     '<span class="rock-emoji">'+lab+'</span>'+
-     (myReact?'<span class="react-count">'+Object.keys(reacts).length+'</span>':'')+'</button>';
-  if(Object.keys(reacts||{}).length)
-    h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReactedNews(\''+basePath+'\',\''+id+'\')">👤 '+Object.keys(reacts).length+'</button>';
+        :'rockPick(\''+basePath+'\',\''+id+'\',\''+context+'\',\'🤘\')')+'">'+
+     '<span class="rock-emoji">🤘</span>'+
+     (all.length?'<span class="react-count">'+all.length+'</span>':'')+'</button>';
+  if(all.length)
+    h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReactedNews(\''+basePath+'\',\''+id+'\')">👤 '+all.length+'</button>';
   return h+'</span>';
 }
 // Панель выбора реакции для новостей/постов/комментариев
@@ -2974,7 +3085,11 @@ function openRockPicker(btn,basePath,id,context){
   setTimeout(()=>document.addEventListener('click',closeRockPicker,{once:true}),0);
 }
 function closeRockPicker(){if(rockPickerEl&&rockPickerEl.parentNode)rockPickerEl.parentNode.removeChild(rockPickerEl);rockPickerEl=null;}
-function rockPick(basePath,id,context,emoji){setMsgReaction(basePath,id,context,emoji);
+function rockPick(basePath,id,context,emoji){
+  // Анимация ставим сразу по нажатой кнопке — до того, как база перерисует карточку
+  if(typeof event!=='undefined'&&event&&event.target)
+    fxAfterSet(event.target.closest('.rock-btn'),emoji);
+  setMsgReaction(basePath,id,context,emoji);
   if(context==='news'&&lastNews&&lastNews[id]&&lastNews[id].authorUid)notifyUser(lastNews[id].authorUid,'react','Реакция на новость',emoji+' '+displayNameOf(currentUser)+' оценил(а) твою новость',{newsId:id});
   else if(context==='post'&&lastUserPosts&&lastUserPosts[id]&&lastUserPosts[id].authorUid)notifyUser(lastUserPosts[id].authorUid,'react','Реакция на пост',emoji+' '+displayNameOf(currentUser)+' оценил(а) твой пост',{postId:id});}
 function rockRemove(basePath,id){db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid).remove();}
@@ -3092,7 +3207,14 @@ function setMsgReaction(basePath,id,context,emoji){
   const ref=db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid);
   // Выбрал реакцию — панель сразу закрывается, а на её месте остаётся сама реакция.
   clearHighlight();
-  ref.once('value').then(s=>{if(s.val()===emoji)ref.remove();else ref.set(emoji);});
+  // Ловим кнопку ДО перерисовки, иначе анимация не найдёт элемент
+  const btn=(typeof event!=='undefined'&&event&&event.target)?event.target.closest('.r-btn,.msg-react-btn,.rock-btn'):null;
+  ref.once('value').then(s=>{
+    if(s.val()===emoji){ref.remove();return;}
+    ref.set(emoji);
+    // Анимация: 🤘 — дождь рук, остальные — быстрый взрыв
+    fxAfterSet(btn||(document.querySelector('.msg.highlighted .msg-react-btn')||null),emoji);
+  });
 }
 function msgReactionsHtml(m,key){
   const reacts=m.reactions||{};
@@ -3340,27 +3462,31 @@ function openFwdChooser(key){
   if(m.type==='call'){toast('Звонки не пересылаются');return;}
   fwdKey=key;shareCtx=null;
   const t=document.getElementById('fwdTitle');if(t)t.textContent='↪️ Куда переслать?';
-  const rows=[];
-  // Текущий чат — первой строкой: пересылка «туда же» нужна, чтобы напомнить
+  const here=[],rest=[];
+  // Текущий чат идёт ПЕРВЫМ: пересылка «туда же» нужна, чтобы напомнить
   // или прикрепить найденное в том же диалоге.
   const curTitle=(((document.getElementById('chatTitle')||{}).textContent)||'').trim();
-  if(currentChatId&&curTitle)
-    rows.push({cid:currentChatId,tag:'сюда же',name:curTitle,av:currentIsGroup?groupAvatarHtml(ALL_GROUPS[currentChatId],'sm'):null});
+  if(currentChatId){
+    const g=currentIsGroup?groupOf(currentChatId):null;
+    here.push({cid:currentChatId,tag:'сюда же',
+      name:curTitle||(g&&g.name)||(currentOtherUid?nameOf(currentOtherUid,'чат'):'этот чат'),
+      av:g?groupAvatarHtml(g,'sm'):(currentOtherUid?avatarHtml(ALL_USERS[currentOtherUid],'sm',nameOf(currentOtherUid)):null)});
+  }
   // ЛС — из моего списка чатов
   Object.entries(lastChatData||{}).forEach(([cid,i])=>{
     if(cid===currentChatId)return;
     const ou=(i&&i.otherUid)||cid.split('_').filter(x=>x!==currentUser.uid)[0];
-    rows.push({cid,tag:'ЛС',name:(i&&i.otherName)||nameOf(ou,'кто-то'),av:avatarHtml(ALL_USERS[ou],'sm',(i&&i.otherName)||nameOf(ou))});
+    rest.push({cid,tag:'ЛС',name:(i&&i.otherName)||nameOf(ou,'кто-то'),av:avatarHtml(ALL_USERS[ou],'sm',(i&&i.otherName)||nameOf(ou))});
   });
   // Группы, где я участник
   Object.entries(ALL_GROUPS).forEach(([gid,g])=>{
     if(!g.members||!g.members[currentUser.uid])return;
     if(gid===currentChatId)return;
-    rows.push({cid:gid,tag:'группа',name:g.name||'Группа',av:groupAvatarHtml(g,'sm')});
+    rest.push({cid:gid,tag:'группа',name:g.name||'Группа',av:groupAvatarHtml(g,'sm')});
   });
-  if(!rows.length){toast('Некуда переслать');return;}
-  const rest=rows.slice(1).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  rows.length=0;rest.forEach(r=>rows.push(r));
+  if(!here.length&&!rest.length){toast('Некуда переслать');return;}
+  rest.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  const rows=here.concat(rest);
   document.getElementById('fwdList').innerHTML=rows.map(r=>
     '<button class="fwd-item" onclick="doFwd(\''+r.cid+'\')">'+r.av+'<span class="fwd-nm">'+esc(r.name)+'</span><span class="fwd-tag">'+r.tag+'</span></button>').join('');
   document.getElementById('fwdChooser').classList.add('active');
@@ -3981,6 +4107,11 @@ function renderChatList(){
     dmRows.push({cid:cid,ts:0,el:()=>dmEmptyItem(cid,uid)});
   });
   Object.entries(ALL_GROUPS).forEach(([gid,g])=>{if(!g.members||!g.members[currentUser.uid])return;const un=(g.unread&&g.unread[currentUser.uid])||0;grUn+=un;grRows.push({ts:g.lastTs||0,el:()=>groupItem(gid,g,un)});});
+  // Видимые группы, где меня нет — чтобы можно было найти и попроситься.
+  // Скрытые (settings.hidden) здесь не показываются: их только по коду.
+  const openGr=Object.entries(ALL_GROUPS).filter(([gid,g])=>
+    (!g.members||!g.members[currentUser.uid]) && !(g.settings&&g.settings.hidden));
+  const openGroups=chatTab==='group'&&openGr.length?openGr:null;
   document.getElementById('tabDm').textContent='Личные ('+dmUn+')';
   document.getElementById('tabGr').textContent='Группы ('+grUn+')';
   document.getElementById('tabDm').classList.toggle('active',chatTab==='dm');
@@ -4023,6 +4154,19 @@ function renderChatList(){
   }
   const label=document.createElement('div');label.className='section-lbl';label.textContent=chatTab==='dm'?'💬 Личные чаты':'👥 Группы';c.appendChild(label);
   rows.sort((a,b)=>b.ts-a.ts).forEach(r=>c.appendChild(r.el()));
+  // Видимые группы, где меня нет — с кнопкой «вступить» (заявка админу группы)
+  if(openGroups){
+    const h2=document.createElement('div');h2.className='section-lbl';h2.textContent='🌍 Видимые группы — можно вступить';c.appendChild(h2);
+    openGroups.sort((a,b)=>(b[1].lastTs||0)-(a[1].lastTs||0)).forEach(([gid,g])=>{
+      const d=document.createElement('div');d.className='chat-item';
+      const pend=!!((lastGroupJoinReq||{})[gid]);
+      d.innerHTML=groupAvatarHtml(g,'')+'<div class="chat-info"><div class="chat-name"><span style="color:var(--primary)">'+esc(g.name||'Группа')+'</span></div>'+
+        '<div class="chat-last">участников: '+Object.keys(g.members||{}).length+' · '+(pend?'заявка отправлена':'нажми, чтобы войти')+'</div></div>'+
+        '<button class="btn '+(pend?'btn-outline':'btn-primary')+' btn-sm" style="width:auto;flex:none">'+(pend?'⏳':'➕')+'</button>';
+      d.onclick=()=>requestGroupJoin(gid,g.name||'Группа');
+      c.appendChild(d);
+    });
+  }
 }
 function dmItem(cid,i){const ou=i.otherUid,info=ALL_USERS[ou],n=nameOf(ou,i.otherName);
   const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(cid,ou);
@@ -4164,7 +4308,7 @@ function openUserProfile(uid){
   document.getElementById('vpCoverBand').innerHTML=coverHtmlFor(fr?i:null,'cover-band');
   document.getElementById('vpAvatarWrap').innerHTML=profilePhotoHtml(i,i.name);
   document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
-  document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
+  document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+rockBadgeHtml(uid);
   document.getElementById('vpLogin').textContent=currentUser.isAdmin?('логин: '+(i.login||'')):'';
   document.getElementById('vpStatus').textContent=fr?(i.status||'без статуса'):'🔒 информация для друзей';
   document.getElementById('vpPresence').innerHTML=fr?presenceHtml(i):'';
@@ -4231,6 +4375,13 @@ function sendGroupInvite(gid,uid){const g=groupOf(gid);if(!g)return;
   db.ref('groupInvites/'+uid+'/'+gid).set({ts:Date.now(),name:g.name,fromName:displayNameOf(currentUser)}).then(()=>{notifyUser(uid,'ginvite','Приглашение в группу','📩 Приглашение в «'+g.name+'»',{gid});toast('📨 Отправлено',true);});}
 function acceptGroupInv(gid){db.ref('groups/'+gid+'/members/'+currentUser.uid).set(Date.now()).then(()=>db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove()).then(()=>toast('🎉 Ты в группе',true));}
 function declineGroupInv(gid){db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove();}
+function toggleGroupHidden(gid){
+  const g=groupOf(gid);if(!g)return;
+  const hid=!!(g.settings&&g.settings.hidden);
+  db.ref('groups/'+gid+'/settings/hidden').set(hid?null:true).then(()=>{
+    toast(hid?'👁 Группа снова видна в списке':'🙈 Группа скрыта из общего списка (видна участникам и тебе)',true);
+    renderGroupInfo();}).catch(()=>toast('❌ Нет прав'));
+}
 function toggleNoFwdOut(gid){
   const g=groupOf(gid);if(!g)return;
   const nf=!!(g.settings&&g.settings.noFwdOut);
@@ -4283,6 +4434,7 @@ function renderGroupInfo(){
     '<div style="display:flex;gap:12px;align-items:center;margin-top:-30px;position:relative">'+groupAvatarHtml(g)+'<div style="padding-top:30px"><div style="font-weight:700;font-size:17px">'+esc(g.name)+'</div><div class="status-line">'+esc(g.status||'без статуса группы')+'</div><div style="color:var(--text3);font-size:12px">участников: '+Object.keys(g.members||{}).length+' · владелец: '+esc(nameOf(g.ownerId))+'</div></div></div>';
   const ec=document.getElementById('giEditCard');ec.style.display=manage?'block':'none';
   const nfc=document.getElementById('giNoFwdCard');if(nfc)nfc.style.display=manage?'block':'none';
+  const hdc=document.getElementById('giHiddenCard');if(hdc)hdc.style.display=manage?'block':'none';
   if(manage){document.getElementById('gName').value=g.name||'';document.getElementById('gStatus').value=g.status||'';}
   document.getElementById('gCoverCancel').style.display=gCoverData?'inline-flex':'none';
   document.getElementById('gCoverHint').style.display=gCoverData?'block':'none';
@@ -4294,6 +4446,12 @@ function renderGroupInfo(){
     if(tw){tw.checked=nf;
       const lbl=document.getElementById('giNoFwdOutLbl');
       if(lbl)lbl.textContent=nf?'Запрещено пересылать наружу':'Разрешено пересылать наружу';}
+    // Тумблер: скрыта ли группа из общего списка
+    const hd=!!(g.settings&&g.settings.hidden);
+    const hw=document.getElementById('giHidden');
+    if(hw){hw.checked=hd;
+      const hl=document.getElementById('giHiddenLbl');
+      if(hl)hl.textContent=hd?'Скрытая группа (видна только участникам)':'Видимая группа';}
   }
   const ac=document.getElementById('giAddCard');ac.style.display=manage?'block':'none';
   const al=document.getElementById('giAddList');al.innerHTML='';
@@ -4377,14 +4535,14 @@ function mediaListHtml(list,small){
     // в комментариях фото маленькие, как в чатах — по полной ширине коллаж НЕ растягивается
     if(small){
       let cells='';
-      imgs.slice(0,9).forEach((im,i)=>{cells+='<div class="polaroid" style="display:inline-block;margin:4px 6px 0 0"><img src="'+im.src+'" onclick="ppOpenSet(\''+gid+'\','+i+')" style="max-width:200px;cursor:pointer"></div>';});
+      imgs.slice(0,9).forEach((im,i)=>{cells+='<div class="polaroid" style="display:inline-block;margin:4px 6px 0 0"><img src="'+im.src+'" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+im.src+'\')" style="max-width:200px;cursor:pointer"></div>';});
       h+='<div style="margin-top:2px">'+cells+'</div>';
     }else{
       const show=Math.min(imgs.length,6);
       let cells='';
       for(let i=0;i<show;i++){
         const more=(i===5&&imgs.length>6)?'<span class="cg-more">+'+(imgs.length-6)+'</span>':'';
-        cells+='<div class="cg-i" onclick="ppOpenSet(\''+gid+'\','+i+')"><img src="'+imgs[i].src+'" alt="">'+more+'</div>';
+        cells+='<div class="cg-i" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+imgs[i].src+'\')"><img src="'+imgs[i].src+'" alt="">'+more+'</div>';
       }
       h+='<div class="cg cg-'+Math.min(imgs.length,9)+'">'+cells+'</div>';
     }
