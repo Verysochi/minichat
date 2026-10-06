@@ -1153,6 +1153,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="typing" id="typingIndicator"></div>
   <div class="messages" id="messagesContainer"></div>
   <div class="rec-preview" id="recPreview">
+    <button class="preview-btn rec-stop" id="recPauseBtn" title="Пауза" onclick="toggleRecPause()">⏸</button>
     <button class="preview-btn rec-stop" id="recStopBtn" title="Остановить и отправить" onclick="stopRecording()">⏹</button>
     <audio controls id="recPreviewAudio" style="display:none"></audio>
     <video controls id="recPreviewVideo" style="display:none;max-width:100%"></video>
@@ -1394,7 +1395,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 01:20';
+const BUILD='06.10.2026 01:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1406,7 +1407,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false;
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
 let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
@@ -3153,6 +3154,18 @@ function stableSig(obj){
   Object.entries(obj||{}).forEach(([k,v])=>{
     if(!v)return;
     const {reactions,views,...rest}=v;
+    // Реакции в КОММЕНТАРИЯХ тоже не должны трогать перерисовку карточки:
+    // раньше подпись менялась, карточка пересобиралась целиком, и открытая
+    // ветка комментариев схлопывалась при каждом роке.
+    if(rest.comments){
+      const cm={};
+      Object.entries(rest.comments).forEach(([cid,c])=>{
+        if(!c)return;
+        const {reactions:cr,views:cv,...cRest}=c;
+        cm[cid]=cRest;
+      });
+      rest.comments=cm;
+    }
     o[k]=rest;
   });
   return JSON.stringify(o);
@@ -3952,7 +3965,9 @@ function toggleRecord(mode){
         const lb=document.getElementById('recLiveLabel');
         if(lb)lb.textContent='Готово';
         const sb2=document.getElementById('recStopBtn');
-        if(sb2){sb2.style.display='none';}   // запись уже остановлена — кнопка не нужна
+        if(sb2){sb2.style.display='none';}
+        const pb2=document.getElementById('recPauseBtn');
+        if(pb2){pb2.style.display='none';}   // запись уже остановлена — кнопки не нужны
         // Запись остановили кнопкой отправки — улетает сразу, без второго нажатия
         if(recAutoSend){recAutoSend=false;sendRecorded();}
       };
@@ -3969,19 +3984,44 @@ function toggleRecord(mode){
     // Кнопка ⏹ прямо в плеере — остановить и отправить, не тянусь к ➤
     const sb=document.getElementById('recStopBtn');
     if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить и отправить';}
+    const pb=document.getElementById('recPauseBtn');
+    if(pb){pb.style.display='flex';pb.textContent='⏸';pb.title='Пауза';pb.classList.remove('paused');}
     // Кнопка микрофона становится кнопкой «стоп»
     const mb=document.getElementById('recBtn');
     if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
     recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
 }
+// Пауза/продолжение записи. Без неё кнопка в плеере просто останавливала.
+function toggleRecPause(){
+  if(!isRecording||!mediaRecorder)return;
+  try{
+    if(!recPaused){
+      mediaRecorder.pause();recPaused=true;
+      const sb=document.getElementById('recStopBtn');
+      if(sb){sb.textContent='▶';sb.title='Продолжить запись';sb.classList.add('paused');}
+      const lb=document.getElementById('recLiveLabel');
+      if(lb)lb.textContent='⏸ пауза';
+      const mb=document.getElementById('recBtn');
+      if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
+    }else{
+      mediaRecorder.resume();recPaused=false;
+      const sb=document.getElementById('recStopBtn');
+      if(sb){sb.textContent='⏹';sb.title='Остановить и отправить';sb.classList.remove('paused');}
+      const lb=document.getElementById('recLiveLabel');
+      if(lb)lb.textContent='● идёт запись';
+      const mb=document.getElementById('recBtn');
+      if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
+    }
+  }catch(e){toast('❌ Не получилось');}
+}
 // Остановить запись. autoSend=true — сразу отправить, как в обычных мессенджерах:
 // нажал ➤ (или 🎤) второй раз и всё, больше ничего жать не надо.
 function stopRecording(autoSend){
   if(!isRecording)return;
-  isRecording=false;clearInterval(recTimer);
+  isRecording=false;recPaused=false;clearInterval(recTimer);
   if(autoSend!==false)recAutoSend=true;
-  if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
+  try{if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();}catch(e){}
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   document.getElementById('msgInput').placeholder='Сообщение...';
 }
@@ -4005,12 +4045,13 @@ function sendRecorded(){
     .catch(e=>{recordedSending=false;document.getElementById('msgInput').placeholder=old;
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
-function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;
+function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;
   const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
   const sb=document.getElementById('recStopBtn'),lb=document.getElementById('recLiveLabel');
   pa.pause();pa.removeAttribute('src');pa.srcObject=null;pa.style.display='none';
   pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';
   if(sb)sb.style.display='none';
+  const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
   if(lb)lb.textContent='';
   document.getElementById('recPreview').classList.remove('active');}
 
