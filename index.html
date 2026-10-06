@@ -208,17 +208,14 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
    сразу, без подёргивания прокрутки в момент клика/отправки */
 .messages{flex:1;overflow-y:auto;overflow-anchor:none;padding:10px 12px 76px;display:flex;flex-direction:column;gap:5px}
 .msg{max-width:80%;padding:8px 12px;border-radius:18px;font-size:15px;line-height:1.4;word-wrap:break-word;position:relative;transition:all .2s;margin-top:2px}
-/* Стрелки вынесены в ВЕРХНИЕ УГЛА пузыря: слева «ответить», справа «поделиться».
-   В потоке они занимали место и сдвигали текст. */
-.msg-reply-btn,.msg-fwd-btn{position:absolute;top:-17px;height:30px;border-radius:15px;border:1px solid var(--surface3);
-  background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
-  opacity:1;transform:scale(1);transition:all .22s cubic-bezier(.34,1.56,.64,1);z-index:3;padding:0}
-/* «Ответить» — стрелка слева, «Поделиться» — 🔗 справа */
-.msg-reply-btn{left:2px;width:30px;font-size:15px}
-.msg-fwd-btn{right:2px;width:30px;font-size:14px}
-.msg:hover .msg-reply-btn,.msg:focus-within .msg-reply-btn,
-.msg:hover .msg-fwd-btn,.msg:focus-within .msg-fwd-btn{opacity:1;transform:scale(1)}
-.msg-reply-btn:hover,.msg-fwd-btn:hover{background:var(--accent-soft);border-color:var(--primary);transform:scale(1.12)}
+/* Кнопки действий стоят В ПОТОКЕ под текстом, отдельной строкой.
+   Пробовали выносить их в углы пузыря через absolute — они наезжали
+   на текст и на соседние сообщения, всё слеплось в кучу. */
+.msg-reply-btn,.msg-fwd-btn{width:26px;height:26px;border-radius:50%;border:1px solid var(--surface3);
+  background:var(--surface2);color:var(--text2);font-size:14px;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;padding:0;line-height:1;
+  transition:background .15s ease,border-color .15s ease,transform .18s ease}
+.msg-reply-btn:hover,.msg-fwd-btn:hover{background:var(--accent-soft);border-color:var(--primary);transform:scale(1.1)}
 .msg.sent{align-self:flex-end;background:var(--primary);color:var(--primary-text);border-bottom-right-radius:4px}
 .msg.received{align-self:flex-start;background:var(--surface2);border-bottom-left-radius:4px}
 /* НЕ scale() и НЕ transform: рамка полароида с фото внутри сообщения
@@ -235,7 +232,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .msg-foot .msg-time{margin-top:0}
 /* Раньше кнопки реакций были полупрозрачными и «загорались» только при наведении —
    на телефоне наведения нет, и они выглядели мёртвыми. Теперь всегда в полную силу. */
-.msg-actions{display:inline-flex;gap:2px;opacity:1;transition:opacity .2s}
+.msg-actions{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;opacity:1;transition:opacity .2s;max-width:100%}
 .msg:hover .msg-actions,.msg.highlighted .msg-actions{opacity:1}
 .avatar.xs{width:20px;height:20px;font-size:9px;min-width:20px}
 .avatar.sm{width:28px;height:28px;font-size:12px;min-width:28px}
@@ -372,6 +369,9 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .rock-btn.rocked:hover{box-shadow:0 0 14px rgba(255,215,0,.45),inset 0 0 10px rgba(255,215,0,.15)}
 .rock-btn .rock-emoji{font-size:18px;display:inline-block;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .rock-btn .rock-count{font-size:12px;font-weight:600;min-width:8px;text-align:center}
+/* Счётчик на самой кнопке 🤘 в новостях/колонках */
+.rock-btn .rc{font-size:11px;font-weight:700;opacity:.75;margin-left:1px}
+.rock-btn.rocked .rc{opacity:1}
 @keyframes rockFlash{
   0%{box-shadow:0 0 0 0 rgba(255,215,0,.9),inset 0 0 22px rgba(255,215,0,.55);transform:scale(1.1)}
   22%{box-shadow:0 0 26px rgba(255,215,0,.75),inset 0 0 14px rgba(255,215,0,.3);transform:scale(1.02)}
@@ -488,8 +488,6 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .rp-name{font-size:12px;font-weight:700;color:var(--primary)}
 .rp-text{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rp-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px;flex:none}
-/* Стрелки живут в верхних углах пузыря (см. .msg-reply-btn,.msg-fwd-btn выше) */
-.msg-reply-btn,.msg-fwd-btn{color:var(--text2);font-size:15px;line-height:1}
 /* Мобильные правки: облачко шире, кнопки не давят на текст */
 @media (max-width:640px){
   .msg{max-width:90%;padding:9px 13px}
@@ -1381,7 +1379,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 00:05';
+const BUILD='06.10.2026 00:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3050,24 +3048,14 @@ function fxAfterSet(el,emoji){try{fxReaction(el,emoji);}catch(e){}}
 // нажал — 🤘, нажал ещё раз — снял.
 function rockButtonHtml(reacts,myReact,basePath,id,context){
   const all=Object.keys(reacts||{});
-  const others=all.filter(u=>u!==currentUser.uid);
   const mine=myReact==='🤘';
-  let h='<span class="rock-wrap">';
-  others.slice(0,6).forEach(u=>{
-    const i=ALL_USERS[u];if(!i)return;
-    h+='<span class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+'">'+rockFaceHtml(u,'xs')+'</span>';
-  });
-  if(others.length>6)h+='<span class="who-btn">+'+(others.length-6)+'</span>';
-  h+='<button class="rock-btn'+(mine?' rocked':'')+'" data-rbase="'+escA(basePath)+'" data-rid="'+escA(id)+'" data-rctx="'+escA(context)+'" '+
-     'title="'+(mine?'Убрать реакцию 🤘':'Поставить 🤘')+'" '+
-     'onclick="event.stopPropagation();'+(mine
-        ?'rockRemove(\''+basePath+'\',\''+id+'\')'
-        :'rockPick(\''+basePath+'\',\''+id+'\',\''+context+'\',\'🤘\')')+'">'+
-     '<span class="rock-emoji">🤘</span>'+
-     (all.length?'<span class="react-count">'+all.length+'</span>':'')+'</button>';
-  if(all.length)
-    h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReactedNews(\''+basePath+'\',\''+id+'\')">👤 '+all.length+'</button>';
-  return h+'</span>';
+  return '<span class="rock-wrap">'+
+    '<button class="rock-btn'+(mine?' rocked':'')+'" data-rbase="'+escA(basePath)+'" data-rid="'+escA(id)+'" data-rctx="'+escA(context)+'" '+
+    'title="'+(mine?'Убрать 🤘':'Поставить 🤘')+'" '+
+    'onclick="event.stopPropagation();'+(mine
+      ?'rockRemove(\''+basePath+'\',\''+id+'\')'
+      :'rockPick(\''+basePath+'\',\''+id+'\',\''+context+'\',\'🤘\')')+'">'+
+    '🤘'+(all.length?'<span class="rc">'+all.length+'</span>':'')+'</button></span>';
 }
 // Панель выбора реакции для новостей/постов/комментариев
 let rockPickerEl=null;
