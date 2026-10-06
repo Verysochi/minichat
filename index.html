@@ -1395,7 +1395,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 03:25';
+const BUILD='06.10.2026 04:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2151,11 +2151,15 @@ function startListeners(){
   usersLRef=db.ref('users');usersLRef.on('value',s=>{ALL_USERS=s.val()||{};refreshDynamic();});
   groupsLRef=db.ref('groups');groupsLRef.on('value',s=>{ALL_GROUPS=s.val()||{};refreshDynamic();});
   newsLRef=db.ref('news');newsLRef.on('value',s=>{
-    const sig=stableSig(s.val());
+    // Ветка комментариев открыта — не пересобираем карточку из-за нового
+    // комментария, а просто обновляем саму ветку.
+    const openC=!!(CP&&CP.base==='news'&&CP.id);
+    const sig=stableSig(s.val(),openC?CP.id:null);
     lastNews=s.val();
     if(sig===lastNewsSig){patchRockButtons();if(CP)renderCommentsPanel();return;}
     lastNewsSig=sig;
     renderNews();
+    if(openC)renderCommentsPanel();
   });
   postsLRef=db.ref('userPosts');postsLRef.on('value',s=>{
     // реакция изменилась? — обновляем кнопки на месте, без перерисовки ленты
@@ -3180,7 +3184,7 @@ function patchRockButtons(){
   if(CP&&typeof renderCommentsPanel==='function')renderCommentsPanel();
 }
 // Подпись данных без реакций/просмотров: если она не изменилась — перерисовка не нужна
-function stableSig(obj){
+function stableSig(obj,skipComments){
   const o={};
   Object.entries(obj||{}).forEach(([k,v])=>{
     if(!v)return;
@@ -3189,13 +3193,19 @@ function stableSig(obj){
     // раньше подпись менялась, карточка пересобиралась целиком, и открытая
     // ветка комментариев схлопывалась при каждом роке.
     if(rest.comments){
-      const cm={};
-      Object.entries(rest.comments).forEach(([cid,c])=>{
-        if(!c)return;
-        const {reactions:cr,views:cv,...cRest}=c;
-        cm[cid]=cRest;
-      });
-      rest.comments=cm;
+      // Если ветка комментариев ОТКРЫТА — убираем её из подписи совсем:
+      // иначе отправка комментария пересобирает карточку, ветка на секунду
+      // схлопывается и разворачивается обратно. Выглядит как дёрганье.
+      if(skipComments)delete rest.comments;
+      else{
+        const cm={};
+        Object.entries(rest.comments).forEach(([cid,c])=>{
+          if(!c)return;
+          const {reactions:cr,views:cv,...cRest}=c;
+          cm[cid]=cRest;
+        });
+        rest.comments=cm;
+      }
     }
     o[k]=rest;
   });
@@ -5672,12 +5682,16 @@ function renderPending(){
 // Ключ одобрения — uid Firebase: именно его проверяют правила доступа к сообщениям.
 // У перенесённых записей он отличается от внутреннего uid, поэтому берём p.fuid.
 function approveReg(id){const p=lastPending[id];if(!p)return;
-  const apply=()=>db.ref('pendingRegistrations/'+id).remove()
-    .then(()=>{toast('✅ Одобрен',true);
-      // Перечитываем заявки сразу, чтобы бейдж обновился без перезагрузки страницы.
-      // Слушатель pendLRef тоже сработает, но с задержкой — не ждём его.
-      db.ref('pendingRegistrations').once('value').then(s=>{lastPending=s.val();renderPending();})
-        .catch(()=>renderPending());});
+  // Сразу убираем заявку из локальных данных и перерисовываем — бейдж гаснет
+  // мгновенно, без F5. Раньше здесь был отдельный .once('value'), и слушатель
+  // pendLRef потом присылал СТАРЫЕ данные, возвращая «1» на место.
+  const apply=()=>{
+    if(lastPending){delete lastPending[id];}
+    renderPending();
+    db.ref('pendingRegistrations/'+id).remove()
+      .then(()=>{toast('✅ Одобрен',true);})
+      .catch(()=>{toast('Ошибка удаления заявки');});
+  };
   const key=p.fuid||p.uid;
   if(key){db.ref('approvals/'+key).set(true).then(apply);return;}
   db.ref('users').orderByChild('login').equalTo(String(p.login||'').toLowerCase()).once('value').then(sn=>{
@@ -5685,7 +5699,11 @@ function approveReg(id){const p=lastPending[id];if(!p)return;
     const k=Object.keys(sn.val())[0],rec=sn.val()[k];
     db.ref('approvals/'+((rec&&rec.firebaseUid)||k)).set(true).then(apply);
   });}
-function declineReg(id){if(confirm('Отклонить?'))db.ref('pendingRegistrations/'+id).remove();}
+function declineReg(id){if(!confirm('Отклонить?'))return;
+  // Тот же принцип: гасим заявку сразу, не дожидаясь сервера
+  if(lastPending){delete lastPending[id];}
+  renderPending();
+  db.ref('pendingRegistrations/'+id).remove().catch(()=>{});}
 function sendBroadcast(){
   const inp=document.getElementById('broadcastInput'),text=inp.value.trim();
   if(!text){toast('Текст');return;}if(!confirm('Разослать ВСЕМ?'))return;
