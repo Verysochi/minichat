@@ -462,6 +462,10 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .rec-preview{display:none;align-items:center;gap:6px;padding:6px 10px;background:var(--surface2);flex-shrink:0}
 .rec-preview.active{display:flex}
+/* ⏹ прямо в плеере записи: остановить и отправить, не тянусь к ➤ внизу */
+.preview-btn.rec-stop{display:none;width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+  background:var(--red);color:#fff;font-size:16px;flex:none;align-items:center;justify-content:center}
+.preview-btn.rec-stop:active{transform:scale(.9)}
 .rec-preview audio,.rec-preview video{flex:1;height:36px;min-width:0}
 .preview-btn{width:38px;height:38px;border-radius:50%;border:none;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0}
 .preview-send{background:var(--green)}
@@ -1149,6 +1153,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="typing" id="typingIndicator"></div>
   <div class="messages" id="messagesContainer"></div>
   <div class="rec-preview" id="recPreview">
+    <button class="preview-btn rec-stop" id="recStopBtn" title="Остановить и отправить" onclick="stopRecording()">⏹</button>
     <audio controls id="recPreviewAudio" style="display:none"></audio>
     <video controls id="recPreviewVideo" style="display:none;max-width:100%"></video>
     <div id="recLiveLabel" style="font-size:11px;color:var(--text3);flex:none;max-width:120px;line-height:1.3"></div>
@@ -1389,7 +1394,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 00:55';
+const BUILD='06.10.2026 01:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1401,7 +1406,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null,recordedSending=false;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false;
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
 let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
@@ -3115,39 +3120,32 @@ function showWhoReactedNews(basePath,id){
 // Обновляет только сами кнопки реакций — колонка/лента остаются нетронутыми,
 // поэтому страница не «дёргается» при постановке реакции.
 function patchRockButtons(){
+  // ВАЖНО: в NodeList попадает САМА кнопка .rock-btn, поэтому искать её же
+  // через querySelector внутри бессмысленно — так всегда выходил null,
+  // и кнопка не переключалась (нельзя было «отрокнуть»).
   document.querySelectorAll('.rock-btn[data-rid]').forEach(b=>{
     const base=b.getAttribute('data-rbase'),id=b.getAttribute('data-rid'),ctx=b.getAttribute('data-rctx');
     let node=null;
     if(ctx==='news')node=lastNews&&lastNews[id];
     else if(ctx==='post')node=lastUserPosts&&lastUserPosts[id];
     else if(ctx==='comment'){
-      // комментарий лежит внутри новости/поста — ищем по _id
       let found=null;
       Object.values(lastNews||{}).forEach(n=>{if(n&&n.comments&&n.comments[id])found=n.comments[id];});
       if(!found)Object.values(lastUserPosts||{}).forEach(p=>{if(p&&p.comments&&p.comments[id])found=p.comments[id];});
       node=found;
     }
     const r=(node&&node.reactions)||{};
-    const mine=r[currentUser.uid]||null;
-    // Раньше тут искали только 🤘 и писали в .rock-count, которого в новой
-    // разметке может не быть — на этом падало. Теперь обновляем аккуратно.
-    const btn=b.querySelector('.rock-btn'),em=btn&&btn.querySelector('.rock-emoji');
-    if(em)em.textContent=mine||'☺';
-    if(btn){
-      btn.classList.toggle('rocked',!!mine);
-      btn.title=mine?('Твоя реакция: '+mine+' (нажми, чтобы убрать)'):'Поставить реакцию';
-      btn.onclick=new Function('event.stopPropagation();'+(mine
-        ?'rockRemove("'+b.getAttribute('data-rbase')+'","'+id+'")'
-        :'openRockPicker(this,"'+b.getAttribute('data-rbase')+'","'+id+'","'+ctx+'")'));
-    }
-    const wr=b.parentElement;
-    if(wr){
-      const nb=wr.querySelector('.react-count');
-      if(nb)nb.textContent=Object.keys(r).length;
-      const wb=wr.querySelector('.who-btn');
-      if(wb&&Object.keys(r).length)wb.textContent='👤 '+Object.keys(r).length;
-    }
+    const mine=(r[currentUser.uid]==='🤘')?'🤘':null;
+    const total=Object.keys(r).length;
+    b.innerHTML='🤘'+(total?'<span class="rc">'+total+'</span>':'');
+    b.classList.toggle('rocked',!!mine);
+    b.title=mine?'Убрать 🤘':'Поставить 🤘';
+    b.setAttribute('onclick',"event.stopPropagation();"+(mine
+      ?('rockRemove('+JSON.stringify(base)+','+JSON.stringify(id)+')')
+      :('rockPick('+JSON.stringify(base)+','+JSON.stringify(id)+','+JSON.stringify(ctx)+",'🤘')")));
   });
+  // Рок в комментарии не должен сворачивать ветку — перерисовываем её, если открыта
+  if(CP&&typeof renderCommentsPanel==='function')renderCommentsPanel();
 }
 // Подпись данных без реакций/просмотров: если она не изменилась — перерисовка не нужна
 function stableSig(obj){
@@ -3952,7 +3950,11 @@ function toggleRecord(mode){
         else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
         document.getElementById('recPreview').classList.add('active');
         const lb=document.getElementById('recLiveLabel');
-        if(lb)lb.textContent='Готово — жми ➤ или ещё раз 🎤';
+        if(lb)lb.textContent='Готово';
+        const sb2=document.getElementById('recStopBtn');
+        if(sb2){sb2.style.display='none';}   // запись уже остановлена — кнопка не нужна
+        // Запись остановили кнопкой отправки — улетает сразу, без второго нажатия
+        if(recAutoSend){recAutoSend=false;sendRecorded();}
       };
       r.readAsDataURL(blob);};
     mediaRecorder.start();isRecording=true;recStart=Date.now();
@@ -3963,16 +3965,22 @@ function toggleRecord(mode){
     else{pa0.style.display='block';pa0.srcObject=stream;pa0.muted=true;pa0.play().catch(()=>{});}
     document.getElementById('recPreview').classList.add('active');
     const lb=document.getElementById('recLiveLabel');
-    if(lb)lb.textContent='● идёт запись — жми ➤ чтобы отправить';
+    if(lb)lb.textContent='● идёт запись';
+    // Кнопка ⏹ прямо в плеере — остановить и отправить, не тянусь к ➤
+    const sb=document.getElementById('recStopBtn');
+    if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить и отправить';}
     // Кнопка микрофона становится кнопкой «стоп»
     const mb=document.getElementById('recBtn');
     if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
     recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
 }
-function stopRecording(){
+// Остановить запись. autoSend=true — сразу отправить, как в обычных мессенджерах:
+// нажал ➤ (или 🎤) второй раз и всё, больше ничего жать не надо.
+function stopRecording(autoSend){
   if(!isRecording)return;
   isRecording=false;clearInterval(recTimer);
+  if(autoSend!==false)recAutoSend=true;
   if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   document.getElementById('msgInput').placeholder='Сообщение...';
@@ -3997,7 +4005,14 @@ function sendRecorded(){
     .catch(e=>{recordedSending=false;document.getElementById('msgInput').placeholder=old;
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
-function cancelRecorded(){recordedDataUrl=null;recordedType=null;const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');pa.pause();pa.removeAttribute('src');pa.style.display='none';pv.pause();pv.removeAttribute('src');pv.style.display='none';document.getElementById('recPreview').classList.remove('active');}
+function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;
+  const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
+  const sb=document.getElementById('recStopBtn'),lb=document.getElementById('recLiveLabel');
+  pa.pause();pa.removeAttribute('src');pa.srcObject=null;pa.style.display='none';
+  pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';
+  if(sb)sb.style.display='none';
+  if(lb)lb.textContent='';
+  document.getElementById('recPreview').classList.remove('active');}
 
 // ===== ЗВОНКИ =====
 const RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:turn.anyfirewall.com:443?transport=tcp',credential:'webrtc',username:'webrtc'}]};
