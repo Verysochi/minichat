@@ -1395,7 +1395,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 03:00';
+const BUILD='06.10.2026 03:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3006,6 +3006,10 @@ function renderDeleteLogs(){
 // Сколько раз человек РОКНУЛ (уникальные новости/колонки/комментарии).
 // Считаем на лету из уже загруженных данных — отдельного счётчика в базе нет.
 function rockCountOf(uid){
+  // Сначала счётчик из записи человека — он всегда под рукой и не зависит от того,
+  // что именно сейчас загружено. Пересчёт по новостям — только запасной вариант.
+  const rec=(ALL_USERS[uid]||{}).rocks;
+  if(typeof rec==='number'&&rec>0)return rec;
   const uniq=new Set();
   const scan=o=>{if(!o)return;
     Object.keys(o).forEach(id=>{const it=o[id];if(!it)return;
@@ -3013,7 +3017,7 @@ function rockCountOf(uid){
       if(it.comments)Object.keys(it.comments).forEach(cid=>{const c=it.comments[cid];if(c&&c.reactions&&c.reactions[uid])uniq.add('c:'+id+':'+cid);});
     });};
   scan(lastNews);scan(lastUserPosts);
-  return uniq.size;
+  return Math.max(typeof rec==='number'?rec:0,uniq.size);
 }
 function rockFaceHtml(uid,cls){
   const i=ALL_USERS[uid]||{};
@@ -3104,10 +3108,27 @@ function openRockPicker(btn,basePath,id,context){
   setTimeout(()=>document.addEventListener('click',closeRockPicker,{once:true}),0);
 }
 function closeRockPicker(){if(rockPickerEl&&rockPickerEl.parentNode)rockPickerEl.parentNode.removeChild(rockPickerEl);rockPickerEl=null;}
+function bumpRockCount(){
+  // Счётчик храним в записи самого человека: пересчёт по загруженным данным
+  // раньше показывал 0 у всех, кому ещё не открывали новости.
+  if(!currentUser)return;
+  const ref=db.ref('users/'+currentUser.uid+'/rocks');
+  ref.transaction(n=>(typeof n==='number'?n:0)+1).catch(()=>{});
+}
 function rockPick(basePath,id,context,emoji){
   // В новостях, колонках и комментариях — СТАРАЯ вспышка на кнопке, тонкий вайб.
   // Дождь рук и взрыв оставили только для чатов.
   if(typeof event!=='undefined'&&event&&event.target)rockFlash(event.target.closest('.rock-btn'));
+  // Если реакция уже стоит — это снятие, счётчик не трогаем
+  const mine=(function(){
+    const ctx=basePath.split('/')[0];
+    let node=null;
+    if(ctx==='news')node=lastNews&&lastNews[id];
+    else if(ctx==='userPosts')node=lastUserPosts&&lastUserPosts[id];
+    else return false;
+    return !!(node&&node.reactions&&node.reactions[currentUser.uid]==='🤘');
+  })();
+  if(!mine)bumpRockCount();
   setMsgReaction(basePath,id,context,emoji);
   if(context==='news'&&lastNews&&lastNews[id]&&lastNews[id].authorUid)notifyUser(lastNews[id].authorUid,'react','Реакция на новость',emoji+' '+displayNameOf(currentUser)+' оценил(а) твою новость',{newsId:id});
   else if(context==='post'&&lastUserPosts&&lastUserPosts[id]&&lastUserPosts[id].authorUid)notifyUser(lastUserPosts[id].authorUid,'react','Реакция на пост',emoji+' '+displayNameOf(currentUser)+' оценил(а) твой пост',{postId:id});}
@@ -4017,23 +4038,31 @@ function toggleRecPause(){
   if(!isRecording||!mediaRecorder)return;
   try{
     if(!recPaused){
-      mediaRecorder.pause();recPaused=true;
-      const sb=document.getElementById('recStopBtn');
-      if(sb){sb.textContent='▶';sb.title='Продолжить запись';sb.classList.add('paused');}
-      const lb=document.getElementById('recLiveLabel');
-      if(lb)lb.textContent='⏸ пауза';
-      const mb=document.getElementById('recBtn');
-      if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
+      mediaRecorder.pause();
+      recPaused=true;
     }else{
-      mediaRecorder.resume();recPaused=false;
-      const sb=document.getElementById('recStopBtn');
-      if(sb){sb.textContent='⏹';sb.title='Остановить и отправить';sb.classList.remove('paused');}
-      const lb=document.getElementById('recLiveLabel');
-      if(lb)lb.textContent='● идёт запись';
-      const mb=document.getElementById('recBtn');
-      if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
+      mediaRecorder.resume();
+      recPaused=false;
     }
-  }catch(e){toast('❌ Не получилось');}
+  }catch(e){
+    // На части телефонов (iOS Safari) пауза не поддерживается вовсе.
+    // Раньше это молча ломало кнопку — теперь говорим прямо и продолжаем писать.
+    recPaused=false;
+    toast('⏸ Пауза не поддерживается на этом устройстве');
+    return;
+  }
+  const sb=document.getElementById('recStopBtn');
+  const lb=document.getElementById('recLiveLabel');
+  const mb=document.getElementById('recBtn');
+  if(recPaused){
+    if(sb){sb.textContent='▶';sb.title='Продолжить запись';sb.classList.add('paused');}
+    if(lb)lb.textContent='⏸ пауза';
+    if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
+  }else{
+    if(sb){sb.textContent='⏹';sb.title='Остановить и отправить';sb.classList.remove('paused');}
+    if(lb)lb.textContent='● идёт запись';
+    if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
+  }
 }
 // Остановить запись. autoSend=true — сразу отправить, как в обычных мессенджерах:
 // нажал ➤ (или 🎤) второй раз и всё, больше ничего жать не надо.
@@ -4290,6 +4319,18 @@ function groupItem(gid,g,un){const d=document.createElement('div');d.className='
   return d;}
 
 // ===== ДРУЗЬЯ/ПРОФИЛИ =====
+// Заявка о дружбе уходит на сервер, но кнопка оставалась прежней —
+// было непонятно, ушёл запрос или нет. Помечаем отправку локально и
+// сразу меняем вид кнопки.
+function frSentMark(uid){return parseInt(localStorage.getItem('mc_fr_'+uid)||'0',10)||0;}
+function refreshFriendBtn(uid){
+  const b=document.getElementById('vpAddBtn');
+  if(!b||!uid)return;
+  if(isFriend(uid)){b.style.display='none';return;}
+  const sent=frSentMark(uid);
+  if(sent){b.textContent='⏳ Запрос отправлен';b.disabled=true;b.style.opacity='.75';b.style.cursor='default';}
+  else{b.textContent='➕ Добавить в друзья';b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';}
+}
 function sendFriendRequest(uid){
   if(!uid)return;
   if(uid===currentUser.uid){toast('Это ты 😄');return;}
@@ -4298,8 +4339,10 @@ function sendFriendRequest(uid){
   db.ref('blocks/'+uid+'/'+currentUser.uid).once('value').then(b=>{
     if(b.exists()){toast('Пользователь заблокировал тебя');return;}
     db.ref('friendRequests/'+uid+'/'+currentUser.uid).set({ts:Date.now(),name:displayNameOf(currentUser)}).then(()=>{
+      localStorage.setItem('mc_fr_'+uid,String(Date.now()));   // пометка: запрос ушёл
+      refreshFriendBtn(uid);
       notifyUser(uid,'friend','Новый запрос в друзья','👋 '+displayNameOf(currentUser)+' хочет добавить тебя в друзья',{});
-      toast('📨 Запрос отправлен',true);});});
+      toast('📨 Запрос отправлен — ждём ответа',true);});});
 }
 function addByCode(){
   const code=(document.getElementById('addCodeInput').value||'').trim().toUpperCase();
@@ -4310,6 +4353,7 @@ function addByCode(){
     document.getElementById('addCodeInput').value='';});
 }
 function acceptFriend(f){const up={};up['friends/'+currentUser.uid+'/'+f]=true;up['friends/'+f+'/'+currentUser.uid]=true;up['friendRequests/'+currentUser.uid+'/'+f]=null;
+  localStorage.removeItem('mc_fr_'+f);   // запрос принят — пометка больше не нужна
   db.ref().update(up).then(()=>{notifyUser(f,'friendok','Заявка принята','✅ '+displayNameOf(currentUser)+' принял(а) заявку',{});toast('✅ В контактах',true);});}
 function declineFriend(f){db.ref('friendRequests/'+currentUser.uid+'/'+f).remove();}
 function setRel(uid,v){db.ref('friends/'+currentUser.uid+'/'+uid+'/rel').set(v||null).then(()=>toast('✅ Сохранено',true));}
@@ -4424,6 +4468,7 @@ function openUserProfile(uid){
   document.getElementById('vpColumnTitle').textContent='📝 Колонка: '+displayNameOf(i);
   const isMe=uid===currentUser.uid;
   document.getElementById('vpAddBtn').style.display=(!isMe&&!isFriend(uid))?'block':'none';
+  if(!isMe&&!isFriend(uid))refreshFriendBtn(uid);
   const canWrite=(!isMe)&&(fr||currentUser.isAdmin);
   document.getElementById('vpWriteBtn').style.display=canWrite?'block':'none';
   document.getElementById('vpWriteBtn').textContent=canWrite?'💬 Написать':'🔒 Только друзья могут писать';
@@ -4845,7 +4890,9 @@ function toggleComments(base,id){
 function closeCommentsPanel(){
   const old=CP?cmtHost(CP.base,CP.id):null;
   CP=null;pendingReply={};pendingCommentMedia={};
-  if(old){old.classList.remove('open');old.innerHTML='';}
+  if(old){old.classList.remove('open');old.innerHTML='';delete old.dataset.built;}
+  // Без сброса dataset.built повторное открытие ничего не собирало заново:
+  // оставалась пустая полоска высотой в пару пикселей вместо комментариев.
   const inp=document.getElementById('cpInput');if(inp)inp.value='';   // не оставляем текст на следующий раз
   const ch=document.getElementById('cpReply');if(ch)ch.style.display='none';
   const md=document.getElementById('cpMedia');if(md)md.innerHTML='';
