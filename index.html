@@ -289,6 +289,11 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
   background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.45);vertical-align:middle}
 .rb-hand{font-size:14px;line-height:1}
 .rb-n{font-size:13px;font-weight:700;color:var(--gold,#ffc107);line-height:1}
+/* Кнопка 🤘 в новостях/колонках не должна наезжать на ветку комментариев:
+   раньше она была position:relative с z-index и перекрывала список */
+.rock-wrap{position:static;z-index:auto}
+.rock-btn{position:static!important;z-index:auto!important;overflow:visible}
+.news-card .comments-block,.cmt-block,.comments-list{position:relative;z-index:1}
 /* Имя отправителя теперь кликабельно (открывает профиль) */
 .msg-sender{cursor:pointer;display:flex;align-items:center;gap:5px}
 .msg-sender:active{opacity:.7}
@@ -602,11 +607,16 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .cg-6,.cg-7,.cg-8,.cg-9{grid-template-columns:repeat(3,1fr)}
 .cg-2,.cg-3,.cg-4,.cg-5,.cg-6,.cg-7,.cg-8,.cg-9{aspect-ratio:1/1;grid-auto-rows:1fr}
 .cg .cg-more{position:absolute;inset:0;background:rgba(0,0,0,.55);color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;text-shadow:0 2px 8px #000}
-/* ПК: колонка широкая, и фото во всю её ширину выглядит плохо — режем до нормального размера.
-   На телефоне (узкий экран) ограничение не нужно: там ширины и так хватает. */
+/* ВСЕ фото в новостях/колонках — одного размера (квадратная ячейка + object-fit:cover).
+   Раньше на ПК стояло height:auto/max-height:none, и высокое портретное фото
+   растягивалось без предела — «разрывало экран». Убрали. */
+.cg .cg-i{aspect-ratio:1/1}
+.cg-1 .cg-i img{max-height:none;height:100%;object-fit:cover}
+.cg-1{aspect-ratio:auto}
+.cg-1 .cg-i{aspect-ratio:16/10;max-height:420px}
+/* ПК: колонка широкая — ограничиваем, иначе фото растянуто на всю ширину */
 @media (min-width:900px){
   .cg{max-width:640px}
-  .cg-1 .cg-i img{height:auto;max-height:none}
 }
 #toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;display:none;z-index:700;max-width:80%;text-align:center;font-weight:600}
 #toast.success{background:var(--green)}
@@ -1140,8 +1150,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="messages" id="messagesContainer"></div>
   <div class="rec-preview" id="recPreview">
     <audio controls id="recPreviewAudio" style="display:none"></audio>
-    <video controls id="recPreviewVideo" style="display:none"></video>
-    <!-- Отдельной кнопки отправки нет: голосовое уходит обычной ➤ внизу -->
+    <video controls id="recPreviewVideo" style="display:none;max-width:100%"></video>
+    <div id="recLiveLabel" style="font-size:11px;color:var(--text3);flex:none;max-width:120px;line-height:1.3"></div>
     <button class="preview-btn preview-del" title="Удалить запись" onclick="cancelRecorded()">🗑</button>
   </div>
   <div id="chatMediaContainer" class="media-container" style="display:none;margin:0 8px"></div>
@@ -1379,7 +1389,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 00:30';
+const BUILD='06.10.2026 00:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2917,7 +2927,9 @@ function sendMessage(){
   const input=document.getElementById('msgInput'),text=input.value.trim();
   if(!currentChatId)return;
   if(!dmGuard())return;
-  // Голосовое отправляется ТОЖЕ этой кнопкой ➤ — отдельной кнопки отправки больше нет
+  // Голосовое отправляется этой же кнопкой ➤. Если сейчас идёт запись —
+// сначала останавливаем её, отправка произойдёт в onstop.
+  if(isRecording){stopRecording();return;}
   if(recordedDataUrl){sendRecorded();}
   if(!text&&chatMediaQueue.length===0)return;
   const go=()=>{
@@ -3004,7 +3016,10 @@ function rockBadgeHtml(uid){
 function fxReaction(el,emoji){
   if(!el)return;
   const r=el.getBoundingClientRect();
-  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  if(!r.width||!r.height)return;          // скрытый элемент — рисовать некуда
+  fxReactionAt(r.left+r.width/2,r.top+r.height/2,emoji);
+}
+function fxReactionAt(cx,cy,emoji){
   if(emoji==='🤘'){
     const n=14;
     for(let i=0;i<n;i++){
@@ -3074,9 +3089,9 @@ function openRockPicker(btn,basePath,id,context){
 }
 function closeRockPicker(){if(rockPickerEl&&rockPickerEl.parentNode)rockPickerEl.parentNode.removeChild(rockPickerEl);rockPickerEl=null;}
 function rockPick(basePath,id,context,emoji){
-  // Анимация ставим сразу по нажатой кнопке — до того, как база перерисует карточку
-  if(typeof event!=='undefined'&&event&&event.target)
-    fxAfterSet(event.target.closest('.rock-btn'),emoji);
+  // В новостях, колонках и комментариях — СТАРАЯ вспышка на кнопке, тонкий вайб.
+  // Дождь рук и взрыв оставили только для чатов.
+  if(typeof event!=='undefined'&&event&&event.target)rockFlash(event.target.closest('.rock-btn'));
   setMsgReaction(basePath,id,context,emoji);
   if(context==='news'&&lastNews&&lastNews[id]&&lastNews[id].authorUid)notifyUser(lastNews[id].authorUid,'react','Реакция на новость',emoji+' '+displayNameOf(currentUser)+' оценил(а) твою новость',{newsId:id});
   else if(context==='post'&&lastUserPosts&&lastUserPosts[id]&&lastUserPosts[id].authorUid)notifyUser(lastUserPosts[id].authorUid,'react','Реакция на пост',emoji+' '+displayNameOf(currentUser)+' оценил(а) твой пост',{postId:id});}
@@ -3193,15 +3208,21 @@ function reactFaceHtml(uid){
 }
 function setMsgReaction(basePath,id,context,emoji){
   const ref=db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid);
-  // Выбрал реакцию — панель сразу закрывается, а на её месте остаётся сама реакция.
+  // Снимаем координаты СРАЗУ, до закрытия панели. Раньше мы сохраняли сам
+  // элемент, потом панель скрывалась — и прямоугольник становился 0×0,
+  // из-за чего анимация вылетала в левый верхний угол приложения.
+  let at=null;
+  const el=(typeof event!=='undefined'&&event&&event.target)?event.target.closest('.r-btn,.msg-react-btn,.rock-btn'):null;
+  if(el){const r=el.getBoundingClientRect();
+    if(r.width&&r.height)at={x:r.left+r.width/2,y:r.top+r.height/2};}
   clearHighlight();
-  // Ловим кнопку ДО перерисовки, иначе анимация не найдёт элемент
-  const btn=(typeof event!=='undefined'&&event&&event.target)?event.target.closest('.r-btn,.msg-react-btn,.rock-btn'):null;
   ref.once('value').then(s=>{
     if(s.val()===emoji){ref.remove();return;}
     ref.set(emoji);
-    // Анимация: 🤘 — дождь рук, остальные — быстрый взрыв
-    fxAfterSet(btn||(document.querySelector('.msg.highlighted .msg-react-btn')||null),emoji);
+    // Анимацию запускаем ТОЛЬКО для чатов. Новости/колонки/комментарии
+    // используют свою вспышку (rockFlash) — она там и была по вайбу.
+    const chatCtx=(context==='msg');
+    if(at&&chatCtx)try{fxReactionAt(at.x,at.y,emoji);}catch(e){}
   });
 }
 function msgReactionsHtml(m,key){
@@ -3907,7 +3928,11 @@ function getUserMediaSmart(mode){
   return t(0);
 }
 function toggleRecord(mode){
+  // Кнопка микрофона работает как в обычных мессенджерах:
+  // идёт запись  →  повторное нажатие останавливает и отправляет;
+  // запись готова →  нажатие отправляет её.
   if(isRecording){stopRecording();return;}
+  if(recordedDataUrl){sendRecorded();return;}
   if(!currentChatId){toast('Открой чат');return;}if(!dmGuard())return;
   cancelRecorded();
   getUserMediaSmart(mode).then(stream=>{
@@ -3922,20 +3947,36 @@ function toggleRecord(mode){
       r.onload=()=>{if(r.result.length>MAX_REC_INLINE){toast('Слишком длинно');return;}
         recordedDataUrl=r.result;recordedType=mode;
         const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
-        if(mode==='video'){pv.src=recordedDataUrl;pv.style.display='block';pa.style.display='none';}else{pa.src=recordedDataUrl;pa.style.display='block';pv.style.display='none';}
+        // Переключаем живой поток на готовую запись
+        if(mode==='video'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';}
+        else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
         document.getElementById('recPreview').classList.add('active');
-        // Отправляем сразу: раньше надо было ещё раз жать ➤, потом снова лезть
-        // в меню за микрофоном — отсюда «по-дебильному».
-        sendRecorded();};
+        const lb=document.getElementById('recLiveLabel');
+        if(lb)lb.textContent='Готово — жми ➤ или ещё раз 🎤';
+      };
       r.readAsDataURL(blob);};
     mediaRecorder.start();isRecording=true;recStart=Date.now();
-    // Подсветка на кнопке микрофона — сразу видно, что идёт запись
+    // ЖИВОЙ плеер над полем ввода — раньше он появлялся только после остановки
+    // и сразу мекал, запись не было видно. Теперь видно с первого момента.
+    const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
+    if(mode==='video'){pv0.style.display='block';pv0.srcObject=stream;pv0.muted=true;pv0.play().catch(()=>{});}
+    else{pa0.style.display='block';pa0.srcObject=stream;pa0.muted=true;pa0.play().catch(()=>{});}
+    document.getElementById('recPreview').classList.add('active');
+    const lb=document.getElementById('recLiveLabel');
+    if(lb)lb.textContent='● идёт запись — жми ➤ чтобы отправить';
+    // Кнопка микрофона становится кнопкой «стоп»
     const mb=document.getElementById('recBtn');
-    if(mb)mb.classList.add('recording');
+    if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
     recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
 }
-function stopRecording(){if(!isRecording)return;isRecording=false;clearInterval(recTimer);if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();document.querySelectorAll('#chatInputBar .recording').forEach(b=>b.classList.remove('recording'));document.getElementById('msgInput').placeholder='Сообщение...';}
+function stopRecording(){
+  if(!isRecording)return;
+  isRecording=false;clearInterval(recTimer);
+  if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
+  document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
+  document.getElementById('msgInput').placeholder='Сообщение...';
+}
 // Голосовое больше не впивается прямо в сообщение: раньше data-URL летел в базу
 // одним куском и упирался в 4.5 МБ, поэтому стоял искусственный лимит 30 секунд.
 // Теперь файл грузится кусками (files/<key>/chunks), а в сообщении только ссылка —
