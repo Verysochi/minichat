@@ -377,9 +377,12 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* Счётчик на самой кнопке 🤘 в новостях/колонках */
 .rock-btn .rc{font-size:11px;font-weight:700;opacity:.75;margin-left:1px}
 .rock-btn.rocked .rc{opacity:1}
+/* Только свечение. Раньше здесь был transform:scale(1.1) — из-за него
+   карточка выходила за пределы контейнера, появлялась полоса прокрутки
+   и дёргалась вся колонка. Масштаб убран, свечение осталось. */
 @keyframes rockFlash{
-  0%{box-shadow:0 0 0 0 rgba(255,215,0,.9),inset 0 0 22px rgba(255,215,0,.55);transform:scale(1.1)}
-  22%{box-shadow:0 0 26px rgba(255,215,0,.75),inset 0 0 14px rgba(255,215,0,.3);transform:scale(1.02)}
+  0%{box-shadow:0 0 0 0 rgba(255,215,0,.9),inset 0 0 22px rgba(255,215,0,.55)}
+  22%{box-shadow:0 0 26px rgba(255,215,0,.75),inset 0 0 14px rgba(255,215,0,.3)}
   45%{box-shadow:0 0 12px rgba(255,215,0,.45),inset 0 0 8px rgba(255,215,0,.18)}
   100%{box-shadow:0 0 0 0 rgba(255,215,0,0),inset 0 0 0 rgba(255,215,0,0)}
 }
@@ -1395,7 +1398,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 04:00';
+const BUILD='06.10.2026 04:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1407,7 +1410,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[];
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
 let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
@@ -2947,9 +2950,9 @@ function sendMessage(){
   const input=document.getElementById('msgInput'),text=input.value.trim();
   if(!currentChatId)return;
   if(!dmGuard())return;
-  // Голосовое отправляется этой же кнопкой ➤. Если сейчас идёт запись —
-// сначала останавливаем её, отправка произойдёт в onstop.
-  if(isRecording){stopRecording();return;}
+  // ➤ во время записи: останавливаем и СРАЗУ отправляем — одно нажатие.
+  // Если запись уже остановлена кнопкой ⏹ — отправляем готовую.
+  if(isRecording||recPaused){stopRecording(true);return;}
   if(recordedDataUrl){sendRecorded();}
   if(!text&&chatMediaQueue.length===0)return;
   const go=()=>{
@@ -3984,45 +3987,15 @@ function getUserMediaSmart(mode){
   return t(0);
 }
 function toggleRecord(mode){
-  // Кнопка микрофона работает как в обычных мессенджерах:
-  // идёт запись  →  повторное нажатие останавливает и отправляет;
-  // запись готова →  нажатие отправляет её.
+  // Микрофон: идёт запись ⏹ остановить · на паузе ▶ продолжить · готово ⏹ отправить
   if(isRecording){stopRecording();return;}
+  if(recPaused){toggleRecPause();return;}
   if(recordedDataUrl){sendRecorded();return;}
   if(!currentChatId){toast('Открой чат');return;}if(!dmGuard())return;
   cancelRecorded();
   getUserMediaSmart(mode).then(stream=>{
-    audioChunks=[];let opts;
-    if(mode==='video')opts=MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')?{mimeType:'video/webm;codecs=vp8,opus'}:undefined;
-    else opts=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?{mimeType:'audio/webm;codecs=opus'}:undefined;
-    mediaRecorder=new MediaRecorder(stream,opts);
-    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)audioChunks.push(e.data);};
-    mediaRecorder.onstop=()=>{stream.getTracks().forEach(t=>t.stop());
-      const blob=new Blob(audioChunks,{type:mediaRecorder.mimeType||(mode==='video'?'video/webm':'audio/webm')});
-      const r=new FileReader();
-      r.onload=()=>{if(r.result.length>MAX_REC_INLINE){toast('Слишком длинно');return;}
-        recordedDataUrl=r.result;recordedType=mode;
-        const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
-        // Переключаем живой поток на готовую запись
-        try{
-          if(mode==='video'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';}
-          else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
-        }catch(e){console.warn('preview switch failed',e);}
-        document.getElementById('recPreview').classList.add('active');
-        const lb=document.getElementById('recLiveLabel');
-        if(lb)lb.textContent='Готово';
-        const sb2=document.getElementById('recStopBtn');
-        if(sb2){sb2.style.display='none';}
-        const pb2=document.getElementById('recPauseBtn');
-        if(pb2){pb2.style.display='none';}   // запись уже остановлена — кнопки не нужны
-        // Запись остановили кнопкой отправки — улетает сразу, без второго нажатия
-        if(recAutoSend){recAutoSend=false;sendRecorded();}
-      };
-      r.readAsDataURL(blob);};
-    mediaRecorder.start();isRecording=true;recStart=Date.now();recElapsed=0;recPausedAt=0;
-    // ЖИВОЙ плеер над полем ввода. ВАЖНО: присвоение srcObject может бросить
-    // исключение (не все потоки это умеют) — тогда запись не должна ломаться,
-    // поэтому весь блок в try/catch.
+    recStream=stream;recMode=mode;recSegs=[];audioChunks=[];
+    recElapsed=0;recStart=Date.now();
     try{
       const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
       const el=mode==='video'?pv0:pa0,other=mode==='video'?pa0:pv0;
@@ -4032,64 +4005,100 @@ function toggleRecord(mode){
     document.getElementById('recPreview').classList.add('active');
     const lb=document.getElementById('recLiveLabel');
     if(lb)lb.textContent='● идёт запись';
-    // Кнопка ⏹ прямо в плеере — остановить и отправить, не тянусь к ➤
     const sb=document.getElementById('recStopBtn');
-    if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить и отправить';}
+    if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить запись';}
     const pb=document.getElementById('recPauseBtn');
     if(pb){pb.style.display='flex';pb.textContent='⏸';pb.title='Пауза';pb.classList.remove('paused');}
-    // Кнопка микрофона становится кнопкой «стоп»
     const mb=document.getElementById('recBtn');
-    if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
+    if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
+    startSegment();
     recTimer=setInterval(()=>{
       const ms=recElapsed+(recPaused?0:(Date.now()-recStart));
       const s=Math.floor(ms/1000);
       document.getElementById('msgInput').placeholder=(recPaused?'⏸ ':'● ')+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
       if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
-  }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
+  }).catch(e=>{toast(mediaPermissionError(e,mode==='video'?'камера':'микрофон'));});
+}
+// Запись идёт ПО СЕГМЕНТАМ: пауза = останавливаем текущий сегмент, продолжение =
+// начинаем новый на том же потоке. Так пауза работает везде, даже там, где
+// MediaRecorder.pause() бросает исключение (iOS, часть Android).
+function startSegment(){
+  if(!recStream)return;
+  audioChunks=[];
+  let opts;
+  if(recMode==='video')opts=MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')?{mimeType:'video/webm;codecs=vp8,opus'}:undefined;
+  else opts=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?{mimeType:'audio/webm;codecs=opus'}:undefined;
+  mediaRecorder=new MediaRecorder(recStream,opts);
+  mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)audioChunks.push(e.data);};
+  mediaRecorder.start();
+  isRecording=true;recPaused=false;recStart=Date.now();
+}
+// Собрать все сегменты в один файл и показать плеер. Само НЕ отправляет.
+function finishRecording(){
+  const all=recSegs.concat(audioChunks.length?[audioChunks]:[]);
+  recSegs=[];
+  if(!all.length){cancelRecorded();return;}
+  const flat=[].concat.apply([],all).filter(Boolean);
+  const type=(recMode==='video')?(mediaRecorder&&mediaRecorder.mimeType)||'video/webm':(mediaRecorder&&mediaRecorder.mimeType)||'audio/webm';
+  const blob=new Blob(flat,{type:type});
+  const r=new FileReader();
+  r.onload=()=>{
+    recordedDataUrl=r.result;recordedType=recMode;
+    const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
+    try{
+      if(recMode==='video'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';}
+      else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
+    }catch(e){}
+    document.getElementById('recPreview').classList.add('active');
+    const lb=document.getElementById('recLiveLabel');if(lb)lb.textContent='Готово — ➤ отправить';
+    const sb=document.getElementById('recStopBtn');if(sb)sb.style.display='none';
+    const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
+    document.getElementById('msgInput').placeholder='Сообщение...';
+    if(recAutoSend){recAutoSend=false;sendRecorded();}
+  };
+  r.readAsDataURL(blob);
 }
 // Пауза/продолжение записи. Без неё кнопка в плеере просто останавливала.
+// Пауза/продолжение. Работает через сегменты, а не через mediaRecorder.pause():
+// на iOS и части Android pause() бросает исключение, из-за чего кнопка
+// переключалась, а запись продолжалась.
 function toggleRecPause(){
-  if(!isRecording||!mediaRecorder)return;
   const sb=document.getElementById('recStopBtn');
   const lb=document.getElementById('recLiveLabel');
   const mb=document.getElementById('recBtn');
-  if(!recPaused){
-    let ok=false;
-    try{ mediaRecorder.pause(); ok=(mediaRecorder.state==='paused'); }catch(e){ ok=false; }
-    if(!ok){
-      // Кнопка раньше всё равно переключалась и показывала «пауза»,
-      // хотя запись шла дальше. Теперь проверяем реальное состояние и не врём.
-      try{if(mediaRecorder.state==='recording')mediaRecorder.resume();}catch(e){}
-      toast('⏸ Пауза не работает на этом устройстве');
-      if(sb){sb.textContent='⏹';sb.classList.remove('paused');}
-      if(lb)lb.textContent='● идёт запись';
-      return;
-    }
-    recPaused=true;
-    recPausedAt=Date.now();              // таймер замораживаем, а не крутим дальше
-    if(sb){sb.textContent='▶';sb.title='Продолжить запись';sb.classList.add('paused');}
-    if(lb)lb.textContent='⏸ пауза';
+  if(isRecording){
+    // пауза: останавливаем сегмент и кладём его в список
+    recElapsed+=Date.now()-recStart;
+    try{ mediaRecorder.requestData&&mediaRecorder.requestData(); mediaRecorder.stop(); }catch(e){}
+    recSegs.push(audioChunks);
+    isRecording=false;recPaused=true;
+    if(sb){sb.textContent='⏹';sb.classList.remove('paused');sb.title='Продолжить запись';}
+    if(lb)lb.textContent='⏸ пауза — нажми ▶';
     if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
-  }else{
-    let ok=false;
-    try{ mediaRecorder.resume(); ok=(mediaRecorder.state==='recording'); }catch(e){ ok=false; }
-    recPaused=false;
-    if(ok&&recPausedAt){recElapsed+=Date.now()-recPausedAt;recPausedAt=0;recStart=Date.now()-recElapsed;}
-    if(sb){sb.textContent='⏹';sb.title='Остановить и отправить';sb.classList.remove('paused');}
+    return;
+  }
+  if(recPaused){
+    startSegment();                       // продолжаем новым сегментом
+    if(sb){sb.textContent='⏹';sb.classList.remove('paused');sb.title='Остановить запись';}
     if(lb)lb.textContent='● идёт запись';
-    if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
-    if(!ok)toast('⚠️ Не удалось продолжить');
+    if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
   }
 }
-// Остановить запись. autoSend=true — сразу отправить, как в обычных мессенджерах:
-// нажал ➤ (или 🎤) второй раз и всё, больше ничего жать не надо.
+// ⏹ — просто остановить запись. Само НЕ отправляет: дальше ➤ отправит,
+// а 🗑 удалит. Раньше кнопка удаления успевала отправить голосовое.
 function stopRecording(autoSend){
-  if(!isRecording)return;
-  isRecording=false;recPaused=false;clearInterval(recTimer);
-  if(autoSend!==false)recAutoSend=true;
-  try{if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();}catch(e){}
+  if(!isRecording&&!recPaused)return;
+  if(isRecording){
+    recElapsed+=Date.now()-recStart;
+    try{ mediaRecorder.requestData&&mediaRecorder.requestData(); mediaRecorder.stop(); }catch(e){}
+    recSegs.push(audioChunks);
+    isRecording=false;
+  }
+  recPaused=false;clearInterval(recTimer);recTimer=null;
+  if(autoSend===true)recAutoSend=true;
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   document.getElementById('msgInput').placeholder='Сообщение...';
+  finishRecording();
 }
 // Голосовое больше не впивается прямо в сообщение: раньше data-URL летел в базу
 // одним куском и упирался в 4.5 МБ, поэтому стоял искусственный лимит 30 секунд.
@@ -4112,14 +4121,20 @@ function sendRecorded(){
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
 function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;
+  recordedSending=false;recSegs=[];audioChunks=[];recElapsed=0;recPausedAt=0;
+  if(recStream){try{recStream.getTracks().forEach(t=>t.stop());}catch(e){}}
+  recStream=null;mediaRecorder=null;isRecording=false;
+  if(recTimer){clearInterval(recTimer);recTimer=null;}
   const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
   const sb=document.getElementById('recStopBtn'),lb=document.getElementById('recLiveLabel');
-  pa.pause();pa.removeAttribute('src');pa.srcObject=null;pa.style.display='none';
-  pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';
+  if(pa){pa.pause();pa.removeAttribute('src');pa.srcObject=null;pa.style.display='none';}
+  if(pv){pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';}
   if(sb)sb.style.display='none';
   const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
   if(lb)lb.textContent='';
-  document.getElementById('recPreview').classList.remove('active');}
+  document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
+  const inp=document.getElementById('msgInput');if(inp&&inp.placeholder.indexOf('Отправляю')>=0)inp.placeholder='Сообщение...';
+  const pr=document.getElementById('recPreview');if(pr)pr.classList.remove('active');}
 
 // ===== ЗВОНКИ =====
 const RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:turn.anyfirewall.com:443?transport=tcp',credential:'webrtc',username:'webrtc'}]};
@@ -4814,9 +4829,15 @@ function renderProposals(){
   Object.entries(lastProposals).sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([id,p])=>{
     const d=document.createElement('div');d.className='req-card';
     const mh=p.mediaList?mediaListHtml(p.mediaList):(p.thumb?'<div class="polaroid"><img src="'+p.thumb+'"></div>':'');
-    d.innerHTML='<div style="font-weight:600">'+(p.title?esc(p.title):'без заголовка')+'</div>'+
+    // Аватар автора: настоящий, если есть, иначе временный кружок с первой буквой
+    const au=(p.authorUid&&ALL_USERS[p.authorUid])?ALL_USERS[p.authorUid]:{name:p.author,color:p.color};
+    const av=avatarHtml(au,'sm',p.author);
+    d.innerHTML='<div style="display:flex;gap:10px;align-items:flex-start">'+
+      '<div style="flex:none">'+av+'</div><div style="min-width:0;flex:1">'+
+      '<div style="font-weight:600">'+(p.title?esc(p.title):'без заголовка')+'</div>'+
       '<div style="font-size:12px;color:var(--text2);margin:4px 0">'+esc(p.text||'')+'</div>'+mh+
       '<div style="font-size:11px;color:var(--text3)">от '+esc(p.author||'')+' · '+fmtFull(p.ts)+'</div>'+
+      '</div></div>'+
       '<div class="row" style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="approveProposal(\''+id+'\')">✅ Одобрить</button><button class="btn btn-outline btn-sm" style="border-color:var(--red);color:var(--red)" onclick="declineProposal(\''+id+'\')">❌ Отклонить</button></div>';
     b.appendChild(d);
     if(p.mediaList)p.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});
