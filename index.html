@@ -4459,13 +4459,15 @@ function renderPeople(){
   paintVisibilitySwitches();
   const pb=document.getElementById('peopleBadge');
   const nReq=(lastFriendReq?Object.keys(lastFriendReq).length:0)+(lastGroupInv?Object.keys(lastGroupInv).length:0);
-  if(nReq>0){pb.textContent=nReq;pb.classList.add('active');}else pb.classList.remove('active');
+  // Раньше цифра просто оставалась висеть в бейдже после сброса заявок —
+  // класс active снимался, но текст оставался.
+  if(nReq>0){pb.textContent=nReq;pb.classList.add('active');}else{pb.textContent='';pb.classList.remove('active');}
   const fw=document.getElementById('friendReqWrap'),fl=document.getElementById('friendReqList');
   if(lastFriendReq&&Object.keys(lastFriendReq).length){fw.style.display='block';fl.innerHTML='';
     Object.entries(lastFriendReq).forEach(([uid,r])=>{const d=document.createElement('div');d.className='req-card';
       d.innerHTML='<div style="display:flex;gap:10px;align-items:center">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">хочет в друзья</div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="acceptFriend(\''+uid+'\')">✅ Принять</button><button class="btn btn-outline btn-sm" onclick="declineFriend(\''+uid+'\')">❌</button></div>';
       fl.appendChild(d);});
-  } else fw.style.display='none';
+  } else {fw.style.display='none';fl.innerHTML='';}
   const gw=document.getElementById('groupInvWrap'),gl=document.getElementById('groupInvList');
   if(lastGroupInv&&Object.keys(lastGroupInv).length){gw.style.display='block';gl.innerHTML='';
     Object.entries(lastGroupInv).forEach(([gid,inv])=>{const d=document.createElement('div');d.className='req-card';
