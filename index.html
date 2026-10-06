@@ -1395,7 +1395,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 02:25';
+const BUILD='06.10.2026 02:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2903,6 +2903,7 @@ function ticksHtml(m){if(currentIsGroup||m.sender!==currentUser.uid)return '';if
 function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
 function commitMessage(chatId,key,payload,preview){
   db.ref('messages/'+chatId+'/'+key).set(payload);
+  maybeLoad(payload);   // свои файлы тоже надо грузить: child_added сработает только у получателя
   if(isGid(chatId)){db.ref('groups/'+chatId).once('value').then(s=>{const g=s.val()||{},up={lastMsg:preview,lastTs:payload.ts},un=g.unread||{};
     Object.keys(g.members||{}).forEach(uid=>{if(uid!==currentUser.uid)up['unread/'+uid]=(un[uid]||0)+1;});db.ref('groups/'+chatId).update(up);});}
   else{const me=currentUser.uid;db.ref('userChats/'+me+'/'+chatId).update({lastMsg:preview,lastTs:payload.ts,unread:0});
