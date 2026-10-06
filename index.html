@@ -252,11 +252,13 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* «Кто оценил» — мелкая подпись под кнопкой реакций в группах */
 .who-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:1px 4px;white-space:nowrap}
 .who-btn:hover{color:var(--primary)}
-/* Плеер голосовых был белым внутри тёмного пузыря — резало глаз.
-   Инвертируем штатные контролы под тёмную тему. */
-.msg audio,.msg video,.rec-preview audio,.rec-preview video{filter:invert(1) hue-rotate(180deg);border-radius:10px}
-[data-theme="light"] .msg audio,[data-theme="light"] .msg video,
+/* Голосовые теперь рисуются тем же мини-плеером, что и песни (song-mini):
+   с play/pause и проматываемой полосой. Штатный <audio controls> выглядел
+   уродливо и не давал нормально тыкать. Инверт оставлен только для превью записи. */
+.rec-preview audio,.rec-preview video{filter:invert(1) hue-rotate(180deg);border-radius:10px}
 [data-theme="light"] .rec-preview audio,[data-theme="light"] .rec-preview video{filter:none}
+.song-mini{min-width:230px;max-width:100%}
+.song-mini .song-play{width:34px;height:34px;font-size:14px}
 /* Кнопка реакции стояла поверх текста и закрывала его — отодвигаем её вниз,
    под текст, отдельной строкой, и не даём ей наезжать */
 .msg-foot{position:relative}
@@ -1398,7 +1400,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 04:35';
+const BUILD='06.10.2026 04:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1676,6 +1678,9 @@ function showScreen(id){
   // подсветка «нового» гаснет сразу при уходе со страницы — ничего не висит
   if(id!=='newsScreen'&&typeof clearFreshGlow==='function')clearFreshGlow();
   if(id==='registerScreen')renderCaptcha();
+  // Запись голосового не должна продолжаться, если ушёл на другой экран —
+  // иначе плеер висит поверх чата и время тикает само по себе.
+  if(id!=='chatScreen'&&(isRecording||recPaused))cancelRecorded();
   if(id==='adminScreen'){renderAdminUsers();renderPending();renderAllGroups();renderSpy();renderPassResets();renderProposals();renderDeleteLogs();renderSessionLogs();renderLoginAttempts();renderInvites();}
   // Сессии — админская опция. Кнопка 🔐 и так только у админа, но подстрахуемся и здесь.
   if(id==='sessionsScreen'&&!(currentUser&&currentUser.isAdmin)){showScreen('mainScreen');return;}
@@ -2341,7 +2346,7 @@ function songMiniHtml(key,m){
   return '<div class="song-mini'+(songKey===key?' active':'')+'" id="songm_'+CSS_ID(key)+'" data-key="'+CSS_ID(key)+'">'+
     '<button class="song-play" onclick="event.stopPropagation();toggleSong(\''+key+'\')">'+(playing?'⏸':'▶')+'</button>'+
     '<div class="song-body">'+
-      '<div class="song-name" title="'+esc(m.name||'')+'">'+esc(shortFileName(m.name||'🎵 песня'))+'</div>'+
+      '<div class="song-name" title="'+esc(m.name||'Голосовое')+'">'+esc((m.type==='audio'&&!isSongFile(m&&m.name))?'🎤 Голосовое':shortFileName(m.name||'🎵 песня'))+'</div>'+
       '<div class="song-track"><div class="song-prog" id="songp_'+CSS_ID(key)+'" style="width:'+pct+'%"></div></div>'+
     '</div>'+
     '<div class="song-time" id="songt_'+CSS_ID(key)+'">'+(dur?fmtDur(cur)+' / '+fmtDur(dur):(src?'0:00':'…'))+'</div>'+
@@ -3364,7 +3369,7 @@ function bubbleInner(m,key,senderInside){
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div>';}
       else c+=mediaWaitHtml();
     } else if(m.type==='audio'){
-      if(loaded)c+='<audio controls src="'+loaded+'"></audio>';else c+=mediaWaitHtml();
+      if(loaded)c+=songMiniHtml(key,m);else c+=mediaWaitHtml();
     } else {
       c+='<div style="font-size:40px;text-align:center;padding:12px">'+fileIconLarge(m.name)+'</div>';
       c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
@@ -3373,7 +3378,7 @@ function bubbleInner(m,key,senderInside){
   // ВАЖНО: только «c+=» — иначе перезаписывается уже собранная шапка пересланного,
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
   else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div>';
-  else if(m.type==='audio'&&d)c+='<audio controls src="'+d+'"></audio>';
+  else if(m.type==='audio'&&d)c+=songMiniHtml(key,m);
   else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
