@@ -45,7 +45,7 @@
     "groups": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
       "$gid": {
-        ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || root.child('groups').child($gid).child('admins').child(auth.uid).exists() || root.child('groups').child($gid).child('ownerId').val() === auth.uid)"
+        ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || newData.child('ownerId').val() === auth.uid || newData.child('admins').child(auth.uid).exists() || root.child('groups').child($gid).child('ownerId').val() === auth.uid || root.child('groups').child($gid).child('admins').child(auth.uid).exists())"
       }
     },
     "friends": {
