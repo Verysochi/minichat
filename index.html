@@ -1395,7 +1395,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 01:45';
+const BUILD='06.10.2026 02:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3959,8 +3959,10 @@ function toggleRecord(mode){
         recordedDataUrl=r.result;recordedType=mode;
         const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
         // Переключаем живой поток на готовую запись
-        if(mode==='video'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';}
-        else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
+        try{
+          if(mode==='video'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';}
+          else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
+        }catch(e){console.warn('preview switch failed',e);}
         document.getElementById('recPreview').classList.add('active');
         const lb=document.getElementById('recLiveLabel');
         if(lb)lb.textContent='Готово';
@@ -3973,11 +3975,15 @@ function toggleRecord(mode){
       };
       r.readAsDataURL(blob);};
     mediaRecorder.start();isRecording=true;recStart=Date.now();
-    // ЖИВОЙ плеер над полем ввода — раньше он появлялся только после остановки
-    // и сразу мекал, запись не было видно. Теперь видно с первого момента.
-    const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
-    if(mode==='video'){pv0.style.display='block';pv0.srcObject=stream;pv0.muted=true;pv0.play().catch(()=>{});}
-    else{pa0.style.display='block';pa0.srcObject=stream;pa0.muted=true;pa0.play().catch(()=>{});}
+    // ЖИВОЙ плеер над полем ввода. ВАЖНО: присвоение srcObject может бросить
+    // исключение (не все потоки это умеют) — тогда запись не должна ломаться,
+    // поэтому весь блок в try/catch.
+    try{
+      const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
+      const el=mode==='video'?pv0:pa0,other=mode==='video'?pa0:pv0;
+      el.style.display='block';other.style.display='none';
+      el.muted=true;el.srcObject=stream;el.play().catch(()=>{});
+    }catch(e){console.warn('live preview failed',e);}
     document.getElementById('recPreview').classList.add('active');
     const lb=document.getElementById('recLiveLabel');
     if(lb)lb.textContent='● идёт запись';
