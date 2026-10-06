@@ -51,13 +51,13 @@
     "friends": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists())",
-        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)"
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists() || newData.child(auth.uid).exists())"
       }
     },
     "friendRequests": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
-        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists())"
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists() || newData.child(auth.uid).exists())"
       }
     },
     "news": {
@@ -92,7 +92,10 @@
     "blocks": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
-        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)"
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        "$me": {
+          ".read": "auth != null && auth.uid === $me"
+        }
       }
     },
     "typing": {

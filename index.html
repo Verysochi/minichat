@@ -4373,13 +4373,17 @@ function sendFriendRequest(uid){
   if(uid===currentUser.uid){toast('Это ты 😄');return;}
   if(isFriend(uid)){toast('Уже в контактах');return;}
   if(lastBlocks&&lastBlocks[uid]){toast('Сначала разблокируй');return;}
+  // Раньше здесь не было catch: любая ошибка прав тихо съедала цепочку,
+  // и кнопка «Добавить в друзья» выглядела рабочей, но ничего не делала.
   db.ref('blocks/'+uid+'/'+currentUser.uid).once('value').then(b=>{
-    if(b.exists()){toast('Пользователь заблокировал тебя');return;}
-    db.ref('friendRequests/'+uid+'/'+currentUser.uid).set({ts:Date.now(),name:displayNameOf(currentUser)}).then(()=>{
-      localStorage.setItem('mc_fr_'+uid,String(Date.now()));   // пометка: запрос ушёл
-      refreshFriendBtn(uid);
-      notifyUser(uid,'friend','Новый запрос в друзья','👋 '+displayNameOf(currentUser)+' хочет добавить тебя в друзья',{});
-      toast('📨 Запрос отправлен — ждём ответа',true);});});
+    if(b.exists()){toast('Пользователь заблокировал тебя');return null;}
+    return db.ref('friendRequests/'+uid+'/'+currentUser.uid).set({ts:Date.now(),name:displayNameOf(currentUser)});
+  }).then(()=>{
+    localStorage.setItem('mc_fr_'+uid,String(Date.now()));   // пометка: запрос ушёл
+    refreshFriendBtn(uid);
+    notifyUser(uid,'friend','Новый запрос в друзья','👋 '+displayNameOf(currentUser)+' хочет добавить тебя в друзья',{});
+    toast('📨 Запрос отправлен — ждём ответа',true);
+  }).catch(e=>{console.warn('friendRequest',e);toast('⚠️ Не удалось отправить запрос');});
 }
 function addByCode(){
   const code=(document.getElementById('addCodeInput').value||'').trim().toUpperCase();
