@@ -1407,7 +1407,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false;
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
 let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
@@ -4009,7 +4009,7 @@ function toggleRecord(mode){
         if(recAutoSend){recAutoSend=false;sendRecorded();}
       };
       r.readAsDataURL(blob);};
-    mediaRecorder.start();isRecording=true;recStart=Date.now();
+    mediaRecorder.start();isRecording=true;recStart=Date.now();recElapsed=0;recPausedAt=0;
     // ЖИВОЙ плеер над полем ввода. ВАЖНО: присвоение srcObject может бросить
     // исключение (не все потоки это умеют) — тогда запись не должна ломаться,
     // поэтому весь блок в try/catch.
@@ -4030,38 +4030,45 @@ function toggleRecord(mode){
     // Кнопка микрофона становится кнопкой «стоп»
     const mb=document.getElementById('recBtn');
     if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
-    recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);document.getElementById('msgInput').placeholder='● '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
+    recTimer=setInterval(()=>{
+      const ms=recElapsed+(recPaused?0:(Date.now()-recStart));
+      const s=Math.floor(ms/1000);
+      document.getElementById('msgInput').placeholder=(recPaused?'⏸ ':'● ')+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+      if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(String(e&&e.message)==='insecure'?'❌ Нужно HTTPS/localhost или APK с разрешениями':'❌ Нет доступа к камере/микрофону');});
 }
 // Пауза/продолжение записи. Без неё кнопка в плеере просто останавливала.
 function toggleRecPause(){
   if(!isRecording||!mediaRecorder)return;
-  try{
-    if(!recPaused){
-      mediaRecorder.pause();
-      recPaused=true;
-    }else{
-      mediaRecorder.resume();
-      recPaused=false;
-    }
-  }catch(e){
-    // На части телефонов (iOS Safari) пауза не поддерживается вовсе.
-    // Раньше это молча ломало кнопку — теперь говорим прямо и продолжаем писать.
-    recPaused=false;
-    toast('⏸ Пауза не поддерживается на этом устройстве');
-    return;
-  }
   const sb=document.getElementById('recStopBtn');
   const lb=document.getElementById('recLiveLabel');
   const mb=document.getElementById('recBtn');
-  if(recPaused){
+  if(!recPaused){
+    let ok=false;
+    try{ mediaRecorder.pause(); ok=(mediaRecorder.state==='paused'); }catch(e){ ok=false; }
+    if(!ok){
+      // Кнопка раньше всё равно переключалась и показывала «пауза»,
+      // хотя запись шла дальше. Теперь проверяем реальное состояние и не врём.
+      try{if(mediaRecorder.state==='recording')mediaRecorder.resume();}catch(e){}
+      toast('⏸ Пауза не работает на этом устройстве');
+      if(sb){sb.textContent='⏹';sb.classList.remove('paused');}
+      if(lb)lb.textContent='● идёт запись';
+      return;
+    }
+    recPaused=true;
+    recPausedAt=Date.now();              // таймер замораживаем, а не крутим дальше
     if(sb){sb.textContent='▶';sb.title='Продолжить запись';sb.classList.add('paused');}
     if(lb)lb.textContent='⏸ пауза';
     if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
   }else{
+    let ok=false;
+    try{ mediaRecorder.resume(); ok=(mediaRecorder.state==='recording'); }catch(e){ ok=false; }
+    recPaused=false;
+    if(ok&&recPausedAt){recElapsed+=Date.now()-recPausedAt;recPausedAt=0;recStart=Date.now()-recElapsed;}
     if(sb){sb.textContent='⏹';sb.title='Остановить и отправить';sb.classList.remove('paused');}
     if(lb)lb.textContent='● идёт запись';
     if(mb){mb.classList.add('recording');mb.title='Остановить и отправить';}
+    if(!ok)toast('⚠️ Не удалось продолжить');
   }
 }
 // Остановить запись. autoSend=true — сразу отправить, как в обычных мессенджерах:
