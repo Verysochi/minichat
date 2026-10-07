@@ -2212,7 +2212,7 @@ function startListeners(){
     lastPostsSig=sig;
     renderProfileColumn();renderViewColumn();renderMyColumn();
   });
-  chatLRef=db.ref('userChats/'+me);chatLRef.on('value',s=>{lastChatData=s.val();renderChatList();});
+  chatLRef=db.ref('userChats/'+me);chatLRef.on('value',s=>{lastChatData=s.val();renderChatList();checkStaleChats();});
   notifLRef=db.ref('notifs/'+me);notifLRef.on('value',s=>{lastNotifs=s.val();renderNotifs();});
   frLRef=db.ref('friends/'+me);frLRef.on('value',s=>{lastFriends=s.val();renderPeople();renderFriends();renderFind();updateFriendsNavCount();});
   frqLRef=db.ref('friendRequests/'+me);frqLRef.on('value',s=>{lastFriendReq=s.val();renderPeople();});
@@ -2522,6 +2522,63 @@ function vibrate(){try{if(navigator.vibrate)navigator.vibrate([100,50,100]);}cat
 function notifyBrowser(t,b){try{if('Notification' in window&&Notification.permission==='granted')new Notification(t,{body:b});}catch(e){}}
 function applyTheme(id){if(!THEMES.find(t=>t.id===id))id='dark';document.documentElement.setAttribute('data-theme',id);localStorage.setItem('mc_theme',id);if(currentUser)db.ref('users/'+currentUser.uid+'/theme').set(id);}
 function notifyUser(uid,type,title,text,extra){if(!uid||uid===currentUser.uid||!ALL_USERS[uid])return;db.ref('notifs/'+uid).push(Object.assign({type,title:title||'',text,ts:Date.now(),read:false},extra||{}));}
+
+// ===== «Ты давно не отвечаешь» =====
+// Если последнее сообщение в чате не от меня и ему больше суток —
+// появляется уведомление-напоминание. Ключ в базе детерминированный
+// (stale_<id чата>), поэтому оно не задваивается при каждой проверке.
+const STALE_MS=24*3600*1000;
+let staleTimer=null;
+function staleKeyFor(cid){return 'stale_'+String(cid).replace(/[.#$/\[\]]/g,'_');}
+function clearStaleNotif(cid){
+  if(!currentUser)return;
+  db.ref('notifs/'+currentUser.uid+'/'+staleKeyFor(cid)).remove().catch(()=>{});
+}
+function checkStaleChats(){
+  if(!currentUser||!lastChatData)return;
+  const now=Date.now(),mine=currentUser.uid;
+  const pending={};
+  Object.keys(lastChatData).forEach(cid=>{
+    const i=lastChatData[cid];if(!i||!i.lastTs)return;
+    // только если последнее сообщение написал не я
+    if(!i.lastFrom||i.lastFrom===mine)return;
+    if(now-i.lastTs<STALE_MS)return;
+    if(isGid(cid)){                                  // группы: только если я участник
+      const g=ALL_GROUPS[cid];if(!g||!g.members||!g.members[mine])return;
+      pending[staleKeyFor(cid)]={type:'stale',title:'Не ответил в группе',
+        text:'Ты не ответил(а) в «'+(g.name||'Группа')+'» — последнее сообщение '+whenAgo(i.lastTs),
+        ts:now,read:false,gid:cid};
+    }else{
+      const ou=i.otherUid;if(!ou)return;
+      pending[staleKeyFor(cid)]={type:'stale',title:'Не ответил(а)',
+        text:'Ты не ответил(а) '+displayNameOf(ALL_USERS[ou])+' — последнее сообщение '+whenAgo(i.lastTs),
+        ts:now,read:false,chatWith:ou};
+    }
+  });
+  Object.keys(pending).forEach(k=>{
+    const cur=(lastNotifs||{})[k];
+    // не перезаписываем, если напоминание уже есть и оно ещё «свежее»
+    if(cur&&now-(cur.ts||0)<STALE_MS)return;
+    db.ref('notifs/'+mine+'/'+k).update(pending[k]).catch(()=>{});
+  });
+  // старые напоминания убираем, если я уже ответил
+  Object.keys(lastNotifs||{}).forEach(k=>{
+    if(k.indexOf('stale_')!==0)return;
+    const cid=k.slice(6);
+    if(!pending[k])db.ref('notifs/'+mine+'/'+k).remove().catch(()=>{});
+  });
+}
+function whenAgo(ts){
+  const d=Date.now()-ts,h=Math.floor(d/3600000);
+  if(h>=1)return h===1?'час назад':(h<5?(h+' часа'):(h+' часов'))+' назад';
+  const m=Math.floor(d/60000);return m<1?'только что':(m<60?m+' мин назад':'час назад');
+}
+// Периодическая проверка: раз в 10 минут плюс при смене списка чатов
+function startStaleWatch(){
+  if(staleTimer)clearInterval(staleTimer);
+  checkStaleChats();
+  staleTimer=setInterval(checkStaleChats,10*60*1000);
+}
 function meBanned(f){const b=currentUser.ban||{};return !!b[f]&&!currentUser.isAdmin;}
 
 // ===== ФОТО-ПЛЕЕР (полароид-лайтбокс с листанием) =====
@@ -2950,14 +3007,26 @@ function ticksHtml(m){if(currentIsGroup||m.sender!==currentUser.uid)return '';if
 function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
 function commitMessage(chatId,key,payload,preview){
   db.ref('messages/'+chatId+'/'+key).set(payload);
+  clearStaleNotif(chatId);   // ответил — напоминание больше не нужно
   maybeLoad(payload);   // свои файлы тоже надо грузить: child_added сработает только у получателя
-  if(isGid(chatId)){db.ref('groups/'+chatId).once('value').then(s=>{const g=s.val()||{},up={lastMsg:preview,lastTs:payload.ts},un=g.unread||{};
+  if(isGid(chatId)){db.ref('groups/'+chatId).once('value').then(s=>{const g=s.val()||{},up={lastMsg:preview,lastTs:payload.ts,lastFrom:currentUser.uid},un=g.unread||{};
     Object.keys(g.members||{}).forEach(uid=>{if(uid!==currentUser.uid)up['unread/'+uid]=(un[uid]||0)+1;});db.ref('groups/'+chatId).update(up);});}
-  else{const me=currentUser.uid;db.ref('userChats/'+me+'/'+chatId).update({lastMsg:preview,lastTs:payload.ts,unread:0});
+  else{const me=currentUser.uid;db.ref('userChats/'+me+'/'+chatId).update({lastMsg:preview,lastTs:payload.ts,unread:0,lastFrom:me});
     const o=currentOtherUid;
-    if(o)db.ref('userChats/'+o+'/'+chatId).once('value').then(s2=>{const i2=s2.val();
-      const upd={lastMsg:preview,lastTs:payload.ts,unread:(i2?i2.unread:0)+1,otherUid:me,otherName:displayNameOf(currentUser)};
-      if(i2)db.ref('userChats/'+o+'/'+chatId).update(upd);else db.ref('userChats/'+o+'/'+chatId).set(upd);});}
+    // У получателя раньше молча НЕ обновлялась строка чата: код сначала читал
+    // её, а это было запрещено правилами, и цепочка обрывалась без ошибки.
+    // Теперь при отказе просто пишем вслепую — счётчик станет 1, но превью
+    // и «непрочитанное» появятся, а бейджи начнут работать.
+    if(o){
+      const path='userChats/'+o+'/'+chatId;
+      db.ref(path).once('value').then(s2=>{const i2=s2.val();
+        const upd={lastMsg:preview,lastTs:payload.ts,unread:(i2?i2.unread:0)+1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me};
+        return i2?db.ref(path).update(upd):db.ref(path).set(upd);
+      }).catch(e=>{
+        console.warn('chatRowRecipient',e);
+        db.ref(path).update({lastMsg:preview,lastTs:payload.ts,unread:1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me}).catch(()=>{});
+      });
+    }}
 }
 function sendQueuedItem(chatId,item,textWithFirst,idx){
   const key=db.ref('messages/'+chatId).push().key;
@@ -5257,7 +5326,7 @@ function renderNotifs(){
   if(!items.length){l.innerHTML='<div class="empty-state"><div class="icon">🔔</div><div>Пока тихо</div></div>';return;}
   items.sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([key,n])=>{
     const d=document.createElement('div');d.className='notif-item'+(n.read?'':' unread');
-    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':'';
+    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':'';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
     d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(n.text)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
     d.onclick=()=>{db.ref('notifs/'+currentUser.uid+'/'+key+'/read').set(true);
