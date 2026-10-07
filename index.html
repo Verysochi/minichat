@@ -4392,7 +4392,10 @@ function declineIncoming(){
 function acceptIncoming(){const id=window._incId,peer=window._incFrom,type=window._incType;hideIncoming();setupCall(id,peer,type,'callee');}
 function startCall(peer,type){if(!peer)return;if(callState){toast('Уже в звонке');return;}
   const id=db.ref('calls').push().key;
-  db.ref('calls/'+id).set({from:currentUser.uid,to:peer,type,status:'ringing',ts:Date.now()});
+  // Раньше запись шла без .catch: если правила отклоняли её, человек видел
+  // «идёт звонок», а вторую сторона так и не получала — и никто не понимал почему.
+  db.ref('calls/'+id).set({from:currentUser.uid,to:peer,type,status:'ringing',ts:Date.now()})
+    .catch(e=>{console.warn('callCreate',e);try{hangup(true);}catch(x){callState=null;}toast('⚠️ Звонок не начался');});
   setupCall(id,peer,type,'caller');}
 async function setupCall(id,peer,type,role){
   callState={id,peer,type,role,iceDone:{}};showCallOverlay(type);
@@ -4427,8 +4430,8 @@ async function setupCall(id,peer,type,role){
       if(role==='callee'&&c.offer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.offer);const ans=await pc.createAnswer();await pc.setLocalDescription(ans);db.ref('calls/'+id+'/answer').set(ans.toJSON());db.ref('calls/'+id+'/status').set('active');}
       if(role==='caller'&&c.answer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.answer);db.ref('calls/'+id+'/status').set('active');}
       const remoteIce=(role==='caller'?c.ice&&c.ice.callee:c.ice&&c.ice.caller)||{};
-      for(const k in remoteIce){if(!callState.iceDone[k]){callState.iceDone[k]=1;try{await pc.addIceCandidate(remoteIce[k].c);}catch(e){}}}
-    }catch(e){}
+      for(const k in remoteIce){if(!callState.iceDone[k]){callState.iceDone[k]=1;try{await pc.addIceCandidate(remoteIce[k].c);}catch(e){console.warn('addIce',e);}}}
+    }catch(e){console.warn('sdp '+role,e);}   // раньше ошибка просто исчезала — звонок «молча» не соединялся
   });
   if(role==='caller'){const offer=await pc.createOffer();await pc.setLocalDescription(offer);db.ref('calls/'+id+'/offer').set(offer.toJSON());}
 }
