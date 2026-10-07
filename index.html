@@ -24,6 +24,11 @@
 [data-theme="red"]{--bg:#170202;--surface:#260606;--surface2:#370a0a;--surface3:#4a0f0f;--primary:#e74c3c;--primary-hover:#c0392b;--primary-text:#fff;--text:#ffe6e6;--text2:#dd8888;--text3:#996666;--green:#00b894;--red:#ff6b6b;--accent-soft:rgba(231,76,60,.15);--icon-hue:326deg}
 [data-theme="gold"]{--bg:#141002;--surface:#241c06;--surface2:#352a0a;--surface3:#48390f;--primary:#ffd700;--primary-hover:#e6c200;--primary-text:#221a00;--text:#fff8dc;--text2:#d9c37a;--text3:#97854e;--green:#00b894;--red:#e74c3c;--accent-soft:rgba(255,215,0,.15);--icon-hue:10deg}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Раньше контура фокуса не было вообще: тот, кто работает с клавиатуры,
+   не видел, где находится. Видно только при управлении с клавиатуры,
+   поэтому мышью/пальцем рамка не появляется. */
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:0}
 html,body{height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
 body.login-active .bottom-nav{display:none!important}
