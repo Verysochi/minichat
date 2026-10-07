@@ -1201,7 +1201,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="input-bar" id="chatInputBar">
     <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" title="Голосовое сообщение">🎤</button>
     <button class="more-btn" onclick="toggleAttachMenu()" title="Прикрепить фото, видео или файл">＋</button>
-    <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this);sendTyping();onMentionInput(this)"></textarea>
+    <textarea id="msgInput" placeholder="Сообщение...   (Ctrl+Enter — новая строка)" rows="1" title="Enter — отправить, Ctrl+Enter — новая строка" oninput="autoResize(this);sendTyping();onMentionInput(this)"></textarea>
     <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
 </div>
@@ -1631,8 +1631,17 @@ async function boot(){
       else if(id==='myColInput'){e.preventDefault();postToMyColumn();}
     }
   });
-  document.getElementById('msgInput').addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&isMobile&&!e.shiftKey){e.preventDefault();sendMessage();}
+  // Раньше Enter отправлял только на телефоне (в условии стоял isMobile),
+// а на компьютере просто вставлял перенос строки — приходилось тянуться
+// мышкой к кнопке ➤. Теперь на всех устройствах:
+//   Enter            — отправить
+//   Ctrl+Enter / ⌘+Enter / Shift+Enter — перенос строки
+// Модификаторы не трогаем, чтобы textarea сама вставила перенос.
+document.getElementById('msgInput').addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    if(e.ctrlKey||e.metaKey||e.shiftKey)return;
+    e.preventDefault();
+    sendMessage();
   });
   document.getElementById('statusCustomInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();saveStatusCustom();}});
 }
