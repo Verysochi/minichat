@@ -34,7 +34,7 @@
         ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
         ".write": "auth != null && root.child('approvals').child(auth.uid).exists()",
         "$chatId": {
-          ".read": "auth != null && $chatId.indexOf(auth.uid) >= 0 && $chatId.indexOf($uid) >= 0"
+          ".read": "auth != null && ($chatId === auth.uid + '_' + $uid || $chatId === $uid + '_' + auth.uid)"
         }
       }
     },
