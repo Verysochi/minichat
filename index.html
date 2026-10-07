@@ -4394,9 +4394,12 @@ function addByCode(){
     document.getElementById('addCodeInput').value='';});
 }
 function acceptFriend(f){const up={};up['friends/'+currentUser.uid+'/'+f]=true;up['friends/'+f+'/'+currentUser.uid]=true;up['friendRequests/'+currentUser.uid+'/'+f]=null;
-  localStorage.removeItem('mc_fr_'+f);   // запрос принят — пометка больше не нужна
-  db.ref().update(up).then(()=>{notifyUser(f,'friendok','Заявка принята','✅ '+displayNameOf(currentUser)+' принял(а) заявку',{});toast('✅ В контактах',true);});}
-function declineFriend(f){db.ref('friendRequests/'+currentUser.uid+'/'+f).remove();}
+  db.ref().update(up)
+    .then(()=>{localStorage.removeItem('mc_fr_'+f);   // запрос принят — пометка больше не нужна
+      notifyUser(f,'friendok','Заявка принята','✅ '+displayNameOf(currentUser)+' принял(а) заявку',{});
+      toast('✅ В контактах',true);renderPeople();})
+    .catch(e=>{console.warn('acceptFriend',e);toast('⚠️ Не удалось принять заявку');});}
+function declineFriend(f){db.ref('friendRequests/'+currentUser.uid+'/'+f).remove().catch(()=>toast('⚠️ Не удалось отклонить'));}
 function setRel(uid,v){db.ref('friends/'+currentUser.uid+'/'+uid+'/rel').set(v||null).then(()=>toast('✅ Сохранено',true));}
 function toggleBlock(){const u=viewProfileUid;if(!u)return;
   if(u===currentUser.uid){toast('Себя блокировать нельзя 😄');return;}   // блокировать самого себя — ерунда
@@ -4558,16 +4561,24 @@ function createGroup(){
   if(!currentUser.isAdmin){const cnt=Object.values(ALL_GROUPS).filter(g=>g.ownerId===currentUser.uid||(g.admins&&g.admins[currentUser.uid])).length;if(cnt>=3){toast('Лимит: 3 группы');return;}}
   const gid=genGid(),m={};m[currentUser.uid]=Date.now();
   db.ref('groups/'+gid).set({name,ownerId:currentUser.uid,createdAt:Date.now(),members:m,status:'',avatar:'',cover:'',coverKey:null,lastMsg:'',lastTs:Date.now()})
-    .then(()=>{document.getElementById('groupNameInput').value='';toast('✅ Группа создана',true);openChat(gid,null);showScreen('groupInfoScreen');});
+    .then(()=>{document.getElementById('groupNameInput').value='';toast('✅ Группа создана',true);openChat(gid,null);showScreen('groupInfoScreen');})
+    .catch(e=>{console.warn('createGroup',e);toast('⚠️ Не удалось создать группу');});
 }
 function joinGroup(code){code=(code||'').trim();if(!code){toast('Введи код');return;}
   db.ref('groups/'+code).once('value').then(s=>{const g=s.val();if(!g){toast('Не найдена');return;}
     if(g.members&&g.members[currentUser.uid]){toast('Уже в группе');openChat(code,null);return;}
     db.ref('groups/'+code+'/members/'+currentUser.uid).set(Date.now()).then(()=>{toast('🎉 Ты в группе',true);openChat(code,null);});});}
 function sendGroupInvite(gid,uid){const g=groupOf(gid);if(!g)return;
-  db.ref('groupInvites/'+uid+'/'+gid).set({ts:Date.now(),name:g.name,fromName:displayNameOf(currentUser)}).then(()=>{notifyUser(uid,'ginvite','Приглашение в группу','📩 Приглашение в «'+g.name+'»',{gid});toast('📨 Отправлено',true);});}
-function acceptGroupInv(gid){db.ref('groups/'+gid+'/members/'+currentUser.uid).set(Date.now()).then(()=>db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove()).then(()=>toast('🎉 Ты в группе',true));}
-function declineGroupInv(gid){db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove();}
+  db.ref('groupInvites/'+uid+'/'+gid).set({ts:Date.now(),name:g.name,fromName:displayNameOf(currentUser)})
+    .then(()=>{notifyUser(uid,'ginvite','Приглашение в группу','📩 Приглашение в «'+g.name+'»',{gid});toast('📨 Отправлено',true);})
+    .catch(e=>{console.warn('sendGroupInvite',e);toast('⚠️ Не удалось пригласить');});}
+function acceptGroupInv(gid){db.ref('groups/'+gid+'/members/'+currentUser.uid).set(Date.now())
+  .then(()=>db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove())
+  .then(()=>{toast('🎉 Ты в группе',true);renderPeople();})
+  // Без catch отказ прав был не виден: кнопка «Принять» выглядела рабочей,
+  // а человек оставался вне группы и не понимал почему.
+  .catch(e=>{console.warn('acceptGroupInv',e);toast('⚠️ Не удалось вступить — попробуй ещё раз');});}
+function declineGroupInv(gid){db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove().catch(()=>toast('⚠️ Не удалось отклонить'));}
 function toggleGroupHidden(gid){
   const g=groupOf(gid);if(!g)return;
   const hid=!!(g.settings&&g.settings.hidden);
