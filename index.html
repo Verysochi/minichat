@@ -291,6 +291,9 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
   background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.45);vertical-align:middle}
 .rb-hand{font-size:14px;line-height:1}
 .rb-n{font-size:13px;font-weight:700;color:var(--gold,#ffc107);line-height:1}
+/* Свечение, когда есть хотя бы один рок */
+.rock-badge:has(.rb-n){box-shadow:0 0 10px rgba(255,193,7,.35),inset 0 0 6px rgba(255,193,7,.12);animation:rockBadgeGlow 2.6s ease-in-out infinite}
+@keyframes rockBadgeGlow{0%,100%{box-shadow:0 0 8px rgba(255,193,7,.28),inset 0 0 5px rgba(255,193,7,.10)}50%{box-shadow:0 0 16px rgba(255,193,7,.5),inset 0 0 9px rgba(255,193,7,.2)}}
 /* Кнопка 🤘 в новостях/колонках не должна наезжать на ветку комментариев:
    раньше она была position:relative с z-index и перекрывала список */
 .rock-wrap{position:static;z-index:auto}
@@ -986,6 +989,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-login" id="profileLogin"></div>
     <div class="profile-status" id="profileStatus"></div>
     <div id="profilePresence" style="font-size:13px;margin-bottom:12px"></div>
+    <div id="profileRockBadge" style="margin-bottom:12px"></div>
     <div class="profile-card">
       <div class="card-title">Статус (сохраняется сразу)</div>
       <div class="input-group" style="margin:0"><select id="statusSelect" onchange="statusSelectChanged()">
@@ -5238,6 +5242,9 @@ function renderProfile(){
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
   document.getElementById('profilePresence').innerHTML=presenceHtml(i);
+  // Счётчик 🤘 показываем и в своём профиле — раньше был только в чужом.
+  const rb=document.getElementById('profileRockBadge');
+  if(rb)rb.innerHTML=rockBadgeHtml(currentUser.uid);
   document.getElementById('ankView').innerHTML=anketaHtml(i);
   const sel=document.getElementById('statusSelect'),st=i.status||'';
   const pr=['✅ Доступен','⏳ Занят','🔕 Не беспокоить','😴 Сплю','🎮 Играю'];
