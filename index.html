@@ -6277,7 +6277,15 @@ function visibleUsers(){
 }
 
 // ===== ONLINE СТАТУС =====
-function isOnline(i){return i&&i.lastSeen&&(Date.now()-i.lastSeen<90000);}
+// Признак «в сети». Раньше считали только по полю users/uid/online, а оно
+// терялось при резком закрытии вкладки; считали по lastSeen — а он мог
+// устареть на минуты, потому что heartbeat отрабатывает раз в 25 секунд.
+// Поэтому берём оба: флаг выставлен при входе ИЛИ время свежее.
+function isOnline(i){
+  if(!i)return false;
+  if(i.online===true)return true;
+  return !!(i.lastSeen&&(Date.now()-i.lastSeen<90000));
+}
 function cleanupOfflineUsers(){
   const now=Date.now();
   const up={};
