@@ -3253,10 +3253,16 @@ function sendMessage(){
   if(recordedDataUrl){sendRecorded();}
   if(!text&&chatMediaQueue.length===0)return;
   const go=()=>{
+    // ПОВТОРНАЯ проверка внутри. Раньше её не было: проверка «есть ли что
+    // отправлять» выполнялась ДО асинхронной проверки блокировок, а очередь
+    // медиа очищалась уже здесь. При двух нажатиях Enter первая отправка
+    // успевала очистить очередь, вторая видела её пустой и уходила в ветку
+    // обычного текста — с пустым текстом. Так и сыпались пустые сообщения.
     if(chatMediaQueue.length){
       chatMediaQueue.forEach((it,idx)=>sendQueuedItem(currentChatId,it,text,idx));
       chatMediaQueue=[];renderMediaContainer('chat');
     } else {
+      if(!text)return;   // отправлять нечего — не создаём пустой пузырь
       const key=db.ref('messages/'+currentChatId).push().key;
       const p={sender:currentUser.uid,text,ts:Date.now(),type:'text'};
       if(replyingTo){p.replyTo=replyingTo.key;p.replySnap={name:replyingTo.name,text:replyingTo.text,type:replyingTo.type};}
