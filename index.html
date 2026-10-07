@@ -158,7 +158,10 @@ img.avatar.sq{border-radius:8px}
 .song-play:active{transform:scale(.94)}
 .song-body{flex:1;min-width:0}
 .song-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
-.song-track{height:5px;border-radius:3px;background:var(--surface3);overflow:hidden}
+/* Полоса: визуально тонкая, но область нажатия высокая — по тонкой черте
+   на телефоне попасть невозможно. Отрицательный отступ сохраняет вёрстку. */
+.song-seek{padding:10px 0;margin:-10px 0;cursor:pointer}
+.song-track{height:6px;border-radius:3px;background:var(--surface3);overflow:hidden}
 .song-prog{height:100%;width:0;background:var(--primary);border-radius:3px;transition:width .12s linear}
 .song-time{flex:0 0 auto;font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;white-space:nowrap}
 /* ▶ статичная полоса плеера под верхней рамкой чата.
@@ -167,6 +170,11 @@ img.avatar.sq{border-radius:8px}
 .song-bar{display:none;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);
   border-bottom:1px solid var(--surface3);position:absolute;left:0;right:0;top:0;z-index:40;
   box-shadow:0 6px 16px rgba(0,0,0,.35)}
+/* Общая версия: висит поверх экранов, поэтому не пропадает при переходе */
+.song-bar-global{position:fixed;top:auto;bottom:66px;border-bottom:none;
+  border:1px solid var(--surface3);border-radius:14px;left:10px;right:10px;
+  max-width:var(--app-w);margin:0 auto;z-index:200}
+.song-bar-global .song-time{min-width:74px}
 .song-bar .song-play{width:32px;height:32px;font-size:14px}
 .song-bar-info{flex:1;min-width:0}
 .song-bar-title{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
@@ -270,6 +278,9 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 [data-theme="light"] .rec-preview audio,[data-theme="light"] .rec-preview video{filter:none}
 .song-mini{min-width:230px;max-width:100%}
 .song-mini .song-play{width:34px;height:34px;font-size:14px}
+.song-dl{flex:none;width:30px;height:30px;border:none;border-radius:50%;background:var(--surface2);
+  color:var(--text2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.song-dl:hover{background:var(--surface3);color:var(--text)}
 /* Кнопка реакции стояла поверх текста и закрывала его — отодвигаем её вниз,
    под текст, отдельной строкой, и не даём ей наезжать */
 .msg-foot{position:relative}
@@ -1171,18 +1182,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
   </div>
-  <!-- статичный плеер песен: привязан под нижний край верхней рамки чата -->
-  <div class="song-bar" id="songBar" style="display:none">
-    <button class="song-play" id="songBarBtn" onclick="toggleSong(songKey)">▶</button>
-    <div class="song-bar-info" onclick="toggleSong(songKey)">
-      <div class="song-bar-title" id="songBarTitle">🎵 песня</div>
-      <div class="song-bar-track"><div class="song-bar-prog" id="songBarProg"></div></div>
-    </div>
-    <input type="range" class="song-vol" id="songBarVol" min="0" max="100" value="100" title="Громкость"
-      onclick="event.stopPropagation()" oninput="setSongVol(this.value)">
-    <div class="song-time" id="songBarTime">0:00</div>
-    <button class="song-bar-close" id="songBarClose" onclick="closeSongBar()" title="Остановить">✕</button>
-  </div>
   <div class="typing" id="incognitoBanner" style="display:none;color:#fdcb6e">🕵️ Инкогнито: только чтение</div>
   <div class="typing" id="typingIndicator"></div>
   <div class="messages" id="messagesContainer"></div>
@@ -1415,6 +1414,22 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="call-btn" onclick="chooseOutput()">🔊</button>
     <button class="call-btn hang" onclick="hangup(false)">📴</button>
   </div>
+</div>
+<!-- Плеер вынесен из экрана чата на общий уровень. Раньше он жил внутри
+     chatScreen, поэтому при переходе на другой экран панель исчезала,
+     а вместе с openChat() вызывался stopSong() — музыка обрывалась.
+     Теперь он общий и продолжает играть при любой навигации. -->
+<div class="song-bar song-bar-global" id="songBar" style="display:none">
+  <button class="song-play" id="songBarBtn" onclick="toggleSong(songKey)">▶</button>
+  <div class="song-bar-info" onclick="toggleSong(songKey)">
+    <div class="song-bar-title" id="songBarTitle">🎵 песня</div>
+    <div class="song-bar-track"><div class="song-bar-prog" id="songBarProg"></div></div>
+  </div>
+  <input type="range" class="song-vol" id="songBarVol" min="0" max="100" value="100" title="Громкость"
+    onclick="event.stopPropagation()" oninput="setSongVol(this.value)">
+  <div class="song-time" id="songBarTime">0:00</div>
+  <button class="song-bar-close" id="songBarDl" onclick="downloadTrack(songKey)" title="Скачать">⬇</button>
+  <button class="song-bar-close" id="songBarClose" onclick="closeSongBar()" title="Остановить">✕</button>
 </div>
 <div id="toast"></div>
 <!-- Панель-подсказка «включить уведомления». Показывается только если
@@ -2412,19 +2427,95 @@ function songMiniHtml(key,m){
     '<button class="song-play" onclick="event.stopPropagation();toggleSong(\''+key+'\')">'+(playing?'⏸':'▶')+'</button>'+
     '<div class="song-body">'+
       '<div class="song-name" title="'+esc(m.name||'Голосовое')+'">'+esc((m.type==='audio'&&!isSongFile(m&&m.name))?'🎤 Голосовое':shortFileName(m.name||'🎵 песня'))+'</div>'+
-      '<div class="song-track"><div class="song-prog" id="songp_'+CSS_ID(key)+'" style="width:'+pct+'%"></div></div>'+
+      '<div class="song-seek" data-key="'+CSS_ID(key)+'" title="Перемотать"><div class="song-track"><div class="song-prog" id="songp_'+CSS_ID(key)+'" style="width:'+pct+'%"></div></div></div>'+
     '</div>'+
     '<div class="song-time" id="songt_'+CSS_ID(key)+'">'+(dur?fmtDur(cur)+' / '+fmtDur(dur):(src?'0:00':'…'))+'</div>'+
+    '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+CSS_ID(key)+'\')">⬇</button>'+
   '</div>';
 }
 // ===== статичный плеер под верхней рамкой чата + управление песнями =====
 let songAudio=null,songKey=null,songPaused=true,songName='';
+let songPendingSeek=null;   // куда прыгнуть, когда трек ещё грузится
+// Перемотка тапом/кликом по полосе. Раньше полоса была просто полоской без
+// обработчика — тапнуть можно было, но ничего не происходило.
+function seekSong(key,frac){
+  if(!key)return;
+  frac=Math.max(0,Math.min(0.999,frac||0));
+  if(songKey===key&&songAudio){
+    const d=songAudio.duration;
+    if(songAudio.readyState>=1&&isFinite(d)&&d>0){
+      songPendingSeek=null;
+      songAudio.currentTime=frac*d;
+      paintSongProgress();
+      return;
+    }
+    songPendingSeek=frac;
+    if(songAudio.paused)startSongPlayback(songAudio);
+    return;
+  }
+  // трек ещё не играет — сначала запускаем, прыгаем после загрузки
+  songPendingSeek=frac;
+  try{toggleSong(key);}catch(e){songPendingSeek=null;}
+}
+// Скачать песню или голосовое к себе на устройство
+function downloadTrack(key){
+  if(!key){toast('Нечего скачивать');return;}
+  const m=MSGS[key];if(!m){toast('Файл недоступен');return;}
+  const src=songSrcFor(m,key);
+  if(!src){toast('Файл ещё загружается…');return;}
+  const name=(m.type==='audio'&&!isSongFile(m&&m.name))?('голосовое_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.webm'):(m.name||'файл');
+  try{
+    const a=document.createElement('a');
+    a.href=src;
+    a.download=name;
+    a.rel='noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>a.remove(),1500);
+    toast('⬇ Сохраняем: '+name,true);
+  }catch(e){toast('⚠️ Браузер не дал сохранить');}
+}
+function realKeyFor(sanitized){
+  const keys=Object.keys(MSGS||{});
+  for(const k of keys)if(CSS_ID(k)===sanitized)return k;
+  return null;
+}
+// Один обработчик на все полосы — их может быть много в чате.
+document.addEventListener('click',e=>{
+  const t=e.target&&e.target.closest?e.target.closest('.song-seek'):null;
+  if(!t)return;
+  const san=t.getAttribute('data-key');if(!san)return;
+  const key=realKeyFor(san);if(!key)return;
+  e.stopPropagation();
+  const r=t.getBoundingClientRect();
+  let x=(typeof e.clientX==='number')?e.clientX:(r.left+r.width/2);
+  // клик мышью по полосе иногда приходит без координат — тогда берём середину
+  if(x<=0)x=r.left+r.width/2;
+  seekSong(key,(x-r.left)/r.width);
+});
+// На телефоне полоса тонкая: ловим и касание, а не только клик
+document.addEventListener('touchstart',e=>{
+  const t=e.target&&e.target.closest?e.target.closest('.song-seek'):null;
+  if(!t)return;
+  const san=t.getAttribute('data-key');if(!san)return;
+  const key=realKeyFor(san);if(!key)return;
+  const rect=t.getBoundingClientRect();
+  const p=e.touches&&e.touches[0];if(!p)return;
+  seekSong(key,(p.clientX-rect.left)/rect.width);
+},{passive:true});
 function ensureSongAudio(){
   if(songAudio)return songAudio;
   songAudio=new Audio();
   try{const v=+localStorage.getItem('mc_vol');if(isFinite(v))songAudio.volume=Math.max(0,Math.min(1,v/100));}catch(e){}
   songAudio.addEventListener('timeupdate',()=>paintSongProgress());
-  songAudio.addEventListener('loadedmetadata',()=>paintSongProgress());
+  songAudio.addEventListener('loadedmetadata',()=>{
+    // долгожданная перемотка: трек только что узнал свою длину
+    if(songPendingSeek!=null&&isFinite(songAudio.duration)&&songAudio.duration>0){
+      try{songAudio.currentTime=songPendingSeek*songAudio.duration;}catch(e){}
+      songPendingSeek=null;
+    }
+    paintSongProgress();
+  });
   songAudio.addEventListener('ended',()=>{songPaused=true;paintSongBtn();paintSongProgress();});
   songAudio.addEventListener('pause',()=>{songPaused=true;paintSongBtn();});
   songAudio.addEventListener('play',()=>{songPaused=false;paintSongBtn();});
@@ -2987,7 +3078,10 @@ function openChat(chatId,otherUid,spy){
   currentChatId=chatId;currentOtherUid=otherUid;currentIsGroup=isGid(chatId);
   currentIncognito=!!spy||(currentIsGroup&&!isMember(chatId)&&!!currentUser.isAdmin);
   if(msgRef)msgRef.off();if(typRef)typRef.off();
-  cancelRecorded();stopSong();MSGS={};mediaCache={};translations={};chatMediaQueue=[];renderMediaContainer('chat');
+  cancelRecorded();
+  // Раньше здесь стоял stopSong() — при открытии любого чата музыка и голосовое
+  // обрывались. Убираем: трек играет, пока его не остановят вручную.
+  MSGS={};mediaCache={};translations={};chatMediaQueue=[];renderMediaContainer('chat');
   document.getElementById('messagesContainer').innerHTML='';
   document.getElementById('msgInput').value='';document.getElementById('typingIndicator').textContent='';
   const dm=!currentIsGroup&&!currentIncognito&&otherUid;
@@ -3086,7 +3180,7 @@ function updateChatHeader(){
 }
 function closeChat(){
   if(msgRef)msgRef.off();if(typRef)typRef.off();msgRef=null;typRef=null;
-  if(isRecording)stopRecording();cancelRecorded();stopSong();
+  if(isRecording)stopRecording();cancelRecorded();   // closeChat: музыку не рвём
   if(currentChatId&&!currentIsGroup&&!currentIncognito)db.ref('typing/'+currentChatId+'/'+currentUser.uid).remove();
   currentChatId=null;currentOtherUid=null;currentIsGroup=false;currentIncognito=false;chatMediaQueue=[];showScreen('mainScreen');
 }
