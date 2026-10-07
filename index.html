@@ -5510,9 +5510,59 @@ function fbKeySafe(s){return String(s||'').replace(/[.#$\/\[\]\s]/g,'_').toLower
 // IP + город + координаты с таймаутом (кэш на 10 минут)
 // ipapi.co больше не отдаёт данные без платного ключа (CORS-ошибка в консоли),
 // поэтому берём IP через ipify — он бесплатный и без CORS. Город не определяем.
+// Определяем IP и, если человек скрыл геолокацию, примерный город по IP.
+// Раньше город не определялся вовсе: в админке был только IP без места.
+// ipwho.is и get.geojs.io разрешают запросы с чужого домена (CORS) и не требуют ключа.
+// Если человек разрешил геолокацию браузера — точность всё равно выше, IP нужен как запасной.
+function ipGeoCity(ip){
+  if(!ip)return Promise.resolve('');
+  const srcs=[
+    ['https://ipwho.is/'+ip,      j=>j.city||j.region||''],
+    ['https://get.geojs.io/v1/ip/geo/'+ip+'.json', j=>(j.city||'')+((j.city&&j.region)?', '+j.region:'')],
+    ['https://ipwho.is/',         j=>j.city||j.region||'']
+  ];
+  let i=0;
+  const tryNext=()=>{
+    if(i>=srcs.length)return Promise.resolve('');
+    const [url,pick]=srcs[i++];
+    const ctl=('AbortController' in window)?new AbortController():null;
+    const to=setTimeout(()=>{try{ctl&&ctl.abort();}catch(e){}},6000);
+    return fetch(url,ctl?{signal:ctl.signal}:undefined)
+      .then(r=>r.ok?r.json():null)
+      .then(j=>{clearTimeout(to);const v=(j&&pick(j))||'';return String(v).trim();})
+      .catch(()=>{clearTimeout(to);return tryNext();});
+  };
+  return tryNext();
+}
 function geoInfo(){
-  return fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(j=>({ip:j.ip||'',place:'',geo:''}))
+  const ipOnly=()=>fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(j=>({ip:j.ip||'',place:'',geo:''}))
     .catch(()=>({ip:'',place:'',geo:''}));
+  // Сначала точная геолокация браузера. Если человек её скрыл (или браузер
+  // не дал разрешение) — определяем город по IP. Раньше на запрете разрешения
+  // функция возвращалась сразу, и город так и оставался пустым.
+  const browserGeo=ip=>new Promise(res=>{
+    if(!navigator.geolocation)return res('');
+    if(!navigator.permissions||!navigator.permissions.query){
+      // разрешение нельзя узнать — пробуем напрямую, но с коротким таймаутом
+      navigator.geolocation.getCurrentPosition(
+        p=>res(p.coords.latitude+','+p.coords.longitude),
+        ()=>res(''),{timeout:4000,maximumAge:600000});
+      return;
+    }
+    navigator.permissions.query({name:'geolocation'}).then(pp=>{
+      if(pp.state!=='granted')return res('');
+      navigator.geolocation.getCurrentPosition(
+        p=>res(p.coords.latitude+','+p.coords.longitude),
+        ()=>res(''),{timeout:4000,maximumAge:600000});
+    }).catch(()=>res(''));
+  });
+  return ipOnly().then(g=>{
+    if(!g.ip)return g;
+    return browserGeo(g.ip).then(geo=>{
+      if(geo)return {ip:g.ip,place:'',geo:geo};
+      return ipGeoCity(g.ip).then(city=>({ip:g.ip,place:city,geo:''}));
+    });
+  });
 }
 // Ключи, по которым человека считаем заблокированным: почта, логин, IP, устройство
 function blockKeysFor(a){
