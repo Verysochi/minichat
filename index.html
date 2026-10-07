@@ -1097,6 +1097,11 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         <label class="sw" title="Видимый / невидимый"><input type="checkbox" id="visSw" onchange="setVisibility(this.checked)"><span class="sw-track"></span></label>
       </div>
       <label class="remember" style="margin:0"><input type="checkbox" id="hideFromListChk" onchange="toggleHideFromList(this.checked)"> Не показывать меня в списке пользователей</label>
+      <div class="sw-row" style="margin-top:12px">
+        <div class="sw-lbl"><b>Уведомления о сообщениях</b><span id="notifState">—</span></div>
+        <label class="sw" title="Включить / выключить"><input type="checkbox" id="notifSw" onchange="toggleNotifs(this.checked)"><span class="sw-track"></span></label>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">Чтобы уведомления приходили, когда вкладка свёрнута, добавь MiniChat на главный экран телефона.</div>
     </div>
     <div class="profile-card">
       <button class="btn btn-primary" onclick="saveProfileAll()">💾 Сохранить всё</button>
@@ -1412,6 +1417,9 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   </div>
 </div>
 <div id="toast"></div>
+<!-- Панель-подсказка «включить уведомления». Показывается только если
+     разрешение ещё не выдано, и больше не мешает после решения. -->
+<div id="notifHintBar" style="display:none;position:fixed;left:10px;right:10px;bottom:66px;z-index:400;gap:8px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--surface3);border-radius:14px;padding:10px 12px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.35)"></div>
 
 <div class="bottom-nav">
   <button class="nav-btn" data-screen="newsScreen" onclick="showScreen('newsScreen')"><span class="nav-icon">📰</span><span>Новости</span><span class="mini-badge" id="newsBadge"></span></button>
@@ -1595,7 +1603,18 @@ async function boot(){
   try{await ensureAdminExists();}catch(e){}
   checkSession();
   try{if(firebase.auth)firebase.auth().getRedirectResult().then(r=>{if(r&&r.user)finishGoogleLogin(r);}).catch(()=>{});}catch(e){}
-  if(!localStorage.getItem('mc_notif_asked')){localStorage.setItem('mc_notif_asked','1');try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();}catch(e){}}
+  // Регистрируем Service Worker: без него системные уведомления теряются,
+  // когда вкладка выгружена, и по клику ничего не открывается.
+  try{
+    if('serviceWorker' in navigator&&location.protocol==='https:')
+      navigator.serviceWorker.register('./sw.js').then(r=>{swReg=r;r.update&&r.update().catch(()=>{});}).catch(()=>{});
+  }catch(e){}
+  // Разрешение на уведомления раньше запрашивалось сразу при первом входе.
+  // Современные браузеры всё равно игнорируют такой запрос без жеста
+  // пользователя, поэтому теперь кнопка «Включить уведомления» в настройках,
+  // а здесь только мягкое напоминание, если разрешения ещё нет.
+  if('Notification' in window&&Notification.permission==='default')
+    setTimeout(()=>showNotifHint(),2500);
   document.addEventListener('pointerdown',()=>{try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}},{once:true});
   window.addEventListener('beforeunload',()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:false,lastSeen:Date.now()});if(callState)hangup(false);}});
   document.addEventListener('click',e=>{if(highlightedMsg&&!e.target.closest('.msg')&&!e.target.closest('.reaction-train'))clearHighlight();});
@@ -1680,7 +1699,18 @@ function enterApp(uid,info){
     navigator.geolocation.getCurrentPosition(p=>{db.ref('users/'+uid+'/geo').set(p.coords.latitude.toFixed(2)+', '+p.coords.longitude.toFixed(2));},()=>{},{timeout:8000});}
   cleanupOldNews();checkWeatherNews();clearInterval(weatherTimer);weatherTimer=setInterval(checkWeatherNews,3600000);
   cleanupOfflineUsers();setInterval(cleanupOfflineUsers,60000);
-  startListeners();startIncomingListener();showScreen(pendingRestore||'mainScreen');pendingRestore=null;
+  startListeners();startIncomingListener();
+  // Клик по системному уведомлению приходит с параметром ?open=<id чата>.
+  // Открываем именно этот чат, а не тот, где человек был в прошлый раз.
+  const openParam=(new URLSearchParams(location.search).get('open')||'').trim();
+  if(openParam){
+    const isG=openParam.charAt(0)==='g';
+    const ou=isG?null:(openParam.split('_').filter(x=>x&&x!==uid))[0];
+    openChat(openParam,ou);
+    try{history.replaceState(null,'','./');}catch(e){}
+  }else showScreen(pendingRestore||'mainScreen');
+  pendingRestore=null;
+  setTimeout(()=>showNotifHint(),3000);
 }
 function forceLogout(msg){
   offAll();if(isRecording)stopRecording();cancelRecorded();clearInterval(hbTimer);clearInterval(sessionTimer);sessionTimer=null;
@@ -2519,7 +2549,66 @@ function closeSongBar(){stopSong();}
 function toast(m,ok){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';t.className=ok?'success':'';clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.style.display='none',2600);}
 function beep(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=880;o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(.001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.2,audioCtx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.3);o.start();o.stop(audioCtx.currentTime+.35);}catch(e){}}
 function vibrate(){try{if(navigator.vibrate)navigator.vibrate([100,50,100]);}catch(e){}}
-function notifyBrowser(t,b){try{if('Notification' in window&&Notification.permission==='granted')new Notification(t,{body:b});}catch(e){}}
+// ===== Системные уведомления =====
+// Через Service Worker, если он есть: переживают выгрузку вкладки, по клику
+// открывают нужный чат, плюс цифра на иконке приложения. Без воркера —
+// обычный Notification, как раньше.
+let swReg=null;
+function notifyBrowser(t,b,url,tag){
+  try{
+    if(!('Notification' in window)||Notification.permission!=='granted')return;
+    const target=url||location.href;
+    const data={url:target};
+    if(swReg&&swReg.showNotification){
+      swReg.showNotification(t,{body:b,tag:tag||'minichat',renotify:true,data:data,icon:'./icon-192.png',badge:'./icon-192.png'});
+    }else{
+      const n=new Notification(t,{body:b,tag:tag||'minichat',data:data});
+      n.onclick=()=>{try{n.close();}catch(e){}window.focus();location.href=target;};
+    }
+  }catch(e){}
+}
+// Цифра на иконке приложения (работает для установленного PWA)
+function setAppBadge(n){
+  try{ if(navigator.setAppBadge) navigator.setAppBadge(n>0?n:0); }catch(e){}
+  try{ if(navigator.clearAppBadge&&n<=0) navigator.clearAppBadge(); }catch(e){}
+}
+function notifPermission(){return ('Notification' in window)?Notification.permission:'unsupported';}
+async function toggleNotifs(on){
+  if(!on){
+    // Выключить разрешение из приложения браузер не даёт — честно говорим об этом.
+    toast('Выключается в настройках браузера → Уведомления');
+    const sw=document.getElementById('notifSw');if(sw)sw.checked=(notifPermission()==='granted');
+    return;
+  }
+  const p=await askNotifPermission();
+  const st=document.getElementById('notifState');
+  if(st)st.textContent=(p==='granted'?'включены':p==='denied'?'запрещены в браузере':'выключены');
+  const sw=document.getElementById('notifSw');if(sw)sw.checked=(p==='granted');
+  if(p==='granted'){const b=document.getElementById('notifHintBar');if(b)b.style.display='none';}
+}
+async function askNotifPermission(){
+  if(!('Notification' in window)){toast('Браузер не умеет уведомления');return 'unsupported';}
+  try{
+    const p=await Notification.requestPermission();
+    if(p==='granted'){toast('🔔 Уведомления включены',true);try{navigator.serviceWorker&&navigator.serviceWorker.ready.then(r=>{swReg=r;});}catch(e){}}
+    else toast('Уведомления запрещены — их можно включить в настройках браузера');
+    return p;
+  }catch(e){return 'error';}
+}
+// Мягкая подсказка в приложении, если разрешение ещё не выдано
+let notifHintShown=false;
+function hideNotifHint(){notifHintShown=true;const b=document.getElementById('notifHintBar');if(b)b.style.display='none';}
+function showNotifHint(){
+  if(notifHintShown||notifPermission()!=='default')return;
+  if(currentScreenId&&currentScreenId==='chatScreen')return;
+  notifHintShown=true;
+  const bar=document.getElementById('notifHintBar');
+  if(!bar)return;
+  bar.innerHTML='<span>🔔 Включить уведомления о новых сообщениях?</span>'+
+    '<button class="btn btn-primary btn-sm" style="width:auto" onclick="askNotifPermission()">Включить</button>'+
+    '<button class="btn btn-outline btn-sm" style="width:auto" onclick="hideNotifHint()">Позже</button>';
+  bar.style.display='flex';
+}
 function applyTheme(id){if(!THEMES.find(t=>t.id===id))id='dark';document.documentElement.setAttribute('data-theme',id);localStorage.setItem('mc_theme',id);if(currentUser)db.ref('users/'+currentUser.uid+'/theme').set(id);}
 function notifyUser(uid,type,title,text,extra){if(!uid||uid===currentUser.uid||!ALL_USERS[uid])return;db.ref('notifs/'+uid).push(Object.assign({type,title:title||'',text,ts:Date.now(),read:false},extra||{}));}
 
@@ -3002,7 +3091,12 @@ function closeChat(){
   currentChatId=null;currentOtherUid=null;currentIsGroup=false;currentIncognito=false;chatMediaQueue=[];showScreen('mainScreen');
 }
 function notifyIncoming(m){const prev=previewFor(m.type,m.name);
-  const n=nameOf(m.sender,'кто-то');toast('💬 '+n+': '+prev);beep();vibrate();notifyBrowser('MiniChat: '+n,prev);}
+  const n=nameOf(m.sender,'кто-то');toast('💬 '+n+': '+prev);beep();vibrate();
+  // В уведомлении — сам текст сообщения, а не только «Файл/Голосовое»:
+  // так человек понимает, от кого и о чём речь, не открывая приложение.
+  const body=(m.type==='text'&&m.text)?String(m.text).slice(0,120):prev;
+  const link=location.origin+location.pathname+'?open='+encodeURIComponent(currentChatId||'');
+  notifyBrowser('💬 '+n,body,link,'chat-'+(currentChatId||''));}
 function ticksHtml(m){if(currentIsGroup||m.sender!==currentUser.uid)return '';if(m.read)return '<span class="ticks ticks-read">✓✓</span>';if(m.deliv)return '<span class="ticks">✓✓</span>';return '<span class="ticks">✓</span>';}
 function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
 function commitMessage(chatId,key,payload,preview){
@@ -4411,6 +4505,7 @@ function renderChatList(){
   document.getElementById('tabDm').classList.toggle('active',chatTab==='dm');
   document.getElementById('tabGr').classList.toggle('active',chatTab==='group');
   const total=dmUn+grUn;
+  setAppBadge(total);   // цифра на иконке приложения, если оно установлено
   const gb=document.getElementById('globalBadge'),cb=document.getElementById('chatBadge');
   if(total>0){gb.textContent=total;gb.style.display='inline-flex';cb.textContent=total;cb.classList.add('active');document.title='('+total+') MiniChat';}
   else{gb.style.display='none';cb.classList.remove('active');document.title='MiniChat';}
@@ -5406,6 +5501,13 @@ function renderProfileEdit(){
   document.getElementById('ankBooks').value=a.books||'';document.getElementById('ankMovies').value=a.movies||'';
   document.getElementById('ankMood').value=a.mood||'';
   document.getElementById('hideFromListChk').checked=!!i.hideFromList;
+  // Состояние уведомлений: браузер разрешает только включение, выключение
+  // делается в его настройках — честно об этом и пишем.
+  const np=notifPermission();
+  const sw=document.getElementById('notifSw');
+  if(sw){sw.checked=np==='granted';sw.disabled=(np==='unsupported');}
+  const ns=document.getElementById('notifState');
+  if(ns)ns.textContent=(np==='granted'?'включены':np==='denied'?'запрещены в браузере':np==='unsupported'?'браузер не умеет':'выключены');
   const fr=document.getElementById('frameRow');fr.innerHTML='';
   FRAMES.forEach(f=>{const b=document.createElement('button');b.className='frame-opt'+((i.frame||'')===f.id?' sel':'');
     b.innerHTML='<span class="frame-dot'+(f.id?' frame-'+f.id:'')+'"></span>'+f.name;
