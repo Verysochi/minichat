@@ -3218,22 +3218,26 @@ function commitMessage(chatId,key,payload,preview){
 }
 function sendQueuedItem(chatId,item,textWithFirst,idx){
   const key=db.ref('messages/'+chatId).push().key;
+  const nm=item.name||'файл';
+  // Firebase не принимает undefined: раньше payload.size=item.size ронял всю
+  // отправку, если размер не задан — файл не уходил, очередь застревала,
+  // и всё выглядело как «ничего не происходит».
   const payload={sender:currentUser.uid,ts:Date.now()+idx,type:item.type==='file'?'file':item.type};
   if(idx===0&&textWithFirst)payload.text=textWithFirst;
   if(item.type==='image'||item.type==='video'){
     // mediaKey ОБЯЗАТЕЛЬНО: без него maybeLoad() не подхватит файл и фото/видео
     // отрисуется как обычный файл (иконка + имя), а не полароид.
-    payload.name=item.name;payload.size=item.size;payload.thumb=item.thumb||null;
+    payload.name=nm;payload.size=(item.size==null?null:item.size);payload.thumb=item.thumb||null;
     payload.mediaKey=key;payload.ext=1;
     if(item.asFile)payload.asFile=1;              // выбрано через 📎 — показывать как файл
-    commitMessage(chatId,key,payload,previewFor(item.type,item.name));
-    uploadChunked(key,item.data,{name:item.name});
+    commitMessage(chatId,key,payload,previewFor(item.type,nm));
+    uploadChunked(key,item.data,{name:nm});
   } else {
-    payload.name=item.name;payload.size=item.size;payload.mime=item.mime||'';payload.ext=1;
+    payload.name=nm;payload.size=(item.size==null?null:item.size);payload.mime=item.mime||'';payload.ext=1;
     payload.mediaKey=key;
     if(item.asFile)payload.asFile=1;
-    commitMessage(chatId,key,payload,previewFor('file',item.name));
-    uploadChunked(key,item.data,{name:item.name});
+    commitMessage(chatId,key,payload,previewFor('file',nm));
+    uploadChunked(key,item.data,{name:nm});
   }
 }
 function downloadFile(key){
@@ -3259,8 +3263,14 @@ function sendMessage(){
     // успевала очистить очередь, вторая видела её пустой и уходила в ветку
     // обычного текста — с пустым текстом. Так и сыпались пустые сообщения.
     if(chatMediaQueue.length){
-      chatMediaQueue.forEach((it,idx)=>sendQueuedItem(currentChatId,it,text,idx));
+      // Ошибка на одном файле не должна оставлять остальные в очереди навсегда
+      let sent=0,failed=0;
+      chatMediaQueue.forEach((it,idx)=>{
+        try{sendQueuedItem(currentChatId,it,text,idx);sent++;}
+        catch(e){failed++;console.warn('sendQueuedItem',e);}
+      });
       chatMediaQueue=[];renderMediaContainer('chat');
+      if(failed)toast('⚠️ Не отправилось файлов: '+failed);
     } else {
       if(!text)return;   // отправлять нечего — не создаём пустой пузырь
       const key=db.ref('messages/'+currentChatId).push().key;
