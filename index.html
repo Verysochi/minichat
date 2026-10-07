@@ -4362,7 +4362,14 @@ function renderChatList(){
   }
   if(!rows.length){
     if(chatTab==='dm' && onlineStripShown)return;
-    c.insertAdjacentHTML('beforeend','<div class="empty-state"><div class="icon">'+(chatTab==='dm'?'💬':'👥')+'</div><div>'+(chatTab==='dm'?'Нет личных чатов':'Нет групп')+'</div><div style="font-size:13px;margin-top:8px">'+(chatTab==='dm'?'Напиши другу сверху или во вкладке 🤝':'Созди группу')+'</div></div>');
+    // Раньше в пустом состоянии групп был просто текст «Созди группу», а сама
+    // кнопка пряталась на другом экране — подсказку нельзя было нажать.
+    // Теперь это настоящая кнопка, ведущая туда же, куда и раньше.
+    const hint=chatTab==='dm'
+      ? '<div style="font-size:13px;margin-top:8px">Напиши другу сверху или во вкладке 🤝</div>'
+      : '<div style="font-size:13px;margin-top:8px">Создай группу и позови друзей</div>'
+        + '<button class="btn btn-primary" style="width:auto;margin-top:14px;padding:12px 22px" onclick="createGroupPrompt()">➕ Создай группу</button>';
+    c.insertAdjacentHTML('beforeend','<div class="empty-state"><div class="icon">'+(chatTab==='dm'?'💬':'👥')+'</div><div>'+(chatTab==='dm'?'Нет личных чатов':'Нет групп')+'</div>'+hint+'</div>');
     return;
   }
   const label=document.createElement('div');label.className='section-lbl';label.textContent=chatTab==='dm'?'💬 Личные чаты':'👥 Группы';c.appendChild(label);
