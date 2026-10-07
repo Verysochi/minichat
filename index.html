@@ -5615,7 +5615,17 @@ function renderNotifs(){
       else if(n.type==='proposal')showScreen('newsScreen');};
     l.appendChild(d);});
 }
-function markAllNotifsRead(){if(!lastNotifs)return;const up={};Object.keys(lastNotifs).forEach(k=>{up[k+'/read']=true;});db.ref('notifs/'+currentUser.uid).update(up).then(()=>toast('✅',true));}
+function markAllNotifsRead(){
+  const keys=lastNotifs?Object.keys(lastNotifs).filter(k=>lastNotifs[k]&&!lastNotifs[k].read):[];
+  if(!keys.length){toast('Непрочитанных нет');return;}
+  const up={};keys.forEach(k=>{up[k+'/read']=true;});
+  // Гасим сразу локально — иначе бейдж на колокольчике держится до ответа сервера.
+  keys.forEach(k=>{if(lastNotifs[k])lastNotifs[k].read=true;});
+  renderNotifs();
+  db.ref('notifs/'+currentUser.uid).update(up)
+    .then(()=>toast('✓ Прочитано: '+keys.length,true))
+    .catch(e=>{console.warn('markAllNotifs',e);renderNotifs();toast('⚠️ Не получилось');});
+}
 
 // ===== ПРОФИЛЬ =====
 function anketaHtml(i){const a=i&&i.anketa;const r=[];
@@ -6164,6 +6174,10 @@ function renderPending(){
   const pc=document.getElementById('pendingCount');
   const wrap=document.getElementById('pendingWrap');
   const setEmpty=txt=>{b.innerHTML='<div style="color:var(--text3);font-size:13px">'+txt+'</div>';if(pc)pc.textContent='';};
+  // Гасим единичку на кнопке «Админ». Раньше здесь просто возвращались,
+  // и после одобрения последней заявки цифра оставалась висеть.
+  const rb0=document.getElementById('reqBadge');
+  if(rb0){rb0.textContent='';rb0.classList.remove('active');}
   if(!lastPending||!Object.keys(lastPending).length){
     setEmpty('Заявка приходит сама, когда человек попробует войти.');
     if(wrap)wrap.classList.add('quiet');        // пусто — прячем блок целиком
