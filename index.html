@@ -5598,7 +5598,10 @@ function renderNotifs(){
   const l=document.getElementById('notifList');if(!l||!currentUser)return;
   const items=lastNotifs?Object.entries(lastNotifs):[];
   const un=items.filter(([,n])=>!n.read).length;
-  document.querySelectorAll('.js-notif-badge').forEach(b=>{if(un>0){b.textContent=un;b.classList.add('active');}else b.classList.remove('active');});
+  document.querySelectorAll('.js-notif-badge').forEach(b=>{
+    if(un>0){b.textContent=un;b.classList.add('active');}
+    else{b.textContent='';b.classList.remove('active');}   // текст тоже гасим, иначе остаётся «1» без подсветки
+  });
   l.innerHTML='';
   if(!items.length){l.innerHTML='<div class="empty-state"><div class="icon">🔔</div><div>Пока тихо</div></div>';return;}
   items.sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([key,n])=>{
