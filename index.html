@@ -65,7 +65,8 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .btn-primary{background:var(--primary);color:var(--primary-text)}
 .btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
 .btn-danger{background:var(--red);color:#fff}
-.btn-sm{padding:8px 14px;font-size:14px;width:auto;margin-top:0}
+/* min-height:32px — в админке кнопки были 29px, на телефоне в них сложно попасть */
+.btn-sm{padding:8px 14px;font-size:14px;width:auto;margin-top:0;min-height:32px;display:inline-flex;align-items:center;justify-content:center}
 /* Анимация кнопок формы входа — только там, где есть настоящая мышь.
    На тач-экране hover залипает после тапа, а прыжок выглядит как дёрганье. */
 @media (hover:hover) and (pointer:fine){
