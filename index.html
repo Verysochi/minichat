@@ -2,7 +2,10 @@
 <html lang="ru" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<!-- maximum-scale=1,user-scalable=no запрещал увеличивать текст: людям со слабым зрением
+     и при мелком шрифте было невозможно приблизить. Масштабирование разрешили,
+     а кнопкам добавили touch-action, чтобы двойной тап не вызывал зум и задержку. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0a">
 <title>MiniChat</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -52,7 +55,7 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .pass-toggle.on{color:var(--primary)}
 .remember{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;margin:4px 0 8px;cursor:pointer}
 .remember input{width:auto}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;user-select:none;width:100%;margin-top:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;user-select:none;width:100%;margin-top:6px;touch-action:manipulation}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--primary);color:var(--primary-text)}
 .btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
@@ -288,6 +291,12 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
   30%{opacity:1;transform:translate(-50%,-50%) scale(1.5)}
   100%{opacity:0;transform:translate(-50%,-50%) scale(2.6)}
 }
+/* Масштабирование текста мы разрешили (см. viewport). Чтобы страница не «прыгала»
+   при приближении, фиксируем ширину макета. touch-action убирает задержку
+   двойного тапа на кнопках. */
+button,.btn,.row,.chip,.avatar,.user-item,.chat-item,.comment-btn,.rock-btn,.c-reply-btn,.song-mini,.attach-menu .row{
+  touch-action:manipulation}
+img,video,canvas{max-width:100%}
 /* Бейдж «сколько раз рокнул» в профиле — жёлтая рука + число */
 .rock-badge{display:inline-flex;align-items:center;gap:3px;margin-left:8px;padding:2px 8px;border-radius:12px;
   background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.45);vertical-align:middle}
@@ -3840,12 +3849,28 @@ function toggleAttachMenu(){
   if(m.classList.contains('open')&&typeof hideMentions==='function')hideMentions();
 }
 function closeAttachMenu(){const m=document.getElementById('attachMenu');if(m)m.classList.remove('open');}
-// Закрываем меню по клику мимо и по Escape
+// Закрываем меню по клику мимо
 document.addEventListener('click',e=>{
   const m=document.getElementById('attachMenu');
   if(!m||!m.classList.contains('open'))return;
   if(e.target.closest('#attachMenu')||e.target.closest('#chatInputBar .more-btn'))return;
   m.classList.remove('open');
+});
+// Escape. Раньше он был обещан комментарием, но обработчика не было:
+// ни меню вложений, ни всплывающие окна по Escape не закрывались.
+// Оверлеи открыты слоями друг над другом — закрываем верхний, а не все сразу.
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'&&e.key!=='Esc')return;
+  const am=document.getElementById('attachMenu');
+  if(am&&am.classList.contains('open')){am.classList.remove('open');e.preventDefault();return;}
+  const mp=document.getElementById('mentionPopup');
+  if(mp&&getComputedStyle(mp).display!=='none'){hideMentions();e.preventDefault();return;}
+  if(typeof closeFwdSrcMenu==='function'){
+    const fs=document.getElementById('fwdSrcMenu');
+    if(fs&&fs.classList.contains('active')){closeFwdSrcMenu();e.preventDefault();return;}
+  }
+  const mini=document.getElementById('miniProfile');
+  if(mini&&mini.classList.contains('active')){closeMini();e.preventDefault();return;}
 });
 // Кто поставил реакцию — список людей с их эмодзи
 function showWhoReacted(key){
