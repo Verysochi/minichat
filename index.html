@@ -1623,8 +1623,10 @@ async function boot(){
   document.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
       const id=e.target&&e.target.id;
-      if(id==='msgInput'){e.preventDefault();sendMessage();}
-      else if(id&&id.indexOf('nci_')===0){e.preventDefault();const cid=id.slice(4);const base=e.target.getAttribute('data-base')||'news';sendComment(base,cid);}
+      // Для поля чата Ctrl+Enter больше НЕ отправляет — там перенос строки.
+      // Отправкой занимается обработчик самого поля (Enter → отправить).
+      if(id==='msgInput')return;
+      if(id&&id.indexOf('nci_')===0){e.preventDefault();const cid=id.slice(4);const base=e.target.getAttribute('data-base')||'news';sendComment(base,cid);}
       else if(id==='newsInput'){e.preventDefault();postNews();}
       else if(id==='propText'){e.preventDefault();proposeNews();}
       else if(id==='colInput'){e.preventDefault();postColumn();}
