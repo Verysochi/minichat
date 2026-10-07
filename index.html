@@ -2905,7 +2905,7 @@ function updateChatHeader(){
   if(!currentChatId)return;
   if(currentIsGroup){const g=groupOf(currentChatId);if(!g)return;
     document.getElementById('chatAvatarWrap').innerHTML=groupAvatarHtml(g,'sm');
-    document.getElementById('chatTitle').textContent=g.name;
+    document.getElementById('chatTitle').textContent=g.name||'Группа';
     document.getElementById('chatSub').textContent=g.status||('участников: '+Object.keys(g.members||{}).length);}
   else if(currentOtherUid){const i=ALL_USERS[currentOtherUid];
     document.getElementById('chatAvatarWrap').innerHTML=avatarHtml(i,'sm',nameOf(currentOtherUid));
@@ -3834,7 +3834,10 @@ function toggleAttachMenu(){
   const m=document.getElementById('attachMenu');
   if(!m)return;
   m.classList.toggle('open');
-  if(m.classList.contains('open'))closeMentions&&closeMentions();
+  // Здесь было closeMentions — такой функции в проекте нет, обращение к
+  // необъявленному имени бросало ReferenceError при КАЖДОМ открытии меню.
+  // Правильное имя — hideMentions().
+  if(m.classList.contains('open')&&typeof hideMentions==='function')hideMentions();
 }
 function closeAttachMenu(){const m=document.getElementById('attachMenu');if(m)m.classList.remove('open');}
 // Закрываем меню по клику мимо и по Escape
@@ -4361,7 +4364,7 @@ function dmEmptyItem(cid,ou){
   d.querySelectorAll('.avatar').forEach(a=>{a.onclick=e=>{e.stopPropagation();};a.style.cursor='default';});
   return d;}
 function groupItem(gid,g,un){const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(gid,null);
-  d.innerHTML=groupAvatarHtml(g)+'<div class="chat-info"><div class="chat-name">'+esc(g.name)+'</div><div class="chat-last">'+esc(g.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(g.lastTs)+'</div>'+((un>0)?'<div class="chat-badge" style="margin-top:3px">'+un+'</div>':'')+'</div>';
+  d.innerHTML=groupAvatarHtml(g)+'<div class="chat-info"><div class="chat-name">'+esc(g.name||'Группа')+'</div><div class="chat-last">'+esc(g.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(g.lastTs)+'</div>'+((un>0)?'<div class="chat-badge" style="margin-top:3px">'+un+'</div>':'')+'</div>';
   return d;}
 
 // ===== ДРУЗЬЯ/ПРОФИЛИ =====
@@ -4578,8 +4581,8 @@ function joinGroup(code){code=(code||'').trim();if(!code){toast('Введи ко
     if(g.members&&g.members[currentUser.uid]){toast('Уже в группе');openChat(code,null);return;}
     db.ref('groups/'+code+'/members/'+currentUser.uid).set(Date.now()).then(()=>{toast('🎉 Ты в группе',true);openChat(code,null);});});}
 function sendGroupInvite(gid,uid){const g=groupOf(gid);if(!g)return;
-  db.ref('groupInvites/'+uid+'/'+gid).set({ts:Date.now(),name:g.name,fromName:displayNameOf(currentUser)})
-    .then(()=>{notifyUser(uid,'ginvite','Приглашение в группу','📩 Приглашение в «'+g.name+'»',{gid});toast('📨 Отправлено',true);})
+  db.ref('groupInvites/'+uid+'/'+gid).set({ts:Date.now(),name:g.name||'Группа',fromName:displayNameOf(currentUser)})
+    .then(()=>{notifyUser(uid,'ginvite','Приглашение в группу','📩 Приглашение в «'+(g.name||'Группа')+'»',{gid});toast('📨 Отправлено',true);})
     .catch(e=>{console.warn('sendGroupInvite',e);toast('⚠️ Не удалось пригласить');});}
 function acceptGroupInv(gid){db.ref('groups/'+gid+'/members/'+currentUser.uid).set(Date.now())
   .then(()=>db.ref('groupInvites/'+currentUser.uid+'/'+gid).remove())
@@ -4641,10 +4644,10 @@ function renderGroupInfo(){
   if(!currentIsGroup||!currentChatId)return;
   const g=groupOf(currentChatId);if(!g)return;
   const gid=currentChatId,manage=canManage(gid),me=currentUser.uid;
-  document.getElementById('giTitle').textContent='👥 '+g.name;
+  document.getElementById('giTitle').textContent='👥 '+(g.name||'Группа');
   const previewCover=gCoverData?'<img class="group-cover" src="'+gCoverData+'">':groupCoverHtmlFor(g,'group-cover');
   document.getElementById('giHeadCard').innerHTML=previewCover+
-    '<div style="display:flex;gap:12px;align-items:center;margin-top:-30px;position:relative">'+groupAvatarHtml(g)+'<div style="padding-top:30px"><div style="font-weight:700;font-size:17px">'+esc(g.name)+'</div><div class="status-line">'+esc(g.status||'без статуса группы')+'</div><div style="color:var(--text3);font-size:12px">участников: '+Object.keys(g.members||{}).length+' · владелец: '+esc(nameOf(g.ownerId))+'</div></div></div>';
+    '<div style="display:flex;gap:12px;align-items:center;margin-top:-30px;position:relative">'+groupAvatarHtml(g)+'<div style="padding-top:30px"><div style="font-weight:700;font-size:17px">'+esc(g.name||'Группа')+'</div><div class="status-line">'+esc(g.status||'без статуса группы')+'</div><div style="color:var(--text3);font-size:12px">участников: '+Object.keys(g.members||{}).length+' · владелец: '+esc(nameOf(g.ownerId))+'</div></div></div>';
   const ec=document.getElementById('giEditCard');ec.style.display=manage?'block':'none';
   const nfc=document.getElementById('giNoFwdCard');if(nfc)nfc.style.display=manage?'block':'none';
   const hdc=document.getElementById('giHiddenCard');if(hdc)hdc.style.display=manage?'block':'none';
@@ -4712,7 +4715,7 @@ function renderAllGroups(){
   if(!es.length){b.innerHTML='<div style="color:var(--text3);font-size:13px">Групп нет</div>';return;}
   b.innerHTML='';
   es.forEach(([gid,g])=>{const d=document.createElement('div');d.className='admin-user';
-    d.innerHTML='<div style="min-width:0"><div style="font-weight:600">'+esc(g.name)+'</div><div style="color:var(--text2);font-size:12px">участников: '+Object.keys(g.members||{}).length+(isMember(gid)?'':' · не участник')+'</div></div><div style="display:flex;gap:4px"><button class="btn btn-outline btn-sm" style="width:auto" onclick="openChat(\''+gid+'\',null,true)">🕵️</button><button class="header-btn" style="background:var(--red)" onclick="deleteGroupById(\''+gid+'\')"><span class="hicon">🗑</span></button></div>';
+    d.innerHTML='<div style="min-width:0"><div style="font-weight:600">'+esc(g.name||'Группа')+'</div><div style="color:var(--text2);font-size:12px">участников: '+Object.keys(g.members||{}).length+(isMember(gid)?'':' · не участник')+'</div></div><div style="display:flex;gap:4px"><button class="btn btn-outline btn-sm" style="width:auto" onclick="openChat(\''+gid+'\',null,true)">🕵️</button><button class="header-btn" style="background:var(--red)" onclick="deleteGroupById(\''+gid+'\')"><span class="hicon">🗑</span></button></div>';
     b.appendChild(d);});
 }
 function renderSpy(){
