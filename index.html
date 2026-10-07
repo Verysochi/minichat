@@ -570,6 +570,10 @@ img,video,canvas{max-width:100%}
 .fwd-src.tap{cursor:pointer;transition:background .15s ease}
 .fwd-src.tap:hover{background:var(--surface2)}
 .fwd-src.tap:active{transform:scale(.99)}
+/* Кнопка перехода в чат внутри пересланного сообщения */
+.fwd-jump{flex:0 0 auto;margin-left:6px;border:1px solid var(--surface3);background:var(--surface2);
+  color:var(--primary);font-size:11px;font-weight:600;border-radius:10px;padding:3px 9px;cursor:pointer}
+.fwd-jump:active{transform:scale(.96)}
 .undo-bar{position:fixed;left:50%;bottom:26px;transform:translate(-50%,26px);z-index:1200;opacity:0;transition:all .22s ease;
   display:flex;align-items:center;gap:6px;padding:11px 18px;border:none;border-radius:24px;cursor:pointer;
   background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;
@@ -1476,6 +1480,8 @@ let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
 let pendingMediaTarget=null,toastTimer=null,audioCtx=null,fwdKey=null,shareCtx=null;
 let pc=null,localStream=null,callState=null,ringTimer=null,camFacing='user';
+let callTimeout=null;   // страховка от вечного «соединение...»
+function clearCallTimeout(){if(callTimeout){clearTimeout(callTimeout);callTimeout=null;}}
 let attachmentCameraStream=null,attachmentCameraFacing='environment';
 let highlightedMsg=null;
 let chatMediaQueue=[],newsMediaQueue=[],propMediaQueue=[],colMediaQueue=[],myColMediaQueue=[];
@@ -1646,6 +1652,9 @@ async function boot(){
   document.addEventListener('click',e=>{if(highlightedMsg&&!e.target.closest('.msg')&&!e.target.closest('.reaction-train'))clearHighlight();});
   // Один обработчик на всю ленту: тап по подписи «От …» в пересланном сообщении
   document.addEventListener('click',e=>{
+    // Кнопка «Перейти в чат» внутри пересланного сообщения
+    const jb=e.target.closest&&e.target.closest('.fwd-jump');
+    if(jb){e.stopPropagation();jumpToChat(jb.getAttribute('data-jump-cid')||'');return;}
     const t=e.target.closest&&e.target.closest('.fwd-src.tap');
     if(!t)return;
     if(e.target.closest('.msg-actions'))return;   // не мешаем кнопкам реакций/удаления
@@ -1759,6 +1768,13 @@ function doLogout(){
 function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frLRef,frqLRef,ginLRef,blkLRef,postsLRef,incomingRef,prLRef,propLRef,delLogRef,sessLogRef,attLogRef,msgRef,typRef].forEach(r=>{if(r)r.off();});}
 
 function showScreen(id){
+  // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
+  // угодно: обычный человек мог зайти и увидеть всех пользователей вместе
+  // с кнопками «Бан», «Удалить» и прочим. Закрываем на уровне экрана.
+  if(id==='adminScreen'&&!(currentUser&&currentUser.isAdmin)){
+    toast('⛔ Это только для админа');
+    id=(currentUser?'mainScreen':'loginScreen');
+  }
   document.body.classList.remove('booting');   // загрузка закончилась — первый экран показан
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
   if(id!=='loginScreen'&&id!=='registerScreen')localStorage.setItem('mc_screen',id);
@@ -2247,7 +2263,11 @@ function navPreviewHide(){
 
 function startListeners(){
   offAll();const me=currentUser.uid;
-  usersLRef=db.ref('users');usersLRef.on('value',s=>{ALL_USERS=s.val()||{};refreshDynamic();});
+  usersLRef=db.ref('users');usersLRef.on('value',s=>{ALL_USERS=s.val()||{};refreshDynamic();
+    // Число «в сети» в нижней навигации пересчитываем и тут: раньше оно
+    // обновлялось только при изменении списка друзей, поэтому зашедший
+    // в сети человек учитывался не сразу.
+    updateFriendsNavCount();});
   groupsLRef=db.ref('groups');groupsLRef.on('value',s=>{ALL_GROUPS=s.val()||{};refreshDynamic();});
   newsLRef=db.ref('news');newsLRef.on('value',s=>{
     // Ветка комментариев открыта — не пересобираем карточку из-за нового
@@ -2336,7 +2356,7 @@ function renderCovers(){
 }
 function groupAvatarHtml(g,cls){return (g&&g.avatar)?'<img class="avatar '+(cls||'')+'" src="'+g.avatar+'">':'<div class="avatar '+(cls||'')+'" style="background:var(--green)">👥</div>';}
 function statusHtml(i){const s=i&&i.status;return s?'<div class="status-line">'+esc(s)+'</div>':'<div class="status-line muted">без статуса</div>';}
-function presenceHtml(i){if(!i)return '';return i.online?'<span class="status-line">🟢 онлайн</span>':'<span class="status-line muted">был(а): '+fmtFull(i.lastSeen||0)+'</span>';}
+function presenceHtml(i){if(!i)return '';return isOnline(i)?'<span class="status-line">🟢 онлайн</span>':'<span class="status-line muted">был(а): '+fmtFull(i.lastSeen||0)+'</span>';}
 function esc(s){if(!s)return '';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function escA(s){return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function formatTime(ts){if(!ts)return '';const d=new Date(ts),n=new Date(),df=n-d;if(df<86400000&&d.getDate()===n.getDate())return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');if(df<172800000)return 'Вчера';return d.getDate().toString().padStart(2,'0')+'.'+(d.getMonth()+1).toString().padStart(2,'0');}
@@ -3187,7 +3207,7 @@ function updateChatHeader(){
   else if(currentOtherUid){const i=ALL_USERS[currentOtherUid];
     document.getElementById('chatAvatarWrap').innerHTML=avatarHtml(i,'sm',nameOf(currentOtherUid));
     document.getElementById('chatTitle').textContent=nameOf(currentOtherUid);
-    document.getElementById('chatSub').textContent=[(i&&i.status)||'',i&&i.online?'🟢 онлайн':('был(а): '+fmtFull(i&&i.lastSeen))].filter(Boolean).join(' · ');}
+    document.getElementById('chatSub').textContent=[(i&&i.status)||'',isOnline(i)?'🟢 онлайн':('был(а): '+fmtFull(i&&i.lastSeen))].filter(Boolean).join(' · ');}
 }
 function closeChat(){
   if(msgRef)msgRef.off();if(typRef)typRef.off();msgRef=null;typRef=null;
@@ -3784,16 +3804,34 @@ function fwdSrcHtml(m){
     const av=g?groupAvatarHtml(g,'sm'):'<div class="avatar" style="background:var(--green)">👥</div>';
     const nm=m.fwdChatName||(g&&g.name)||'Группа';
     return '<div class="fwd-src tap" data-fwd-gid="'+escA(m.fwdChatId)+'" data-fwd-name="'+escA(nm)+'" title="Из группы — нажми">'+av+
-      '<span>От: '+esc(nm)+'</span><span class="fwd-tag">группа</span></div>';
+      '<span>От: '+esc(nm)+'</span><span class="fwd-tag">группа</span>'+
+      fwdJumpBtn(m.fwdChatId,'group')+'</div>';
   }
   if(m.fwdChatType==='dm'){
     const pu=m.fwdChatPeer;
     const av=avatarHtml(ALL_USERS[pu],'sm',m.fwdChatName||nameOf(pu,'кто-то'));
     const nm=m.fwdChatName||nameOf(pu,'кто-то');
     return '<div class="fwd-src tap" data-fwd-uid="'+escA(pu||'')+'" data-fwd-name="'+escA(nm)+'" title="Из личных сообщений — нажми">'+av+
-      '<span>От: '+esc(nm)+'</span><span class="fwd-tag">ЛС</span></div>';
+      '<span>От: '+esc(nm)+'</span><span class="fwd-tag">ЛС</span>'+
+      fwdJumpBtn(null,'dm',pu)+'</div>';
   }
   return m.fwdChatName?'<div class="fwd-src"><span>От: '+esc(m.fwdChatName)+'</span></div>':'';
+}
+// Кнопка «Перейти в чат» в пересланном сообщении.
+// Раньше был только мелкий тап по подписи «От: …», который открывал меню —
+// кнопки перехода не было. Показываем её, только если чат мне доступен.
+function fwdJumpBtn(gid,type,uid){
+  let cid='';
+  if(type==='group'){
+    const g=ALL_GROUPS[gid];
+    if(!g||!g.members||!g.members[currentUser.uid])return '';   // не участник — перехода не будет
+    cid=gid;
+  }else{
+    if(!uid||uid===currentUser.uid)return '';
+    if(!isFriend(uid))return '';
+    cid=currentUser.uid+'_'+uid;
+  }
+  return '<button class="fwd-jump" data-jump-cid="'+escA(cid)+'" title="Перейти в этот чат">Перейти в чат</button>';
 }
 // Меню по нажатию на подпись «От …» в пересланном сообщении
 function fwdSourceMenu(el){
@@ -4545,8 +4583,9 @@ async function setupCall(id,peer,type,role){
   pc.onconnectionstatechange=()=>{if(pc&&(pc.connectionState==='failed'||pc.connectionState==='disconnected')){toast('Связь потеряна');hangup(true);}};
   db.ref('calls/'+id).on('value',async s=>{
     const c=s.val();if(!c||!callState||callState.id!==id)return;
-    if(c.status==='ended'||c.status==='declined'){toast(c.status==='declined'?'Отклонено':'Звонок завершён');hangup(true);return;}
-    if(c.status==='active'&&!callState.activeTs){callState.activeTs=Date.now();document.getElementById('callType').textContent=(callState.type==='video'?'📹 Видео':'📞 Аудио')+' · в эфире';}
+    if(c.status==='ended'||c.status==='declined'){clearCallTimeout();toast(c.status==='declined'?'Отклонено':'Звонок завершён');hangup(true);return;}
+    if(c.status==='active'&&!callState.activeTs){callState.activeTs=Date.now();clearCallTimeout();
+      document.getElementById('callType').textContent=(callState.type==='video'?'📹 Видео':'📞 Аудио')+' · в эфире';}
     try{
       if(role==='callee'&&c.offer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.offer);const ans=await pc.createAnswer();await pc.setLocalDescription(ans);db.ref('calls/'+id+'/answer').set(ans.toJSON());db.ref('calls/'+id+'/status').set('active');}
       if(role==='caller'&&c.answer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.answer);db.ref('calls/'+id+'/status').set('active');}
@@ -4559,9 +4598,19 @@ async function setupCall(id,peer,type,role){
 function showCallOverlay(type){document.getElementById('callOverlay').classList.add('active');
   document.getElementById('callName').textContent=nameOf(callState.peer);
   document.getElementById('callType').textContent=(type==='video'?'📹 Видео':'📞 Аудио')+' · соединение...';
+  // Раньше надпись «соединение...» висела бесконечно: если ICE не соединился
+  // (мобильный NAT, запрещён UDP), человек так и ждал. Теперь через полторы
+  // минуты честно говорим, что не вышло, и закрываем звонок.
+  clearCallTimeout();
+  callTimeout=setTimeout(()=>{
+    if(!callState||callState.activeTs)return;
+    toast('Не удалось соединиться — сеть не пропускает звонок');
+    hangup(true);
+  },90000);
   const show=type==='video'?'block':'none';
   document.getElementById('remoteVideo').style.display=show;document.getElementById('localVideo').style.display=show;}
 function hangup(remote){
+  clearCallTimeout();
   if(callState&&!remote){
     const st=callState.activeTs?'ended':(callState.role==='caller'?'missed':'declined');
     const dur=callState.activeTs?Math.round((Date.now()-callState.activeTs)/1000):0;
@@ -4779,7 +4828,10 @@ function miniToFull(){document.getElementById('miniProfile').classList.remove('a
 function updateFriendsNavCount(){
   const el=document.getElementById('friendsCountNav');if(!el||!currentUser)return;
   const fr=lastFriends?Object.keys(lastFriends):[];
-  const online=fr.filter(uid=>ALL_USERS[uid]&&ALL_USERS[uid].online).length;
+  // Считали по полю users/uid/online — оно часто протухало, и человек
+  // прямо сейчас был в сети, а счётчик показывал 0. Признак «в сети»
+  // один: свежий lastSeen за последние 90 секунд (isOnline).
+  const online=fr.filter(uid=>isOnline(ALL_USERS[uid])).length;
   el.textContent=fr.length===0?'(0 всего)':'('+online+' в сети)';
 }
 function renderFriends(){
@@ -5445,6 +5497,9 @@ function renderNews(){
       '<div class="news-actions">'+shareBtnHtml('news',id)+commentsBlock('news',n,id)+'</div>'+cmtSlot(id)+
       '<div>'+whoListHtml('news',id,n)+'</div>';
     list.appendChild(div);});
+  // Карточка перерисована целиком, а блок комментариев жил внутри неё —
+  // открытая ветка исчезала сама. Возвращаем её на место.
+  if(CP)renderCommentsPanel();
 }
 // Подсветка «нового» держится несколько секунд и только один раз за новость
 function clearFreshGlow(){document.querySelectorAll('.news-fresh').forEach(e=>e.classList.remove('news-fresh'));}
@@ -5474,6 +5529,7 @@ function renderMyColumn(){
   items.forEach(([id,p])=>{if(!(p.views&&p.views[currentUser.uid]))db.ref('userPosts/'+id+'/views/'+currentUser.uid).set(true);if(p.mediaList)p.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});else maybeLoad(p);if(p.comments)Object.values(p.comments).forEach(cc=>maybeLoad(cc));});
   if(!items.length){list.innerHTML='<div class="status-line muted" style="font-size:12px;padding:12px">В твоей колонке пока пусто</div>';return;}
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,true));});
+  if(CP)renderCommentsPanel();     // открытая ветка не должна схлопываться
 }
 function postColumn(){
   if(postingBusy)return;
@@ -5525,6 +5581,7 @@ function renderProfileColumn(){
   items.forEach(([id,p])=>{if(!(p.views&&p.views[currentUser.uid]))db.ref('userPosts/'+id+'/views/'+currentUser.uid).set(true);if(p.mediaList)p.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});else maybeLoad(p);if(p.comments)Object.values(p.comments).forEach(cc=>maybeLoad(cc));});
   if(!items.length){list.innerHTML='<div class="status-line muted" style="font-size:12px">В твоей колонке пока пусто</div>';return;}
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,true));});
+  if(CP)renderCommentsPanel();
 }
 function renderViewColumn(){
   const list=document.getElementById('vpColumnList');if(!list||!currentUser||!viewProfileUid)return;list.innerHTML='';
@@ -5533,6 +5590,7 @@ function renderViewColumn(){
   if(!items.length){list.innerHTML='<div class="status-line muted" style="font-size:12px">В колонке пока пусто</div>';return;}
   const canDel=currentUser.isAdmin||viewProfileUid===currentUser.uid;
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,canDel));});
+  if(CP)renderCommentsPanel();
 }
 
 // ===== УВЕДОМЛЕНИЯ =====
@@ -5822,7 +5880,12 @@ function admBtn(label,js,cls){
 // Включённый бан подсвечивается и помечен галочкой — видно, что уже включено
 function banCls(i,f){return (i&&i.ban&&i.ban[f])?'on':'';}
 function renderAdminUsers(){
-  const b=document.getElementById('allUsersList');if(!b||!currentUser)return;b.innerHTML='';
+  const b=document.getElementById('allUsersList');
+  if(!b||!currentUser)return;
+  // Страховка: даже если экран открыли в обход, обычному пользователю
+  // список людей с кнопками «Бан»/«Удалить» не показываем.
+  if(!currentUser.isAdmin){b.innerHTML='';return;}
+  b.innerHTML='';
   // прячем скрытых по умолчанию — в админке они всё равно видны (мы тут хозяин)
   const es=Object.entries(ALL_USERS);if(!es.length){b.innerHTML='<div style="color:var(--text3)">Пусто</div>';return;}
   es.forEach(([uid,i])=>{const me=uid===currentUser.uid?' (Вы)':'';
@@ -6142,7 +6205,7 @@ function approveReg(id){const p=lastPending[id];if(!p)return;
     renderPending();
     db.ref('pendingRegistrations/'+id).remove()
       .then(()=>{toast('✅ Одобрен',true);})
-      .catch(()=>{toast('Ошибка удаления заявки');});
+      .catch(e=>{console.warn('approveReg',e);toast('⚠️ Не удалось убрать заявку — обнови страницу (Ctrl+F5)');});
   };
   const key=p.fuid||p.uid;
   if(key){db.ref('approvals/'+key).set(true).then(apply);return;}

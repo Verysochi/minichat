@@ -162,7 +162,7 @@
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
       ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
       "$reqId": {
-        ".write": "auth != null && !data.exists()",
+        ".write": "auth != null && (!data.exists() || auth.token.email == 'sochinewlife@gmail.com')",
         "login": {
           ".validate": "newData.isString() && newData.val().length < 120"
         },
