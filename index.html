@@ -91,6 +91,17 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .header-col h2{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-sub{font-size:11px;color:var(--text2);margin-top:1px}
 .header-btn{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:none;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+/* На телефоне в шапке чата до 11 кнопок — они физически не помещались и
+   наезжали друг на друга и на строку «онлайн». Ужимаем и прячем дубли:
+   «←» и «🏠» делают одно и то же, поэтому на телефоне оставляем «←». */
+@media (max-width:560px){
+  .header{gap:4px;padding:0 6px;overflow:hidden}
+  .header-btn{width:30px;height:30px;font-size:14px}
+  .header-btn.hide-narrow{display:none}
+  .header-col h2{font-size:15px}
+  .chat-sub{font-size:10px}
+  #chatAvatarWrap .avatar{width:32px;height:32px;font-size:13px}
+}
 .header-btn:active{transform:scale(.93)}
 .hicon{line-height:1}
 .back-btn{font-size:19px}
@@ -984,7 +995,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>🔔 Уведомления</h2></div>
-    <button class="header-btn" onclick="markAllNotifsRead()"><span class="hicon">✅</span></button>
+    <button class="btn btn-outline btn-sm" style="width:auto;flex:none" onclick="markAllNotifsRead()" title="Отметить все уведомления прочитанными">✓ Прочитать все</button>
     <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
@@ -1091,8 +1102,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="input-group">
         <label>Дата рождения</label>
         <div class="birth-age" id="birthAge"></div>
-        <input type="text" id="ankBirth" inputmode="numeric" autocomplete="off" placeholder="03101991 · 03.10.91 · 3.10.1991" oninput="birthTyped()">
-        <div class="birth-hint" id="birthHint">Принимается: 03101991, 03.10.91, 3.10.1991, 3.10.91 → 03.10.1991</div>
+        <input type="text" id="ankBirth" inputmode="numeric" autocomplete="off" placeholder="01011990 · 01.01.90 · 1.1.1990" oninput="birthTyped()">
+        <div class="birth-hint" id="birthHint">Принимается: 01011990, 01.01.90, 1.1.1990, 1.1.90 → 01.01.1990</div>
       </div>
       <div class="input-group"><label>Страна</label><input type="text" id="ankCountry"></div>
       <div class="input-group"><label>Город</label><input type="text" id="ankCity"></div>
@@ -1169,7 +1180,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div id="chatScreen" class="screen">
   <div class="header">
     <button class="header-btn back-btn" onclick="closeChat()"><span class="hicon">←</span></button>
-    <button class="header-btn" onclick="closeChat()"><span class="hicon">🏠</span></button>
+    <button class="header-btn hide-narrow" onclick="closeChat()"><span class="hicon">🏠</span></button>
     <div id="chatAvatarWrap" onclick="openChatProfile()" style="cursor:pointer"></div>
     <div class="header-col" onclick="openChatProfile()" style="cursor:pointer"><h2 id="chatTitle">Чат</h2><div class="chat-sub" id="chatSub"></div></div>
     <button class="header-btn" id="callAudioBtn" style="display:none" onclick="startCall(currentOtherUid,'audio')"><span class="hicon">📞</span></button>
@@ -2331,8 +2342,8 @@ function escA(s){return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;').repl
 function formatTime(ts){if(!ts)return '';const d=new Date(ts),n=new Date(),df=n-d;if(df<86400000&&d.getDate()===n.getDate())return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');if(df<172800000)return 'Вчера';return d.getDate().toString().padStart(2,'0')+'.'+(d.getMonth()+1).toString().padStart(2,'0');}
 function fmtFull(ts){if(!ts)return '—';const d=new Date(ts);return d.getDate().toString().padStart(2,'0')+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getFullYear()+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');}
 function fmtBirth(iso){const p=(iso||'').split('-');return p.length===3?(p[2]+'.'+p[1]+'.'+p[0]):(iso||'');}
-// ===== дата рождения: текст → нормализованный 03.10.1991 =====
-// Понимает: 03101991 · 3101991 · 03.10.1991 · 3.10.1991 · 03.10.91 · 3.10.91 · 03-10-1991 · 03/10/1991
+// ===== дата рождения: текст → нормализованный 01.01.1990 =====
+// Понимает: 01011990 · 1101990 · 01.01.1990 · 1.1.1990 · 01.01.90 · 1.1.90 · 01-01-1990 · 01/01/1990
 function parseBirth(v){
   if(!v)return null;
   const s=String(v).trim().replace(/\s+/g,'').replace(/[^\d.]/g,'');
@@ -2380,7 +2391,7 @@ function birthTyped(){
   const r=parseBirth(raw);
   const hint=document.getElementById('birthHint');
   if(r){renderBirthAge(r.shown,r.iso);if(hint)hint.textContent='✓ '+r.shown;}
-  else{const el=document.getElementById('birthAge');if(el)el.textContent='';if(hint)hint.textContent='Принимается: 03101991, 03.10.91, 3.10.1991, 3.10.91 → 03.10.1991';}
+  else{const el=document.getElementById('birthAge');if(el)el.textContent='';if(hint)hint.textContent='Принимается: 01011990, 01.01.90, 1.1.1990, 1.1.90 → 01.01.1990';}
 }
 function fmtSize(b){if(!b)return '';if(b>1048576)return (b/1048576).toFixed(1)+' МБ';return Math.round(b/1024)+' КБ';}
 function shortFileName(name,max=28){
@@ -5606,7 +5617,7 @@ function renderProfileEdit(){
     birthEl.value=a.birth?fmtBirth(a.birth):'';
     birthEl.classList.toggle('locked',locked);
     birthEl.readOnly=locked;
-    birthEl.placeholder=locked?'уже указано — может изменить только админ':'03101991 · 03.10.91 · 3.10.1991';
+    birthEl.placeholder=locked?'уже указано — может изменить только админ':'01011990 · 01.01.90 · 1.1.1990';
   }
   renderBirthAge(a.birth?fmtBirth(a.birth):'',a.birth||'');
   document.getElementById('ankCountry').value=a.country||'';document.getElementById('ankCity').value=a.city||'';
@@ -5642,7 +5653,7 @@ function saveProfileAll(){
   const raw=(document.getElementById('ankBirth').value||'').trim();
   if(raw){
     const r=parseBirth(raw);
-    if(!r){toast('Не понял дату. Пример: 03101991 или 3.10.91');return;}
+    if(!r){toast('Не понял дату. Пример: 01011990 или 1.1.90');return;}
     if(cur.birth&&r.iso!==cur.birth&&!isAdminUser()){toast('🔒 Дату рождения можно указать только один раз');renderProfileEdit();return;}
     birth=r.iso;
   } else if(cur.birth&&raw===''&&!isAdminUser()){
