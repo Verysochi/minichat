@@ -991,7 +991,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="input-group" id="statusCustomWrap" style="display:none;margin-top:8px"><input type="text" id="statusCustomInput" maxlength="40" placeholder="Твой статус... (Enter — сохранить)"></div>
     </div>
     <div class="profile-card">
-      <button class="corner-btn" onclick="openProfileEdit()" title="Редактировать профиль"><span class="hicon">✏️</span></button>
       <div class="card-title">📋 Моя анкета</div>
       <div class="anketa-view" id="ankView"></div>
       <button class="btn btn-outline" style="margin-top:10px" onclick="openProfileEdit()">✏️ Редактировать профиль</button>
@@ -1120,7 +1119,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     </div>
     <div class="profile-card">
       <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
-      <button class="btn btn-primary" id="vpWriteBtn" onclick="writeToUser()">💬 Написать</button>
+      <button class="btn btn-primary" id="vpWriteBtn" style="min-height:40px" onclick="writeToUser()">💬 Написать</button>
       <button class="btn btn-danger" style="margin-top:8px" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
     </div>
   </div>
