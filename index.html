@@ -3053,15 +3053,58 @@ function uploadChunked(key,data,meta){
     const w=[0,1,2].map(()=>{const run=()=>{if(i>=parts.length)return Promise.resolve();const idx=i++;return db.ref('files/'+key+'/chunks/'+idx).set(parts[idx]).then(()=>{done++;return run();});};return run();});
     return Promise.all(w);});
 }
+// Загрузка файла. Раньше читала files/<key> ЦЕЛИКОМ одним запросом: для песни
+// это несколько мегабайт за раз, на мобильном интернете такой ответ обрывался,
+// срабатывал catch, и ключ запоминался в failedMedia навсегда — файл «не был
+// доступен» уже до конца жизни. Теперь сначала читаем лёгкий meta, потом
+// куски по одному, с повтором пропавших. Секундомер в комментариях — не из-за
+// этого: это сетевая ошибка, а не срок хранения.
+let mediaRetryAt={};
 function loadMediaSilent(key){
-  if(mediaCache[key]||loadingMedia[key]||failedMedia[key])return;loadingMedia[key]=1;
-  db.ref('files/'+key).once('value').then(s=>{const v=s.val();
-    if(!v){delete loadingMedia[key];failedMedia[key]=1;afterMediaLoad(key);return;}
-    if(v.data){mediaCache[key]=v.data;delete loadingMedia[key];afterMediaLoad(key);return;}
-    const ch=v.chunks||{},n=(v.meta&&v.meta.count)||Object.keys(ch).length;let out='',i=0;
-    const step=()=>{if(i>=n){mediaCache[key]=out;delete loadingMedia[key];afterMediaLoad(key);}else{out+=ch[i]||'';i++;setTimeout(step,0);}};step();
-  }).catch(()=>{delete loadingMedia[key];failedMedia[key]=1;afterMediaLoad(key);});
+  if(mediaCache[key]||loadingMedia[key])return;
+  if(failedMedia[key]){
+    // Даём шанс повторить позже, а не навсегда отказываем
+    if(!mediaRetryAt[key]||Date.now()<mediaRetryAt[key])return;
+    delete failedMedia[key];
+  }
+  loadingMedia[key]=1;
+  db.ref('files/'+key+'/meta').once('value').then(sm=>{
+    const meta=sm.val();
+    // Старый формат: файл лежал одним полем data
+    if(!meta)return db.ref('files/'+key+'/data').once('value').then(sd=>{
+      const d=sd.val();
+      if(d){mediaCache[key]=d;afterMediaLoad(key);}
+      else failMedia(key);
+    });
+    const n=meta.count||1;
+    let out='',i=0;
+    const fetchNext=()=>{
+      if(i>=n){mediaCache[key]=out;afterMediaLoad(key);return Promise.resolve();}
+      const idx=i++;
+      return db.ref('files/'+key+'/chunks/'+idx).once('value').then(sc=>{
+        const v=sc.val();
+        if(v==null){
+          // куска нет — пробуем ещё раз, потом отступаем
+          return db.ref('files/'+key+'/chunks/'+idx).once('value').then(sc2=>{
+            const v2=sc2.val();
+            if(v2==null)throw new Error('chunk '+idx+' отсутствует');
+            out+=v2;return fetchNext();
+          });
+        }
+        out+=v;return fetchNext();
+      });
+    };
+    return fetchNext();
+  }).then(()=>{delete loadingMedia[key];delete failedMedia[key];delete mediaRetryAt[key];})
+    .catch(e=>{
+      delete loadingMedia[key];
+      failedMedia[key]=1;
+      mediaRetryAt[key]=Date.now()+30000;   // через полминуты можно попробовать снова
+      console.warn('loadMedia',key,e&&e.message);
+      afterMediaLoad(key);
+    });
 }
+function failMedia(key){delete loadingMedia[key];failedMedia[key]=1;mediaRetryAt[key]=Date.now()+30000;afterMediaLoad(key);}
 function maybeLoad(item){if(item&&item.ext&&item.mediaKey&&!mediaCache[item.mediaKey])loadMediaSilent(item.mediaKey);}
 function mediaClick(key,type){
   if(type==='video'){loadMedia(key);return;}
