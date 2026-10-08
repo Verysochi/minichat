@@ -5429,7 +5429,14 @@ function renderCommentsPanel(){
   const item=commentItem(CP.base,CP.id);if(!item){closeCommentsPanel();return;}
   item._id=CP.id;
   const host=cmtHost(CP.base,CP.id);
-  if(!host){CP=null;return;}                 // пост не отрисован на этом экране
+  if(!host){
+    // Раньше здесь писалось «поста нет — закрываем». Но во время перерисовки
+    // карточка на мгновение исчезает из DOM, и ветка комментариев закрывалась
+    // сама — особенно сразу после отправки комментария. Теперь ждём кадр
+    // и строим блок заново: ветка остаётся открытой.
+    setTimeout(()=>{if(CP)renderCommentsPanel();},30);
+    return;
+  }
   if(!host.dataset.built){
     host.innerHTML='<div class="cmt-inline-body"></div>'+
       '<div class="cmt-inline-foot">'+
