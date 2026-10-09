@@ -1194,6 +1194,14 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Пароль хранится в Firebase, админ его не видит. После первого входа с временным паролем поменяй его здесь.</div>
       <button class="btn btn-outline" onclick="changePassDialog()">🔑 Сменить пароль</button>
     </div>
+    <div class="profile-card">
+      <div class="card-title">👁 Как меня видят</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Проверь, что открыто друзьям, а что посторонним. Показывает ровно то, что видит человек, открывший твою страницу.</div>
+      <div class="row">
+        <button class="btn btn-outline" style="flex:1" onclick="openVisibilityPreview('friend')">🤝 Как видят друзья</button>
+        <button class="btn btn-outline" style="flex:1" onclick="openVisibilityPreview('other')">👤 Как видят другие</button>
+      </div>
+    </div>
     <div class="profile-card" id="myRelsCard">
       <div class="card-title">🤝 Кто кому кем приходится</div>
       <div id="myRelsList"></div>
@@ -1589,6 +1597,19 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <button class="song-bar-close" id="songBarDl" onclick="downloadTrack(songKey)" title="Скачать">⬇</button>
   <button class="song-bar-close" id="songBarClose" onclick="closeSongBar()" title="Остановить">✕</button>
 </div>
+<div class="mini-overlay" id="visPreview" onclick="closeVisibilityPreview()">
+  <div class="mini-card" onclick="event.stopPropagation()" style="max-width:520px;width:100%">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-weight:700;font-size:15px">👁 Как меня видят</div>
+      <button class="header-btn" onclick="closeVisibilityPreview()">✕</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn btn-outline btn-sm active" id="visTabFriend" style="flex:1" onclick="openVisibilityPreview('friend')">🤝 Друзья</button>
+      <button class="btn btn-outline btn-sm" id="visTabOther" style="flex:1" onclick="openVisibilityPreview('other')">👤 Другие</button>
+    </div>
+    <div id="visPreviewBody" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
 <div id="toast"></div>
 <!-- Панель-подсказка «включить уведомления». Показывается только если
      разрешение ещё не выдано, и больше не мешает после решения. -->
@@ -1605,7 +1626,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 02:05';
+const BUILD='10.10.2026 02:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -6035,6 +6056,42 @@ function sendComment(base,id){
 // целиком, вместе с тегом <video>, поэтому после любой реакции, лайка или нового
 // комментария воспроизведение сбрасывалось на 0:00. Теперь перед перерисовкой
 // запоминаем, где остановились, и возвращаем видео на то же место.
+// ===== Видео в карточках =====
+// Проблема была не в сбросе времени, а в том, что карточку перерисовывали
+// заново при ЛЮБОМ изменении (рок, комментарий, новое медиа), и вместе с ней
+// создавался новый <video> — он заново грузил файл и стоял на 00:00.
+// Поэтому сам элемент теперь переживает перерисовку: перед сборкой карточки
+// его отодвигаем в сторону, после сборки возвращаем на место. Файл не грузится
+// заново, воспроизведение не прерывается.
+let VIDEO_KEEP={};
+function stashVideos(root){
+  const list=root.querySelectorAll('video[data-mk]');
+  for(const v of list){
+    const k=v.getAttribute('data-mk');
+    if(!k)continue;
+    if(!VIDEO_KEEP[k])VIDEO_KEEP[k]=[];
+    if(VIDEO_KEEP[k].indexOf(v)<0)VIDEO_KEEP[k].push(v);
+  }
+  // чистим кэш, чтобы он не разрастался
+  const keys=Object.keys(VIDEO_KEEP);
+  let total=keys.reduce((n,k)=>n+VIDEO_KEEP[k].length,0);
+  for(const k of keys){
+    VIDEO_KEEP[k]=VIDEO_KEEP[k].filter(v=>v.parentNode||true);
+    if(total>16){VIDEO_KEEP[k]=[];total--;}
+  }
+}
+function reviveVideos(root){
+  const keys=Object.keys(VIDEO_KEEP);
+  for(const k of keys){
+    const arr=VIDEO_KEEP[k];
+    if(!arr||!arr.length)continue;
+    const keep=arr.find(v=>!v.parentNode)||null;     // отсоединённый — вернём
+    if(!keep)continue;
+    const target=root.querySelector('video[data-mk="'+k+'"]');
+    if(!target)continue;
+    try{target.replaceWith(keep);}catch(e){}
+  }
+}
 function snapVideos(){
   const snap={};
   document.querySelectorAll('video[data-mk]').forEach(v=>{
@@ -6110,6 +6167,7 @@ function commentsBlock(base,n,id){
 function cmtSlot(id){return '<div class="cmt-inline" id="ncm_'+id+'"></div>';}
 function renderNews(){
   const list=document.getElementById('newsList');if(!list||!currentUser)return;
+  stashVideos(list);
   const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);
   document.getElementById('newsComposer').style.display=currentUser.isAdmin?'block':'none';
@@ -6150,6 +6208,7 @@ function renderNews(){
       '<div>'+whoListHtml('news',id,n)+'</div>';
     list.appendChild(div);});
   keepScroll.set();
+  reviveVideos(list);
   restoreVideos(vidSnap);
   // Карточка перерисована целиком, а блок комментариев жил внутри неё —
   // открытая ветка исчезала сама. Возвращаем её на место.
@@ -6162,6 +6221,7 @@ function clearFreshGlow(){document.querySelectorAll('.news-fresh').forEach(e=>e.
 function setColTab(t){colTab=t;renderMyColumn();}
 function renderMyColumn(){
   const list=document.getElementById('myColumnList');if(!list||!currentUser)return;
+  stashVideos(list);
   const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);list.innerHTML='';
   const fl=document.getElementById('myColFriendsList');
@@ -6186,6 +6246,7 @@ function renderMyColumn(){
   if(!items.length){list.innerHTML='<div class="status-line muted" style="font-size:12px;padding:12px">В твоей колонке пока пусто</div>';return;}
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,true));});
   keepScroll.set();
+  reviveVideos(list);
   restoreVideos(vidSnap);
   if(CP)renderCommentsPanel();     // открытая ветка не должна схлопываться
 }
@@ -6249,6 +6310,7 @@ function renderProfileColumn(){
 }
 function renderViewColumn(){
   const list=document.getElementById('vpColumnList');if(!list||!currentUser||!viewProfileUid)return;
+  stashVideos(list);
   const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);list.innerHTML='';
   const items=lastUserPosts?Object.entries(lastUserPosts).filter(([,p])=>p.authorUid===viewProfileUid).sort((a,b)=>b[1].ts-a[1].ts):[];
@@ -6257,6 +6319,7 @@ function renderViewColumn(){
   const canDel=currentUser.isAdmin||viewProfileUid===currentUser.uid;
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,canDel));});
   keepScroll.set();
+  reviveVideos(list);
   restoreVideos(vidSnap);
   if(CP)renderCommentsPanel();
 }
@@ -7055,6 +7118,53 @@ function closeAllHeaderMore(){
   document.querySelectorAll('.header-more.open').forEach(b=>b.classList.remove('open'));
   document.querySelectorAll('.header-more-btn.active').forEach(b=>b.classList.remove('active'));
 }
+// ===== Как меня видят =====
+// Показываем ровно то, что видит человек, открывший твою страницу.
+// Правила взяты из openUserProfile без изменений: полная информация — только
+// друзьям (canSeeFull), посторонним остаётся имя, аватар и замки.
+let visPreviewMode='friend';
+function visPreviewHtml(friendView){
+  const i=ALL_USERS[currentUser.uid]||currentUser;
+  if(!i)return '<div class="status-line muted">Профиль не найден</div>';
+  const fr=!!friendView;                       // true — смотрит друг
+  const hidden='<div class="status-line muted" style="padding:6px 0">🔒 Информация для друзей</div>';
+  const lockBtn='<button class="btn btn-outline" disabled style="opacity:.5">🔒 Только друзья могут писать</button>';
+  return '<div class="admin-user" style="align-items:flex-start">'+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">'+
+        '<div style="width:48px;height:48px;flex:none">'+avatarHtml(i,'','Я')+'</div>'+
+        '<div style="min-width:0"><div style="font-weight:600;font-size:15px"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+'</div>'+
+        '<div style="font-size:11px;color:var(--text3)">'+(fr?esc(i.login||''):'логин скрыт')+'</div></div>'+
+      '</div>'+
+      '<div style="border-top:1px solid var(--surface2);padding-top:8px">'+
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">Статус</div>'+
+        (fr?statusHtml(i):hidden)+
+        '<div style="font-size:11px;color:var(--text3);margin:8px 0 2px">Присутствие</div>'+
+        (fr?presenceHtml(i):'<div class="status-line muted" style="padding:2px 0">🔒 Скрыто</div>')+
+        '<div style="font-size:11px;color:var(--text3);margin:8px 0 2px">Анкета</div>'+
+        (fr?anketaHtml(i):'<div class="status-line muted" style="padding:2px 0">🔒 Скрыто</div>')+
+        '<div style="font-size:11px;color:var(--text3);margin:8px 0 2px">Обложка</div>'+
+        '<div style="border-radius:8px;overflow:hidden;border:1px solid var(--surface2)">'+coverHtmlFor(fr?i:null,'cover-band')+'</div>'+
+      '</div>'+
+      '<div style="border-top:1px solid var(--surface2);margin-top:10px;padding-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+        (fr?'<div style="flex:1;min-width:120px"><button class="btn btn-primary" style="width:100%">💬 Написать</button></div>'
+           :'<div style="flex:1;min-width:120px">'+lockBtn+'</div>'+
+            '<div style="flex:1;min-width:120px"><button class="btn btn-primary" style="width:100%">➕ Добавить в друзья</button></div>')+
+      '</div>'+
+      (fr?'<div style="font-size:11px;color:var(--green);margin-top:8px">✅ Друг видит всё это и может написать тебе</div>'
+         :'<div style="font-size:11px;color:var(--text3);margin-top:8px">🔒 Посторонний видит только имя и аватар. Написать не может, пока не станет другом.</div>')+
+    '</div></div>';
+}
+function openVisibilityPreview(mode){
+  visPreviewMode=(mode==='other')?'other':'friend';
+  const box=document.getElementById('visPreviewBody');
+  if(box)box.innerHTML=visPreviewHtml(visPreviewMode==='friend');
+  const f=document.getElementById('visTabFriend'),o=document.getElementById('visTabOther');
+  if(f)f.classList.toggle('active',visPreviewMode==='friend');
+  if(o)o.classList.toggle('active',visPreviewMode==='other');
+  document.getElementById('visPreview').classList.add('active');
+}
+function closeVisibilityPreview(){const m=document.getElementById('visPreview');if(m)m.classList.remove('active');}
 function paintVisibilitySwitches(){
   const info=ALL_USERS[currentUser.uid]||currentUser;
   const vis=!info.hideFromList;
