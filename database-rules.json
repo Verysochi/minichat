@@ -84,6 +84,12 @@
         "$from": {
           ".validate": "newData.val() === null || (newData.hasChild('rel') && newData.child('rel').isString() && newData.child('rel').val().length <= 40 && newData.hasChild('ts') && newData.child('ts').isNumber())"
         }
+      },
+      ".indexOn": "ts"
+    },
+        "$from": {
+          ".validate": "newData.val() === null || (newData.hasChild('rel') && newData.child('rel').isString() && newData.child('rel').val().length <= 40 && newData.hasChild('ts') && newData.child('ts').isNumber())"
+        }
       }
     },
     "news": {
