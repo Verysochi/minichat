@@ -5213,11 +5213,17 @@ function removeFriend(uid){
   up['friends/'+uid+'/'+currentUser.uid]=null;
   up['rels/'+currentUser.uid+'/'+uid]=null;
   up['rels/'+uid+'/'+currentUser.uid]=null;
-  up['relReqs/'+uid+'/'+currentUser.uid]=null;
-  up['relReqs/'+currentUser.uid+'/'+uid]=null;
-  // дружба и связь — одним запросом. Если сюда затесать ещё и что-то, чего
-  // правила не пустят, откатится ВСЁ, и человек ничего не удалит.
-  db.ref().update(up).then(()=>{
+  up['relReqs/'+currentUser.uid+'/'+uid]=null;   // это моя ветка — правила пускают
+  // Незакрытые запросы убираем ОТДЕЛЬНО. Удалить чужую ветку relReqs можно
+  // только если запрос там реально есть; если его нет — правила отклоняют
+  // удаление, а db.ref().update() откатывает ВСЁ. Спрашивал у друга, мог ли он
+  // тебе что-то назвать, и убрать его из друзей было невозможно.
+  db.ref().update(up)
+    .then(()=>Promise.all([
+      db.ref('relReqs/'+uid+'/'+currentUser.uid).remove().catch(()=>{}),
+      db.ref('relReqs/'+currentUser.uid+'/'+uid).remove().catch(()=>{})
+    ]))
+    .then(()=>{
     try{localStorage.removeItem('mc_fr_'+uid);}catch(e){}
     const a=relSentGet();if(a[uid]){delete a[uid];relSentSet(a);}
     notifyUser(uid,'frienddel','Убрал из друзей','💔 '+displayNameOf(currentUser)+' убрал(а) тебя из друзей',{});
