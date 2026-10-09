@@ -994,7 +994,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div id="mainScreen" class="screen">
   <div class="header">
     <div class="header-col"><h2>💬 Чаты<span class="mini-badge active" id="globalBadge" style="position:static;display:none;margin-left:8px"></span></h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge" id="notifBadgeMain"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1011,7 +1010,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div id="newsScreen" class="screen">
   <div class="header">
     <div class="header-col"><h2>📰 Новости</h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1057,7 +1055,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>📝 Моя колонка</h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1087,7 +1084,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div id="friendsScreen" class="screen">
   <div class="header">
     <div class="header-col"><h2>🤝 Друзья</h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1130,7 +1126,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>🔔 Уведомления</h2></div>
     <button class="btn btn-outline btn-sm" style="width:auto;flex:none" onclick="markAllNotifsRead()" title="Отметить все уведомления прочитанными">✓ Прочитать все</button>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1144,7 +1139,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>🌐 Моё окружение</h2></div>
     <div class="header-more" id="profMore">
-      <button class="header-btn" onclick="createGroupPrompt()" title="Создать группу"><span class="hicon">➕</span></button>
       <button class="header-btn" onclick="showScreen('notifScreen')" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
       <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
       <button class="header-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
@@ -1217,7 +1211,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('profileScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>✏️ Редактор профиля</h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1285,7 +1278,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen(profileReturn||'friendsScreen')"><span class="hicon">←</span></button>
     <h2 id="vpTitle">Профиль</h2>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1341,7 +1333,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn" id="callVideoBtn" style="display:none" onclick="startCall(currentOtherUid,'video')"><span class="hicon">📹</span></button>
     <button class="header-btn" id="giBtn" onclick="showScreen('groupInfoScreen')" style="display:none"><span class="hicon">ℹ️</span></button>
     <button class="header-btn" id="delChatBtn" onclick="deleteChat()" style="display:none;background:var(--red)"><span class="hicon">🗑</span></button>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1379,7 +1370,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('chatScreen')"><span class="hicon">←</span></button>
     <h2 id="giTitle">Группа</h2>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1434,7 +1424,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div id="adminScreen" class="screen">
   <div class="header">
     <div class="header-col"><h2>⚙️ Админ-панель</h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1480,7 +1469,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <div class="header-col"><h2>🔐 Сессии: последние входы</h2></div>
     <button class="header-btn back-btn" onclick="showScreen('adminScreen')"><span class="hicon">←</span></button>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1626,7 +1614,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 02:40';
+const BUILD='10.10.2026 03:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
