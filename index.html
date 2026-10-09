@@ -1491,7 +1491,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.10.2026 21:40';
+const BUILD='09.10.2026 22:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -5379,10 +5379,12 @@ function renderProposals(){
     const au=(p.authorUid&&ALL_USERS[p.authorUid])?ALL_USERS[p.authorUid]:{name:p.author,color:p.color};
     const av=avatarHtml(au,'sm',p.author);
     d.innerHTML='<div style="display:flex;gap:10px;align-items:flex-start">'+
-      '<div style="flex:none">'+av+'</div><div style="min-width:0;flex:1">'+
+      '<div style="flex:none"><span class="clickable" onclick="openUserProfile(\''+p.authorUid+'\')">'+av+'</span></div><div style="min-width:0;flex:1">'+
       '<div style="font-weight:600">'+(p.title?esc(p.title):'без заголовка')+'</div>'+
       '<div style="font-size:12px;color:var(--text2);margin:4px 0">'+esc(p.text||'')+'</div>'+mh+
-      '<div style="font-size:11px;color:var(--text3)">от '+esc(p.author||'')+' · '+fmtFull(p.ts)+'</div>'+
+      // Автор предложения кликабельный, аватар тоже
+'<div style="font-size:11px;color:var(--text3)">от '+
+      (p.authorUid&&ALL_USERS[p.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+p.authorUid+'\')">'+esc(p.author||'')+'</span>':esc(p.author||''))+' · '+fmtFull(p.ts)+'</div>'+
       '</div></div>'+
       '<div class="row" style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="approveProposal(\''+id+'\')">✅ Одобрить</button><button class="btn btn-outline btn-sm" style="border-color:var(--red);color:var(--red)" onclick="declineProposal(\''+id+'\')">❌ Отклонить</button></div>';
     b.appendChild(d);
@@ -5427,11 +5429,15 @@ function whoListHtml(base,id,n){
   const k=base+':'+id;let html='<button class="c-reply-btn" onclick="toggleWho(\''+base+'\',\''+id+'\')">👥 Кто рокнул</button>';
   if(openWho[k]){
     const reacts=n.reactions?Object.entries(n.reactions):[];const views=n.views?Object.entries(n.views):[];
-    const rockers=reacts.filter(([_,v])=>v==='🤘').map(([u])=>u);
-    const viewers=views.filter(([u])=>!rockers.includes(u));
+    // Раньше сюда попадали ТОЛЬКО те, кто поставил именно 🤘. Реакций стало
+    // несколько (❤️ 🔥 😂 😢), и все остальные молча пропадали из списка —
+    // человека не было видно, хотя он реакцию поставил. Теперь учитываем любую.
+    const rockers=reacts.filter(([u,v])=>u&&v&&ALL_USERS[u]);
+    const rocked=new Set(rockers.map(([u])=>u));
+    const viewers=views.filter(([u])=>!rocked.has(u));
     html+='<div class="who-line">';
-    html+=rockers.length?rockers.map(u=>'<div class="who-row" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>🤘</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Никто не рокнул</div>';
-    html+=viewers.length?viewers.map(([u])=>'<div class="who-row" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>👁</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Тихих зрителей нет</div>';
+    html+=rockers.length?rockers.map(([u,v])=>'<div class="who-row clickable" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>'+esc(v)+'</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Никто не рокнул</div>';
+    html+=viewers.length?viewers.map(([u])=>'<div class="who-row clickable" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>👁</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Тихих зрителей нет</div>';
     html+='</div>';}
   return html;
 }
@@ -5641,7 +5647,9 @@ function renderNews(){
       titleHtml+
       (n.text?'<div class="news-text">'+esc(n.text)+'</div>':'')+
       rockHtml+
-      '<div class="news-date">'+esc(n.author||'Админ')+' • '+fmtFull(n.ts)+ctl+'</div>'+
+      // Автор новости кликабельный — открывает его страницу.
+// Раньше имя было просто текстом, перейти к человеку было некуда.
+'<div class="news-date">'+(n.authorUid&&ALL_USERS[n.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+n.authorUid+'\')">'+esc(n.author||'Админ')+'</span>':esc(n.author||'Админ'))+' • '+fmtFull(n.ts)+ctl+'</div>'+
       '<div class="news-actions">'+shareBtnHtml('news',id)+commentsBlock('news',n,id)+'</div>'+cmtSlot(id)+
       '<div>'+whoListHtml('news',id,n)+'</div>';
     list.appendChild(div);});
