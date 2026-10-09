@@ -1491,7 +1491,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.10.2026 21:05';
+const BUILD='09.10.2026 21:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -6235,7 +6235,53 @@ function logLogin(uid,info,method){
     });
   }catch(e){}
 }
-// Экран сессий — только админская опция: даже если кто-то вобьёт showScreen вручную,
+// Запись входа. Раньше «оставляем только 3 входа на пользователя» делалось
+// запросом orderByChild('uid').equalTo(uid) — он молча падал (нужен индекс и
+// права), catch всё глотал, и в списке копились сотни одинаковых строк.
+// Теперь обрезка делается обычным чтением с фильтром по uid, а повторные входы
+// одного человека за пару минут схлопываются в счётчик, а не в новые строки.
+function logLogin(uid,info,method){
+  try{
+    const entry={uid:uid,name:displayNameOf(info),login:(info&&info.login)||'',method:method,ts:Date.now(),
+      geo:(info&&info.geo)||'',place:'',ip:'',device:(navigator.userAgent||'').slice(0,180)};
+    // IP + город + координаты (таймаут 3.5с — вход не задерживаем)
+    geoInfo().then(g=>{if(g.ip)entry.ip=g.ip;if(g.place)entry.place=g.place;if(g.geo)entry.geo=g.geo;}).catch(()=>{})
+      .then(()=>new Promise(res=>setTimeout(res,3500))).then(()=>{
+      db.ref('sessionLogs').once('value').then(s=>{
+        const now=Date.now();
+        // тот же человек, тот же IP, в пределах 2 минут — это не новый вход
+        let dupKey=null;
+        s.forEach(c=>{
+          const v=c.val()||{};
+          if(v.uid===uid&&v.ip&&v.ip===entry.ip&&now-(v.ts||0)<2*60*1000)dupKey=c.key;
+        });
+        const up={};
+        const k=dupKey||db.ref('sessionLogs').push().key;
+        if(dupKey){
+          const prev=(s.child(dupKey).val())||{};
+          entry.ts=prev.ts||now;
+          entry.count=(prev.count||1)+1;
+          entry.last=now;
+        }else{entry.count=1;entry.last=now;}
+        up['sessionLogs/'+k]=entry;
+        // хвост режем здесь же, одним заходом, без orderByChild
+        const mine=[];
+        s.forEach(c=>{const v=c.val()||{};if(v.uid===uid)mine.push({key:c.key,ts:v.ts||0});});
+        mine.sort((a,b)=>b.ts-a.ts);
+        mine.slice(3).forEach(r=>{if(r.key!==k)up['sessionLogs/'+r.key]=null;});
+        // и общий потолок на весь узел, чтобы список не рос бесконечно
+        const all=[];
+        s.forEach(c=>all.push({key:c.key,ts:(c.val()&&c.val().ts)||0}));
+        all.sort((a,b)=>b.ts-a.ts);
+        all.slice(60).forEach(r=>{if(r.key!==k)up['sessionLogs/'+r.key]=null;});
+        return db.ref().update(up).catch(()=>{});
+      }).catch(()=>{
+        // нет прав читать узел — просто пишем строку, чтобы вход не потерялся
+        db.ref('sessionLogs/'+db.ref('sessionLogs').push().key).set(entry).catch(()=>{});
+      });
+    });
+  }catch(e){}
+}
 // мимо экрана не пройти.
 function setSessionsView(v){
   sessionsView=(v==='users'?'users':'admin');
@@ -6252,11 +6298,16 @@ function sessionRowHtml(s,i){
     '<div style="display:flex;align-items:center;gap:8px;min-width:0">'+avatarHtml(i,'sm',s.name)+
     '<div style="min-width:0"><div style="font-weight:600"><span style="color:'+colorOf(i)+'">'+esc(s.name||s.login||'?')+'</span>'+
     ' <span style="font-size:11px;color:var(--text2)">'+(METHODS[s.method]||s.method||'')+'</span></div>'+
-    '<div style="color:var(--text3);font-size:11px">'+fmtFull(s.ts)+'</div></div></div>'+
+    '<div style="color:var(--text3);font-size:11px">'+fmtFull(s.ts)+
+    ((s.count||1)>1?' <b style="color:var(--red)">× '+(s.count||1)+'</b>':'')+'</div></div></div>'+
     '<div style="text-align:right;font-size:11px;color:var(--text2);min-width:0">'+
     (s.ip?'<div>🌐 '+esc(s.ip)+'</div>':'')+
-    (s.place?'<div>📍 '+esc(s.place)+'</div>':'')+
-    (s.geo?geoLinkHtml(s.uid,i||{}):'')+
+    // Раньше место было просто текстом, а ссылка на карту бралась из профиля
+    // пользователя (geoLinkHtml) — там координат обычно нет, поэтому кликнуть
+    // было некуда. Теперь название места само кликабельно, и ниже вторая
+    // ссылка по координатам самой записи, если они есть.
+    (s.place?'<div style="margin-top:2px">'+mapLink(s.place,s.geo)+'</div>':'')+
+    (s.geo?geoLinkHtml2(s.geo,null,s.place):'')+
     (!s.ip&&!s.place&&!s.geo?'<div style="color:var(--text3)">данные не получены</div>':'')+
     '</div></div>';
 }
