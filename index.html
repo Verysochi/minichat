@@ -82,7 +82,23 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 @media (prefers-reduced-motion:reduce){.login-box .btn,.pass-toggle{transition:none}}
 .error-msg{color:var(--red);font-size:13px;margin-top:8px;min-height:18px}
 .success-msg{color:var(--green);font-size:13px;margin-top:8px;min-height:18px}
-.header{display:flex;align-items:center;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--surface2);gap:5px;min-height:52px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.header{display:flex;align-items:center;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--surface2);gap:5px;min-height:52px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;position:relative}
+/* На телефоне в шапке профиля было 6 кнопок подряд — они не помещались.
+   Теперь одна кнопка «⋯», а остальные выезжают из-под неё вниз. */
+.header-more{display:flex;align-items:center;gap:5px}
+.header-more-btn{display:none}
+@media(max-width:560px){
+  .header{overflow:visible}
+  .header-more{position:absolute;top:calc(100% + 6px);right:8px;z-index:220;
+    flex-direction:column;gap:6px;align-items:stretch;
+    background:var(--surface);border:1px solid var(--surface3);border-radius:14px;
+    padding:8px;box-shadow:0 14px 40px rgba(0,0,0,.55);
+    opacity:0;visibility:hidden;transform:translateY(-10px) scale(.96);transform-origin:top right;
+    transition:opacity .2s ease,transform .24s cubic-bezier(.2,.9,.3,1),visibility .2s}
+  .header-more.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+  .header-more .header-btn{width:100%;height:40px;border-radius:11px;justify-content:flex-start;padding-left:14px;font-size:17px}
+  .header-more-btn{display:flex}
+}
 /* Заголовок растягивается и прижимает все кнопки вправо — на телефоне они
    иначе уезжали за левый край и были не видны */
 .header h2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -309,6 +325,13 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .fx-ember{font-size:18px;animation:fxRise 1.25s ease-out forwards}
 .fx-tear{font-size:19px;animation:fxSide 1.1s cubic-bezier(.3,.7,.4,1) forwards}
 .fx-drop{font-size:19px;animation:fxFall 1.4s linear forwards}
+.fx-ember{font-size:18px;animation:fxPop 1.35s cubic-bezier(.25,.9,.35,1) forwards}
+/* Подскок: угли сначала взлетают, потом оседают и гаснут */
+@keyframes fxPop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  35%{opacity:1;transform:translate(calc(-50% + var(--dx)*0.7),calc(-50% + var(--dy)*0.85)) scale(1.3)}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.45) rotate(var(--rot))}
+}
 @keyframes fxFloat{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
   25%{opacity:1}
@@ -427,12 +450,27 @@ img,video,canvas{max-width:100%}
    в ленте, высота сообщения не меняется, лента не скроллится и не дёргается */
 .reaction-train{display:none;gap:4px;padding:5px 8px;background:var(--surface);border:1px solid var(--surface3);border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.45);width:max-content;max-width:calc(100vw - 16px);position:fixed;left:0;top:0;z-index:260;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .msg.highlighted .reaction-train{display:flex}
-/* (анимация trainIn удалена вместе с её использованием — см. .msg.highlighted .reaction-train) */
-/* Анимацию появления убрали намеренно: zoom/transform во время анимации
-   делали getBoundingClientRect кнопок меньше реального (14px вместо 36px),
-   и панель «не вылезала». Простое появление надёжнее. */
-.msg.highlighted .reaction-train{animation:none}
-.reaction-train.show{display:flex}
+/* Паровозик реакций: вагончики выезжают по очереди, будто состав трогается.
+   Раньше здесь стояло animation:none — панель появлялась мгновенно и без ощущения. */
+/* Паровозик реакций: вагончики выезжают по очереди, будто состав трогается.
+   Без scale — раньше zoom во время анимации делал прямоугольник кнопок
+   меньше реального, и панель «не вылезала». Только прозрачность и сдвиг. */
+.msg.highlighted .reaction-train{animation:trainIn .26s cubic-bezier(.2,.9,.3,1) both}
+.reaction-train.show{display:flex;animation:trainIn .26s cubic-bezier(.2,.9,.3,1) both}
+@keyframes trainIn{
+  from{opacity:0;transform:translateY(-12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.reaction-train .r-btn{animation:carIn .22s cubic-bezier(.2,.9,.3,1) both}
+.reaction-train .r-btn:nth-child(1){animation-delay:.00s}
+.reaction-train .r-btn:nth-child(2){animation-delay:.04s}
+.reaction-train .r-btn:nth-child(3){animation-delay:.08s}
+.reaction-train .r-btn:nth-child(4){animation-delay:.12s}
+.reaction-train .r-btn:nth-child(5){animation-delay:.16s}
+@keyframes carIn{
+  from{opacity:0;transform:translateX(-12px)}
+  to{opacity:1;transform:translateX(0)}
+}
 .reaction-train .r-btn{width:36px;height:36px;min-width:36px;border-radius:50%;border:none;background:var(--surface2);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .reaction-train .r-btn:active{transform:scale(.9)}
 .reaction-train .r-btn.active{background:var(--accent-soft);box-shadow:0 0 8px rgba(255,215,0,.4)}
@@ -1043,11 +1081,14 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>🌐 Моё окружение</h2></div>
-    <button class="header-btn" onclick="createGroupPrompt()"><span class="hicon">➕</span></button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
-    <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
-    <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
-    <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
+    <div class="header-more" id="profMore">
+      <button class="header-btn" onclick="createGroupPrompt()" title="Создать группу"><span class="hicon">➕</span></button>
+      <button class="header-btn" onclick="showScreen('notifScreen')" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+      <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
+      <button class="header-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
+      <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
+    </div>
+    <button class="header-btn header-more-btn" onclick="toggleHeaderMore('profMore',this)" title="Ещё">⋯</button>
   </div>
   <div class="profile-wrap">
     <div class="cover-slot">
@@ -1498,7 +1539,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 </div>
 
 <script>
-// Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
+// Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
 const BUILD='09.10.2026 23:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
@@ -1708,6 +1749,9 @@ async function boot(){
   document.addEventListener('pointerdown',()=>{try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}},{once:true});
   window.addEventListener('beforeunload',()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:false,lastSeen:Date.now()});if(callState)hangup(false);}});
   document.addEventListener('click',e=>{if(highlightedMsg&&!e.target.closest('.msg')&&!e.target.closest('.reaction-train'))clearHighlight();});
+  // Выезжающее меню шапки само закрывается, если нажали мимо него
+  document.addEventListener('click',e=>{if(!e.target.closest('.header-more')&&!e.target.closest('.header-more-btn'))closeAllHeaderMore();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAllHeaderMore();});
   // Один обработчик на всю ленту: тап по подписи «От …» в пересланном сообщении
   document.addEventListener('click',e=>{
     // Кнопка «Перейти в чат» внутри пересланного сообщения
@@ -1829,6 +1873,7 @@ function doLogout(){
 function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frLRef,frqLRef,ginLRef,blkLRef,postsLRef,incomingRef,prLRef,propLRef,delLogRef,sessLogRef,attLogRef,relLRef,relqLRef,msgRef,typRef].forEach(r=>{if(r)r.off();});}
 
 function showScreen(id){
+  closeAllHeaderMore();   // выезжающее меню шапки не должно переезжать на другой экран
   // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
   // угодно: обычный человек мог зайти и увидеть всех пользователей вместе
   // с кнопками «Бан», «Удалить» и прочим. Закрываем на уровне экрана.
@@ -2808,6 +2853,14 @@ function showNotifHint(){
 }
 function applyTheme(id){if(!THEMES.find(t=>t.id===id))id='dark';document.documentElement.setAttribute('data-theme',id);localStorage.setItem('mc_theme',id);if(currentUser)db.ref('users/'+currentUser.uid+'/theme').set(id);}
 function notifyUser(uid,type,title,text,extra){if(!uid||uid===currentUser.uid||!ALL_USERS[uid])return;db.ref('notifs/'+uid).push(Object.assign({type,title:title||'',text,ts:Date.now(),read:false},extra||{}));}
+// Рассылка всем друзьям: новая запись в колонке интересует их всех.
+// Раньше уведомление не уходило НИКОМУ — запись просто появлялась молча.
+function notifyAllFriends(type,title,text,extra){
+  const fr=lastFriends||{};
+  const list=Object.keys(fr).filter(u=>u&&u!==currentUser.uid&&ALL_USERS[u]);
+  list.forEach(u=>notifyUser(u,type,title,text,extra));
+  return list.length;
+}
 
 // ===== «Ты давно не отвечаешь» =====
 // Если последнее сообщение в чате не от меня и ему больше суток —
@@ -3510,14 +3563,26 @@ function fxReaction(el,emoji){
 }
 // У каждой реакции — своя анимация. Раньше только 🤘 имел «дождь» рук,
 // а на остальные вылетали одинаковые искры: визуально это выглядело кашей.
+// У КАЖДОЙ реакции своя анимация — раньше ❤️ и 🔥 летели одинаково вверх,
+// и вся разница сводилась к двум-трём движениям. Теперь пять разных:
+//   🤘 — дождь рук        ❤️ — сердца вверх
+//   🔥 — угли с подскоком  😂 — отскок вбок      😢 — падение вниз
 const FX_THEME={
   '🤘':{cls:'fx-hand',glyph:'🤘',n:14,mode:'out',life:1500},
   '❤️':{cls:'fx-heart',glyph:'❤️',n:12,mode:'up',life:1500},
-  '🔥':{cls:'fx-ember',glyph:'🔥',n:12,mode:'up',life:1250},
+  '🔥':{cls:'fx-ember',glyph:'🔥',n:12,mode:'pop',life:1350},
   '😂':{cls:'fx-tear',glyph:'😂',n:10,mode:'side',life:1100},
   '😢':{cls:'fx-drop',glyph:'😢',n:12,mode:'down',life:1400}
 };
 function fxReactionAt(cx,cy,emoji){
+  // Страховка от «фейерверка в левом верхнем углу»: частицы рисуются
+  // position:fixed по координатам клика. Если координаты не пришли или
+  // оказались вне экрана — рисуем по центру, а не в нуле.
+  const vw=window.innerWidth||document.documentElement.clientWidth||1;
+  const vh=window.innerHeight||document.documentElement.clientHeight||1;
+  if(!isFinite(cx)||!isFinite(cy)||cx<=0||cy<=0){cx=vw/2;cy=vh*0.6;}
+  cx=Math.min(vw-8,Math.max(8,cx));
+  cy=Math.min(vh-8,Math.max(8,cy));
   const th=FX_THEME[emoji];
   if(th){
     for(let i=0;i<th.n;i++){
@@ -3536,7 +3601,12 @@ function fxReactionAt(cx,cy,emoji){
         dx=(Math.random()*80-40);
         dy=90+Math.random()*70;
         rot=(Math.random()*40-20)+'deg';
-      }else{                                   // 😂 — в стороны
+      }else if(th.mode==='pop'){              // 🔥 — угли: подскок вверх с затуханием
+        const ang=-Math.PI/2+(Math.random()*1.6-0.8);   // вверх веером
+        const dist=40+Math.random()*56;
+        dx=Math.cos(ang)*dist; dy=Math.sin(ang)*dist;
+        rot=(Math.random()*200-100)+'deg';
+      }else{                                   // 😂 — отскок в стороны
         const dir=i%2?1:-1;
         dx=dir*(60+Math.random()*60);
         dy=(Math.random()*70-35);
@@ -3593,12 +3663,25 @@ function openRockPicker(btn,basePath,id,context){
   closeRockPicker();
   const p=document.createElement('div');
   p.className='reaction-train show';
-  p.style.position='absolute';p.style.zIndex='360';
+  // position:fixed, а НЕ absolute. Координаты ниже берутся из getBoundingClientRect,
+  // то есть это координаты ВЬЮПОРТА. С absolute (отсчёт от документа) при прокрутке
+  // страницы панель уезжала в левый верхний угол и там залипала.
+  p.style.position='fixed';p.style.zIndex='360';
   p.innerHTML=REACTIONS.map(r=>'<button class="r-btn" onclick="event.stopPropagation();rockPick(\''+basePath+'\',\''+id+'\',\''+context+'\',\''+r+'\');closeRockPicker()">'+r+'</button>').join('');
   document.body.appendChild(p);
   const b=btn.getBoundingClientRect();
-  p.style.left=Math.max(8,Math.min(window.innerWidth-p.offsetWidth-8,b.left-20))+'px';
-  p.style.top=Math.max(8,b.top-p.offsetHeight-8)+'px';
+  const vw=window.innerWidth||document.documentElement.clientWidth;
+  const vh=window.innerHeight||document.documentElement.clientHeight;
+  const w=p.offsetWidth,h=p.offsetHeight;
+  // Держим панель целиком на экране: раньше при нехватке места сверху
+  // top просто обрезался до 8 и панель прилипала к верхнему краю.
+  let left=Math.max(8,Math.min(b.left-20,vw-w-8));
+  let top=b.top-h-8;
+  if(top<8)top=Math.min(b.bottom+8,vh-h-8);          // сверху нет места — открываем снизу
+  if(top<8)top=8;
+  if(left+w>vw-8)left=Math.max(8,vw-w-8);
+  p.style.left=Math.round(left)+'px';
+  p.style.top=Math.round(top)+'px';
   rockPickerEl=p;
   setTimeout(()=>document.addEventListener('click',closeRockPicker,{once:true}),0);
 }
@@ -5871,7 +5954,9 @@ function postColumn(){
   const list=colMediaQueue.slice(0,MAX_MEDIA_ITEMS);
   const finish=()=>{const p={authorUid:currentUser.uid,text,ts:Date.now()};
     if(list.length){p.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));p.ext=1;p.mediaKey=list[0].key;p.mediaType=list[0].type;p.mediaName=list[0].name;p.thumb=list[0].thumb||null;}
-    db.ref('userPosts/'+key).set(p).then(()=>{postingBusy=false;inp.value='';colMediaQueue=[];renderMediaContainer('column');toast('📝 В колонке',true);}).catch(()=>{postingBusy=false;});};
+    db.ref('userPosts/'+key).set(p).then(()=>{postingBusy=false;inp.value='';colMediaQueue=[];renderMediaContainer('column');toast('📝 В колонке',true);
+      const sent=notifyAllFriends('post','Новая запись в колонке','📝 '+displayNameOf(currentUser)+(text?': '+text.slice(0,60):' — фото/видео'),{postId:key,from:currentUser.uid});
+      toast(sent?'📨 Уведомлено друзей: '+sent:'📨 Пока некого уведомлять — нет друзей',true);}).catch(()=>{postingBusy=false;});};
   if(list.length)uploadMediaList(key,list).then(finish).catch(()=>{postingBusy=false;});else finish();
 }
 function postToMyColumn(){
@@ -5883,7 +5968,9 @@ function postToMyColumn(){
   const list=myColMediaQueue.slice(0,MAX_MEDIA_ITEMS);
   const finish=()=>{const p={authorUid:currentUser.uid,text,ts:Date.now()};
     if(list.length){p.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));p.ext=1;p.mediaKey=list[0].key;p.mediaType=list[0].type;p.mediaName=list[0].name;p.thumb=list[0].thumb||null;}
-    db.ref('userPosts/'+key).set(p).then(()=>{postingBusy=false;inp.value='';myColMediaQueue=[];renderMediaContainer('myColumn');toast('📝 В колонке',true);}).catch(()=>{postingBusy=false;});};
+    db.ref('userPosts/'+key).set(p).then(()=>{postingBusy=false;inp.value='';myColMediaQueue=[];renderMediaContainer('myColumn');toast('📝 В колонке',true);
+      const sent=notifyAllFriends('post','Новая запись в колонке','📝 '+displayNameOf(currentUser)+(text?': '+text.slice(0,60):' — фото/видео'),{postId:key,from:currentUser.uid});
+      toast(sent?'📨 Уведомлено друзей: '+sent:'📨 Пока некого уведомлять — нет друзей',true);}).catch(()=>{postingBusy=false;});};
   if(list.length)uploadMediaList(key,list).then(finish).catch(()=>{postingBusy=false;});else finish();
 }
 function deletePost(id){if(!confirm('Удалить пост?'))return;db.ref('userPosts/'+id).remove().then(()=>toast('🗑'));}
@@ -5941,12 +6028,14 @@ function renderNotifs(){
   if(!items.length){l.innerHTML='<div class="empty-state"><div class="icon">🔔</div><div>Пока тихо</div></div>';return;}
   items.sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([key,n])=>{
     const d=document.createElement('div');d.className='notif-item'+(n.read?'':' unread');
-    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':'';
+    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':n.type==='post'?'📝':'';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
     d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(n.text)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
     d.onclick=()=>{db.ref('notifs/'+currentUser.uid+'/'+key+'/read').set(true);
       if(n.newsId){showScreen('newsScreen');renderNews();setTimeout(()=>{toggleComments('news',n.newsId);const el=document.getElementById('news_'+n.newsId);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},300);}
-      else if(n.postId){const p=lastUserPosts&&lastUserPosts[n.postId];if(p){openUserProfile(p.authorUid);renderViewColumn();setTimeout(()=>toggleComments('userPosts',n.postId),320);}}
+      else if(n.postId){const p=lastUserPosts&&lastUserPosts[n.postId];
+        if(p&&n.from){openUserProfile(n.from);renderViewColumn();setTimeout(()=>{const el=document.querySelector('[data-pid="'+n.postId+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},420);}
+        else if(p){openUserProfile(p.authorUid);renderViewColumn();}}
       else if(n.chatWith){openChat(getChatId(currentUser.uid,n.chatWith),n.chatWith);}
       else if(n.gid){if(n.type==='ginvite')showScreen('friendsScreen');else openChat(n.gid,null);}
       else if(n.type==='friend'||n.type==='friendok')showScreen('friendsScreen');
@@ -6707,6 +6796,19 @@ function toggleHideFromList(hide){
 }
 // Тумблер профиля: checked = виден в списке пользователей
 function setVisibility(visible){toggleHideFromList(!visible);}
+// Одна кнопка «⋯» вместо пяти в шапке на телефоне: остальные выезжают вниз.
+function toggleHeaderMore(id,btn){
+  const box=document.getElementById(id);if(!box)return;
+  const open=!box.classList.contains('open');
+  closeAllHeaderMore();
+  box.classList.toggle('open',open);
+  if(btn)btn.classList.toggle('active',open);
+  if(open){const b=box.querySelector('.header-btn');if(b)setTimeout(()=>b.focus({preventScroll:true}),60);}
+}
+function closeAllHeaderMore(){
+  document.querySelectorAll('.header-more.open').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.header-more-btn.active').forEach(b=>b.classList.remove('active'));
+}
 function paintVisibilitySwitches(){
   const info=ALL_USERS[currentUser.uid]||currentUser;
   const vis=!info.hideFromList;
