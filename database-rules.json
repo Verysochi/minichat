@@ -68,6 +68,24 @@
         ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists() || newData.child(auth.uid).exists())"
       }
     },
+    "rels": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists() || newData.child(auth.uid).exists())",
+        "$other": {
+          ".validate": "newData.val() === null || (newData.isString() && newData.val().length <= 40)"
+        }
+      }
+    },
+    "relReqs": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid)",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child($uid).child('firebaseUid').val() === auth.uid || data.child(auth.uid).exists() || newData.child(auth.uid).exists())",
+        "$from": {
+          ".validate": "newData.val() === null || (newData.hasChild('rel') && newData.child('rel').isString() && newData.child('rel').val().length <= 40 && newData.hasChild('ts') && newData.child('ts').isNumber())"
+        }
+      }
+    },
     "news": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
       ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",

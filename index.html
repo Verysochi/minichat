@@ -997,6 +997,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div id="friendsExtra">
       <div class="card" id="meCard" onclick="openMyProfile()" style="cursor:pointer"></div>
       <div id="friendReqWrap" style="display:none"><div class="section-lbl">👋 Заявки в друзья</div><div id="friendReqList"></div></div>
+      <div id="relReqWrap" style="display:none"><div class="section-lbl">🤝 Кто ты ему/ей</div><div id="relReqList"></div></div>
       <div id="groupInvWrap" style="display:none"><div class="section-lbl">📩 Приглашения в группы</div><div id="groupInvList"></div></div>
       <div id="newbiesWrap" style="display:none"><div class="section-lbl">🌟 Новенькие (7 дней)</div><div id="newbiesList"></div></div>
       <div class="card">
@@ -1089,6 +1090,10 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="card-title">🔑 Пароль</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Пароль хранится в Firebase, админ его не видит. После первого входа с временным паролем поменяй его здесь.</div>
       <button class="btn btn-outline" onclick="changePassDialog()">🔑 Сменить пароль</button>
+    </div>
+    <div class="profile-card" id="myRelsCard">
+      <div class="card-title">🤝 Кто кому кем приходится</div>
+      <div id="myRelsList"></div>
     </div>
     <div class="profile-card" id="blockedCard" style="display:none">
       <div class="card-title">🚫 Заблокированные</div>
@@ -1201,6 +1206,10 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card" id="vpColumnCard">
       <div class="card-title" id="vpColumnTitle">📝 Колонка</div>
       <div id="vpColumnList"></div>
+    </div>
+    <div class="profile-card" id="vpRelCard" style="display:none">
+      <div class="card-title">🤝 Кто он тебе</div>
+      <div id="vpRelBox"></div>
     </div>
     <div class="profile-card">
       <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
@@ -1491,17 +1500,17 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.10.2026 22:05';
+const BUILD='09.10.2026 23:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 let currentUser=null,ALL_USERS={},ALL_GROUPS={},lastNews=null,lastPending=null,lastNotifs=null,lastChatData=null,lastGroupJoinReq=null,watchGroupJoinReqs=null;
-let lastFriends=null,lastFriendReq=null,lastGroupInv=null,lastBlocks=null,lastUserPosts=null,lastPassResets=null,lastProposals=null,lastDeleteLogs=null,lastSessionLogs=null,lastLoginAttempts=null;
+let lastFriends=null,lastFriendReq=null,lastGroupInv=null,lastBlocks=null,lastRels=null,lastRelReqs=null,lastUserPosts=null,lastPassResets=null,lastProposals=null,lastDeleteLogs=null,lastSessionLogs=null,lastLoginAttempts=null;
 let sessionsView='admin';   // какая колонка сессий открыта на телефоне
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
-let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null;
+let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
 let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[];
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
@@ -1530,7 +1539,14 @@ const MAX_REC_SAFE=30*60,MAX_REC_INLINE=4500000,MAX_AVATAR=1800000,CHUNK=800000,
 const PALETTE=['#f0f0f0','#6c5ce7','#e74c3c','#00b894','#0984e3','#fdcb6e','#e84393','#00cec9','#ff7675','#55efc4'];
 const FRAMES=[{id:'',name:'Без рамки'},{id:'gold',name:'Золотая'},{id:'silver',name:'Серебро'},{id:'neon',name:'Неон'},{id:'rainbow',name:'Радуга'}];
 const TOTEMS=[{id:'cat',name:'Кот',emoji:'🐱'},{id:'dog',name:'Собака',emoji:'🐶'},{id:'frog',name:'Лягушка',emoji:'🐸'},{id:'panda',name:'Панда',emoji:'🐼'},{id:'sapsan',name:'Сапсан',emoji:'🦅'},{id:'fox',name:'Лисица',emoji:'🦊'},{id:'monkey',name:'Обезьянка',emoji:'🐵'},{id:'tiger',name:'Тигр',emoji:'🐯'},{id:'elephant',name:'Слон',emoji:'🐘'},{id:'parrot',name:'Попугай',emoji:'🦜'}];
-const RELS=['','🤝 Друг','💛 Лучший друг','❤️ Любовь','👪 Семья','💼 Коллега','🎮 Кореш'];
+// Социальные связи между людьми. Это НЕ дружба (дружба разрешает переписку),
+// а то, кем человек приходится другому по жизни: А называет Б коллегой →
+// Б подтверждает → связь видна обоим. Хранится отдельно от friends, в rels/.
+const RELS=['','🤝 Друг','🎮 Кент','💼 Коллега','👫 Напарник','🧑 Знакомый','👪 Родственник','💑 Вторая половинка'];
+// Старые значения из прошлой версии переводим в новые, чтобы у людей не
+// пропадали уже проставленные связи.
+const REL_LEGACY={'💛 Лучший друг':'🤝 Друг','❤️ Любовь':'💑 Вторая половинка','👪 Семья':'👪 Родственник','💼 Коллега':'💼 Коллега','🎮 Кореш':'🎮 Кент','🤝 Друг':'🤝 Друг'};
+function normalizeRel(v){if(!v)return'';return REL_LEGACY[v]||v;}
 const THEMES=[{id:'dark',name:'Классика',bg:'#0a0a0a',p:'#6c5ce7'},{id:'ocean',name:'Океан',bg:'#0a1929',p:'#0984e3'},{id:'forest',name:'Лес',bg:'#0a1a0f',p:'#27ae60'},{id:'sunset',name:'Закат',bg:'#1a0a0a',p:'#e84393'},{id:'light',name:'Светлая',bg:'#f5f5f5',p:'#6c5ce7'},{id:'orange',name:'Оранжевая',bg:'#1a0e02',p:'#e67e22'},{id:'yellow',name:'Жёлтая',bg:'#171202',p:'#f1c40f'},{id:'red',name:'Красная',bg:'#170202',p:'#e74c3c'},{id:'gold',name:'Золотая',bg:'#141002',p:'#ffd700'}];
 const WEATHER_SPOTS=[{name:'Азов (Рост. обл.)',lat:47.10,lon:39.42},{name:'Новосибирск',lat:55.03,lon:82.92}];
 const REACTIONS=['🤘','❤️','🔥','😂','😢'];
@@ -1810,7 +1826,7 @@ function doLogout(){
   try{if(firebase.auth)firebase.auth().signOut();}catch(e){}
   currentUser=null;currentChatId=null;currentOtherUid=null;document.title='MiniChat';showScreen('loginScreen');
 }
-function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frLRef,frqLRef,ginLRef,blkLRef,postsLRef,incomingRef,prLRef,propLRef,delLogRef,sessLogRef,attLogRef,msgRef,typRef].forEach(r=>{if(r)r.off();});}
+function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frLRef,frqLRef,ginLRef,blkLRef,postsLRef,incomingRef,prLRef,propLRef,delLogRef,sessLogRef,attLogRef,relLRef,relqLRef,msgRef,typRef].forEach(r=>{if(r)r.off();});}
 
 function showScreen(id){
   // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
@@ -2339,6 +2355,11 @@ function startListeners(){
   notifLRef=db.ref('notifs/'+me);notifLRef.on('value',s=>{lastNotifs=s.val();renderNotifs();});
   frLRef=db.ref('friends/'+me);frLRef.on('value',s=>{lastFriends=s.val();renderPeople();renderFriends();renderFind();updateFriendsNavCount();});
   frqLRef=db.ref('friendRequests/'+me);frqLRef.on('value',s=>{lastFriendReq=s.val();renderPeople();});
+  // Социальные связи: подтверждённые и входящие запросы.
+  // Исходящие запросы лежат у другого человека, а читать весь узел relReqs
+  // правила не дают (только свою ветку) — поэтому они помечены у нас локально.
+  relLRef=db.ref('rels/'+me);relLRef.on('value',s=>{lastRels=s.val()||{};pruneRelSent();refreshRelUi();});
+  relqLRef=db.ref('relReqs/'+me);relqLRef.on('value',s=>{lastRelReqs=s.val()||{};renderPeople();refreshRelUi();});
   ginLRef=db.ref('groupInvites/'+me);ginLRef.on('value',s=>{lastGroupInv=s.val();renderPeople();});
   blkLRef=db.ref('blocks/'+me);blkLRef.on('value',s=>{lastBlocks=s.val();renderProfile();});
   if(currentUser.isAdmin){
@@ -4921,7 +4942,138 @@ function acceptFriend(f){const up={};up['friends/'+currentUser.uid+'/'+f]=true;u
       toast('✅ В контактах',true);renderPeople();})
     .catch(e=>{console.warn('acceptFriend',e);toast('⚠️ Не удалось принять заявку');});}
 function declineFriend(f){db.ref('friendRequests/'+currentUser.uid+'/'+f).remove().catch(()=>toast('⚠️ Не удалось отклонить'));}
-function setRel(uid,v){db.ref('friends/'+currentUser.uid+'/'+uid+'/rel').set(v||null).then(()=>toast('✅ Сохранено',true));}
+// ===== Социальные связи (rels) =====
+// Связь подтверждается тем, кого назвали: А предлагает «коллега», Б жмёт
+// «Принять» — и связь становится взаимной. Раньше статус ставился молча одной
+// кнопкой, без согласия второго человека: он не знал, что его кто-то так назвал.
+function relOf(uid){
+  const fromRels=(lastRels||{})[uid];
+  if(fromRels)return normalizeRel(fromRels);
+  // запасной вариант — старая запись в friends, чтобы связи не пропали
+  const fr=(lastFriends||{})[uid];
+  return normalizeRel(fr&&fr.rel);
+}
+function relReqPendingWith(uid){return !!(lastRelReqs||{})[uid];}
+// Исходящие запросы храним локально: чужой узел relReqs читать нельзя,
+// а знать «я кого-то назвал и жду» нужно, чтобы показать ⏳ рядом с именем.
+function relSentGet(){
+  try{return JSON.parse(localStorage.getItem('mc_relsent')||'{}')||{};}catch(e){return {};}}
+function relSentSet(o){try{localStorage.setItem('mc_relsent',JSON.stringify(o||{}));}catch(e){}}
+function relProposedByMe(uid){return !!relSentGet()[uid];}
+function outgoingRel(uid){return (relSentGet()[uid]||{}).rel||'';}
+// Когда человек подтвердил твой запрос, метка «ждём» больше не нужна
+function pruneRelSent(){
+  const all=relSentGet();let ch=false;
+  Object.keys(all).forEach(uid=>{if((lastRels||{})[uid]){delete all[uid];ch=true;}});
+  if(ch)relSentSet(all);
+}
+function proposeRel(uid,rel){
+  if(!uid||uid===currentUser.uid){toast('Себя не указать 😄');return;}
+  if(!rel){
+    // отозвать свой запрос
+    db.ref('relReqs/'+uid+'/'+currentUser.uid).remove()
+      .then(()=>{const a=relSentGet();delete a[uid];relSentSet(a);toast('Запрос отозван',true);refreshRelUi();})
+      .catch(()=>toast('⚠️ Не удалось отозвать'));
+    return;}
+  if(relReqPendingWith(uid)){toast('Он уже предложил тебе связь — подтверди её');return;}
+  db.ref('relReqs/'+uid+'/'+currentUser.uid).set({rel:rel,ts:Date.now(),name:displayNameOf(currentUser)})
+    .then(()=>{
+      const a=relSentGet();a[uid]={rel:rel,ts:Date.now()};relSentSet(a);
+      notifyUser(uid,'relreq','Кто ты ему',displayNameOf(currentUser)+' назвал тебя: '+rel+' — подтвердить?',{from:currentUser.uid});
+      toast('📨 Отправлено: «'+rel+'» — ждём подтверждения',true);
+      refreshRelUi();})
+    .catch(e=>{console.warn('proposeRel',e);toast('⚠️ Не удалось отправить запрос');});
+}
+function acceptRel(from){
+  if(!from)return;
+  const r=(lastRelReqs||{})[from];if(!r)return;
+  const rel=normalizeRel(r.rel);
+  const up={};
+  up['rels/'+currentUser.uid+'/'+from]=rel;   // связь у меня
+  up['rels/'+from+'/'+currentUser.uid]=rel;   // и у него — взаимно
+  up['relReqs/'+currentUser.uid+'/'+from]=null;
+  db.ref().update(up)
+    .then(()=>{
+      notifyUser(from,'relok','Связь подтверждена','✅ '+displayNameOf(currentUser)+' подтвердил(а): '+rel,{from:currentUser.uid});
+      toast('✅ Связь: '+rel,true);refreshRelUi();})
+    .catch(e=>{console.warn('acceptRel',e);toast('⚠️ Не удалось подтвердить');});
+}
+function declineRel(from){
+  if(!from)return;
+  db.ref('relReqs/'+currentUser.uid+'/'+from).remove()
+    .then(()=>{notifyUser(from,'relno','Связь отклонена','🚫 '+displayNameOf(currentUser)+' не подтвердил(а) связь',{from:currentUser.uid});toast('Отклонено');refreshRelUi();})
+    .catch(()=>toast('⚠️ Не удалось отклонить'));
+}
+// Снять связь. У второго человека она тоже исчезает — связь была взаимной.
+function clearRel(uid){
+  if(!uid)return;
+  if(!confirm('Убрать связь с '+nameOf(uid)+'? У него она тоже исчезнет.'))return;
+  const up={};
+  up['rels/'+currentUser.uid+'/'+uid]=null;
+  up['rels/'+uid+'/'+currentUser.uid]=null;
+  up['relReqs/'+uid+'/'+currentUser.uid]=null;
+  db.ref().update(up).then(()=>{toast('Связь убрана',true);refreshRelUi();}).catch(()=>toast('⚠️ Не удалось убрать связь'));
+}
+// Список «кто кому кем приходится», сгруппированный по типу связи
+function myRelsByType(){
+  const mine=lastRels||{},out={};
+  Object.keys(mine).forEach(uid=>{
+    const r=normalizeRel(mine[uid]);if(!r)return;
+    if(!out[r])out[r]=[];
+    out[r].push(uid);});
+  Object.keys(out).forEach(r=>out[r].sort((a,b)=>nameOf(a).localeCompare(nameOf(b),'ru')));
+  return out;
+}
+function renderMyRels(){
+  const b=document.getElementById('myRelsList');
+  if(!b||!currentUser)return;
+  const groups=myRelsByType();
+  const keys=RELS.filter(r=>r&&groups[r]);
+  const extra=Object.keys(groups).filter(r=>RELS.indexOf(r)<0);
+  if(!keys.length&&!extra.length){b.innerHTML='<div style="color:var(--text3);font-size:13px">Пока никого не назвал. Открой профиль человека и выбери, кто он тебе.</div>';return;}
+  b.innerHTML='';
+  keys.concat(extra).forEach(rel=>{
+    const uids=groups[rel]||[];
+    const d=document.createElement('div');
+    d.innerHTML='<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0">'+
+      '<span style="white-space:nowrap;font-weight:600">'+esc(rel)+'</span>'+
+      '<span style="flex:1;min-width:0;color:var(--text2);font-size:12px">'+uids.map(u=>'<span class="clickable" style="cursor:pointer" onclick="openUserProfile(\''+u+'\')">'+esc(nameOf(u))+'</span>').join(', ')+'</span></div>';
+    b.appendChild(d);});
+}
+// Блок «кто он мне» в профиле другого человека
+function renderVpRel(){
+  const uid=viewProfileUid;
+  const card=document.getElementById('vpRelCard');
+  if(!card||!uid)return;
+  const box=document.getElementById('vpRelBox');
+  if(uid===currentUser.uid){card.style.display='none';return;}
+  card.style.display='block';
+  const cur=relOf(uid);
+  const incoming=relReqPendingWith(uid);
+  const outgoing=relProposedByMe(uid);
+  const opts=RELS.map(r=>'<option value="'+esc(r)+'"'+((r===cur||(!cur&&r===''))?' selected':'')+'>'+(r||'— не указан —')+'</option>').join('');
+  box.innerHTML=
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">'+
+      (incoming?'⏳ <b>'+esc((lastRelReqs||{})[uid].rel)+'</b> — он назвал тебя так, подтверди ниже.'
+               :cur?'Сейчас вы для друг друга: <b style="color:var(--primary)">'+esc(cur)+'</b>'
+               :outgoing?'⏳ Ты предложил(а): <b>'+esc(outgoingRel(uid))+'</b> — ждём подтверждения'
+               :'Кто он тебе? Выбери — он получит запрос и подтвердит.')+'</div>'+
+    '<div class="input-group" style="margin:0"><select id="vpRelSel" onchange="relSelChanged(this.value)">'+opts+'</select></div>'+
+    (incoming?'<div class="row" style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="acceptRel(viewProfileUid)">✅ Подтвердить: '+esc((lastRelReqs||{})[uid].rel)+'</button><button class="btn btn-outline btn-sm" onclick="declineRel(viewProfileUid)">❌</button></div>':'')+
+    (cur?'<button class="btn btn-outline btn-sm" style="margin-top:8px;border-color:var(--red);color:var(--red)" onclick="clearRel(viewProfileUid)">🗑 Убрать связь</button>':'');
+}
+function relSelChanged(v){
+  if(v===relOf(viewProfileUid))return;         // ничего не изменилось
+  if(v===''){clearRel(viewProfileUid);return;}
+  proposeRel(viewProfileUid,v);
+  renderVpRel();
+}
+function refreshRelUi(){
+  if(!currentUser)return;
+  renderMyRels();renderVpRel();
+  if(document.getElementById('friendsList'))renderFriends();
+  if(document.getElementById('profileScreen')&&document.getElementById('profileScreen').classList.contains('active'))renderProfile();
+}
 function toggleBlock(){const u=viewProfileUid;if(!u)return;
   if(u===currentUser.uid){toast('Себя блокировать нельзя 😄');return;}   // блокировать самого себя — ерунда
   if(lastBlocks&&lastBlocks[u])db.ref('blocks/'+currentUser.uid+'/'+u).remove().then(()=>toast('Разблокирован',true));
@@ -4962,10 +5114,15 @@ function renderFriends(){
   const fr=lastFriends?Object.entries(lastFriends):[];
   if(!fr.length){l.innerHTML='<div style="padding:16px;color:var(--text3);font-size:13px">Друзей пока нет. Найди через 🔍 или по коду 🔑</div>';return;}
   fr.sort((a,b)=>nameOf(a[0]).localeCompare(nameOf(b[0]),'ru')).forEach(([uid,val])=>{
-    const i=ALL_USERS[uid];if(!i)return;const rel=(val&&val.rel)||'';
+    const i=ALL_USERS[uid];if(!i)return;
+    const rel=relOf(uid);
+    const outgoing=outgoingRel(uid);
     const d=document.createElement('div');d.className='user-item';
-    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(rel?' <span style="font-size:11px;background:var(--accent-soft);color:var(--primary);border-radius:8px;padding:1px 6px">'+rel+'</span>':'')+'</div>'+statusHtml(i)+'</div>'+
-      '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:120px" onchange="setRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+r+'"'+(r===rel?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
+    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+
+      (rel?' <span style="font-size:11px;background:var(--accent-soft);color:var(--primary);border-radius:8px;padding:1px 6px">'+esc(rel)+'</span>':'')+
+      (outgoing?' <span style="font-size:11px;color:var(--text3);border-radius:8px;padding:1px 6px">⏳ '+esc(outgoing)+'</span>':'')+'</div>'+statusHtml(i)+'</div>'+
+      // Выбор связи больше не ставится молча — уходит запросом, второй человек подтверждает.
+      '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
     d.onclick=e=>{if(e.target.tagName==='SELECT'||e.target.tagName==='OPTION')return;openUserProfile(uid);};
     l.appendChild(d);});
 }
@@ -4985,7 +5142,7 @@ function renderFind(){
 function renderPeople(){
   paintVisibilitySwitches();
   const pb=document.getElementById('peopleBadge');
-  const nReq=(lastFriendReq?Object.keys(lastFriendReq).length:0)+(lastGroupInv?Object.keys(lastGroupInv).length:0);
+  const nReq=(lastFriendReq?Object.keys(lastFriendReq).length:0)+(lastGroupInv?Object.keys(lastGroupInv).length:0)+(lastRelReqs?Object.keys(lastRelReqs).length:0);
   // Раньше цифра просто оставалась висеть в бейдже после сброса заявок —
   // класс active снимался, но текст оставался.
   if(nReq>0){pb.textContent=nReq;pb.classList.add('active');}else{pb.textContent='';pb.classList.remove('active');}
@@ -4995,6 +5152,13 @@ function renderPeople(){
       d.innerHTML='<div style="display:flex;gap:10px;align-items:center">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">хочет в друзья</div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="acceptFriend(\''+uid+'\')">✅ Принять</button><button class="btn btn-outline btn-sm" onclick="declineFriend(\''+uid+'\')">❌</button></div>';
       fl.appendChild(d);});
   } else {fw.style.display='none';fl.innerHTML='';}
+  // Запросы «кто я тебе» от других людей
+  const rw=document.getElementById('relReqWrap'),rl=document.getElementById('relReqList');
+  if(lastRelReqs&&Object.keys(lastRelReqs).length){rw.style.display='block';rl.innerHTML='';
+    Object.entries(lastRelReqs).forEach(([uid,r])=>{const d=document.createElement('div');d.className='req-card';
+      d.innerHTML='<div style="display:flex;gap:10px;align-items:center">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">назвал тебя: <b style="color:var(--primary)">'+esc(r&&r.rel||'')+'</b></div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="acceptRel(\''+uid+'\')">✅ Подтвердить</button><button class="btn btn-outline btn-sm" onclick="declineRel(\''+uid+'\')">❌</button></div>';
+      rl.appendChild(d);});
+  } else rw.style.display='none';
   const gw=document.getElementById('groupInvWrap'),gl=document.getElementById('groupInvList');
   if(lastGroupInv&&Object.keys(lastGroupInv).length){gw.style.display='block';gl.innerHTML='';
     Object.entries(lastGroupInv).forEach(([gid,inv])=>{const d=document.createElement('div');d.className='req-card';
@@ -5047,6 +5211,7 @@ function openUserProfile(uid){
   if(!isMe)document.getElementById('vpBlockBtn').textContent=(lastBlocks&&lastBlocks[uid])?'✅ Разблокировать':'🚫 Заблокировать';
   document.getElementById('vpVisRow').style.display=isMe?'flex':'none';
   paintVisibilitySwitches();
+  renderVpRel();
   renderViewColumn();
   showScreen('viewProfileScreen');
   // Открываем профиль с самого верха, а не там, где прокрутили в прошлый раз
@@ -5769,7 +5934,7 @@ function renderNotifs(){
   if(!items.length){l.innerHTML='<div class="empty-state"><div class="icon">🔔</div><div>Пока тихо</div></div>';return;}
   items.sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([key,n])=>{
     const d=document.createElement('div');d.className='notif-item'+(n.read?'':' unread');
-    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':'';
+    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':'';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
     d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(n.text)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
     d.onclick=()=>{db.ref('notifs/'+currentUser.uid+'/'+key+'/read').set(true);
@@ -5778,6 +5943,7 @@ function renderNotifs(){
       else if(n.chatWith){openChat(getChatId(currentUser.uid,n.chatWith),n.chatWith);}
       else if(n.gid){if(n.type==='ginvite')showScreen('friendsScreen');else openChat(n.gid,null);}
       else if(n.type==='friend'||n.type==='friendok')showScreen('friendsScreen');
+      else if(n.type==='relreq'&&n.from){openUserProfile(n.from);}
       else if(n.type==='proposal')showScreen('newsScreen');};
     l.appendChild(d);});
 }
@@ -5817,6 +5983,7 @@ function renderProfile(){
   document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
+  renderMyRels();
   document.getElementById('profilePresence').innerHTML=presenceHtml(i);
   // Счётчик 🤘 показываем и в своём профиле — раньше был только в чужом.
   const rb=document.getElementById('profileRockBadge');
