@@ -4722,12 +4722,16 @@ function toggleRecord(mode){
     try{
       const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
       const el=mode==='video'?pv0:pa0,other=mode==='video'?pa0:pv0;
-      el.style.display='block';other.style.display='none';
+      // Живой плеер во время записи НЕ показываем. Он всё равно отключён
+      // (muted) и слушает только микрофон, но браузер рисует в нём СВОЁ
+      // время — и оно тикало даже на паузе записи. Из-за этого в облачке
+      // отправки оказывалось второе время рядом с секундомером.
+      el.style.display='none';other.style.display='none';
       el.muted=true;el.srcObject=stream;el.play().catch(()=>{});
     }catch(e){console.warn('live preview failed',e);}
     document.getElementById('recPreview').classList.add('active');
     const lb=document.getElementById('recLiveLabel');
-    if(lb)lb.textContent='● идёт запись';
+    if(lb)lb.textContent='● 0:00';
     const sb=document.getElementById('recStopBtn');
     if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить запись';}
     const pb=document.getElementById('recPauseBtn');
@@ -4738,7 +4742,14 @@ function toggleRecord(mode){
     recTimer=setInterval(()=>{
       const ms=recElapsed+(recPaused?0:(Date.now()-recStart));
       const s=Math.floor(ms/1000);
-      document.getElementById('msgInput').placeholder=(recPaused?'⏸ ':'● ')+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+      const t=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+      // Время — ОДНО, и живёт в облачке отправки. Раньше секундомер был ещё и
+      // в поле ввода, а в самом плеере микрофона тикал третий — на паузе
+      // записи они расходились и выглядели как лишние «вторые времена».
+      const lb0=document.getElementById('recLiveLabel');
+      if(lb0)lb0.textContent=(recPaused?'⏸ ':'● ')+t;
+      const inp0=document.getElementById('msgInput');
+      if(inp0)inp0.placeholder=recPaused?'Пауза — нажми ▶':'Запись идёт…';
       if(s>=MAX_REC_SAFE){toast('Достигнут предел записи');stopRecording();}},250);
   }).catch(e=>{toast(mediaPermissionError(e,mode==='video'?'камера':'микрофон'));});
 }
@@ -4809,14 +4820,14 @@ function toggleRecPause(){
     recSegs.push(audioChunks);
     isRecording=false;recPaused=true;
     if(sb){sb.textContent='⏹';sb.classList.remove('paused');sb.title='Продолжить запись';}
-    if(lb)lb.textContent='⏸ пауза — нажми ▶';
+    if(lb){const t=Math.floor(recElapsed/1000);lb.textContent='⏸ '+Math.floor(t/60)+':'+String(t%60).padStart(2,'0')+' пауза';}
     if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
     return;
   }
   if(recPaused){
     startSegment();                       // продолжаем новым сегментом
     if(sb){sb.textContent='⏹';sb.classList.remove('paused');sb.title='Остановить запись';}
-    if(lb)lb.textContent='● идёт запись';
+    if(lb)lb.textContent='●';   // точное время проставит таймер ниже
     if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
   }
 }
