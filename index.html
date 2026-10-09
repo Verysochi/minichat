@@ -1491,7 +1491,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой прав��е —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='06.10.2026 04:55';
+const BUILD='09.10.2026 21:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1585,7 +1585,20 @@ async function ensureAdminExists(){
   await db.ref('approvals/'+uid).set(true);   // админ всегда одобрен сам себя
   return uid;
 }
-const SESSION_TTL=10*60*1000;   // 10 минут — потом жёсткий выход до повторного входа
+// Раньше стояло 10 минут, и срок НИКОГДА не продлевался: каждые 10 секунд
+// проверялось, не истёк ли он, и через 10 минут после входа выкидывало
+// вообще всех. Отсюда «выкидывает с чата», а после повторных попыток входа
+// Firebase отвечает «слишком много попыток». Теперь срок живой: продлевается
+// активностью, а 8 часов — это простоявшийся телефон.
+const SESSION_TTL=8*60*60*1000;
+let lastTouch=0;
+function touchSession(){
+  const now=Date.now();
+  if(now-lastTouch<60000)return;             // не писать в localStorage каждый клик
+  lastTouch=now;
+  if(!localStorage.getItem('mc_uid'))return;
+  localStorage.setItem('mc_exp',String(now+SESSION_TTL));
+}
 function sessionExpired(){
   const exp=parseInt(localStorage.getItem('mc_exp')||'0',10);
   if(!exp)return true;                       // старые записи без срока — считаем протухшими
@@ -1594,7 +1607,7 @@ function sessionExpired(){
 function clearSession(){['mc_uid','mc_token','mc_exp','mc_adm'].forEach(k=>localStorage.removeItem(k));}
 // Надпись про «войди заново через Google» — её видит ТОЛЬКО админ
 // (только он входит через Google); остальным показываем нейтральную фразу.
-function sessionExpiredMsg(isAdmin){return isAdmin?'⏰ Сессия истекла (10 мин) — войди заново через Google':'⏰ Сессия истекла — войди заново';}
+function sessionExpiredMsg(isAdmin){return isAdmin?'⏰ Сессия истекла — войди заново через Google':'⏰ Сессия истекла — войди заново';}
 function checkSession(){
   const rl=localStorage.getItem('mc_rl');
   localStorage.removeItem('mc_rp');   // старый пароль мог лежать открытым текстом — вычищаем
@@ -1751,13 +1764,16 @@ function enterApp(uid,info){
   db.ref('users/'+uid).update({online:true,lastSeen:Date.now()});
   db.ref('users/'+uid+'/online').onDisconnect().set(false);
   db.ref('users/'+uid+'/lastSeen').onDisconnect().set(Date.now());
-  clearInterval(hbTimer);hbTimer=setInterval(()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:true,lastSeen:Date.now()});ensureSessionAlive();}},25000);
+  clearInterval(hbTimer);hbTimer=setInterval(()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:true,lastSeen:Date.now()});ensureSessionAlive();}touchSession();},25000);
   ensureSessionAlive();   // и сразу при входе, чтобы поймать подмену сессии без ожидания 25 секунд
-  // Жёсткий лимит сессии: 10 минут от момента входа — потом разлогин до повторного входа
+  // Сессия живёт, пока человек им пользуется; выход — только по настоящему простою
   clearInterval(sessionTimer);sessionTimer=setInterval(()=>{
     if(!currentUser)return;
     if(sessionExpired())forceLogout(sessionExpiredMsg(currentUser.isAdmin));
   },10000);
+  // Любая активность продлевает сессию
+  ['pointerdown','keydown','touchstart'].forEach(ev=>
+    document.addEventListener(ev,()=>{if(currentUser)touchSession();},{passive:true}));
   if(window.isSecureContext&&navigator.geolocation&&!localStorage.getItem('mc_geo_asked')){
     localStorage.setItem('mc_geo_asked','1');
     navigator.geolocation.getCurrentPosition(p=>{db.ref('users/'+uid+'/geo').set(p.coords.latitude.toFixed(2)+', '+p.coords.longitude.toFixed(2));},()=>{},{timeout:8000});}
@@ -6161,18 +6177,36 @@ function blockForeignLogin(email,name,reason){
     return activeBlock(keys).then(old=>{
       if(old){entry.until=old.until;entry.ts=old.ts;entry.extended=true;}
       const up={};
-      const k=db.ref('loginAttempts').push().key;
-      up['loginAttempts/'+k]=entry;
       if(!old)keys.forEach(b=>{up['loginBlocks/'+b.kind+'/'+fbKeySafe(b.val)]=entry;});
-      return db.ref().update(up).catch(()=>{}).then(()=>{
-        // в журнале храним только 40 последних попыток
-        db.ref('loginAttempts').once('value').then(s=>{
-          const rows=[];s.forEach(c=>rows.push({key:c.key,ts:(c.val()&&c.val().ts)||0}));
-          if(rows.length>40){rows.sort((a,b)=>b.ts-a.ts);const rm={};rows.slice(40).forEach(r=>rm[r.key]=null);
-            if(Object.keys(rm).length)db.ref('loginAttempts').update(rm).catch(()=>{});}
-        }).catch(()=>{});
-        return entry;
-      });
+      // Раньше каждая попытка писалась отдельным push(), и 155 одинаковых
+      // нажатий давали 155 одинаковых строк — журнал засорялся и обрезка до
+      // 40 не успевала (каждая из них читала весь узел и соревновалась с
+      // остальными). Теперь читаем журнал ОДИН раз, повторы той же попытки
+      // за последние 10 минут схлопываем в одну строку со счётчиком, и тем же
+      // запросом подрезаем хвост.
+      return db.ref('loginAttempts').once('value').then(s=>{
+        const dupKey=(()=>{
+          let found=null;
+          s.forEach(c=>{
+            const v=c.val()||{};
+            if(v.email===entry.email&&v.did===entry.did&&now-(v.ts||0)<10*60*1000)found=c.key;
+          });
+          return found;
+        })();
+        const k=dupKey||db.ref('loginAttempts').push().key;
+        if(dupKey){
+          const prev=(s.child(dupKey).val())||{};
+          entry.ts=prev.ts||now;          // время первой попытки в серии
+          entry.count=(prev.count||1)+1;
+          entry.last=now;
+        }else{entry.count=1;entry.last=now;}
+        up['loginAttempts/'+k]=entry;
+        // хвост режем в том же запросе, одним заходом
+        const rows=[];s.forEach(c=>rows.push({key:c.key,ts:(c.val()&&c.val().ts)||0}));
+        rows.sort((a,b)=>b.ts-a.ts);
+        rows.slice(40).forEach(r=>{if(r.key!==k)up['loginAttempts/'+r.key]=null;});
+        return db.ref().update(up).catch(()=>{}).then(()=>entry);
+      }).catch(()=>db.ref().update(up).catch(()=>{}).then(()=>entry));
     });
   }).catch(()=>entry);
 }
@@ -6271,12 +6305,16 @@ function renderLoginAttempts(){
     const d=document.createElement('div');d.className='admin-user';
     d.innerHTML='<div style="min-width:0"><div style="font-weight:600">🚫 '+esc(s.email||s.name||'?')+'</div>'+
       (s.name?'<div style="color:var(--text2);font-size:12px">'+esc(s.name)+'</div>':'')+
-      '<div style="color:var(--text3);font-size:11px">🕐 '+fmtFull(s.ts)+' · '+esc(s.reason||'')+'</div>'+
+      '<div style="color:var(--text3);font-size:11px">🕐 '+fmtFull(s.ts)+' · '+esc(s.reason||'')+
+      ((s.count||1)>1?' <b style="color:var(--red)">повторов: '+(s.count||1)+'</b>':'')+'</div>'+
       '<div style="color:var(--text3);font-size:11px">🤖 '+esc(s.device||'—')+'</div></div>'+
       '<div style="text-align:right;font-size:11px;color:var(--text2);min-width:0">'+
       (s.ip?'<div>🌐 '+esc(s.ip)+'</div>':'')+
       (s.place?'<div>📍 '+esc(s.place)+'</div>':'')+
-      (s.geo?geoLinkHtml(s.uid,ALL_USERS[s.uid]||{}):'')+
+      // Раньше здесь стояло geoLinkHtml(s.uid,ALL_USERS[s.uid]||{}) — у записи
+      // журнала нет uid, поэтому подставлялся пустой объект и ссылка на карту
+      // не появлялась НИКОГДА. Координаты лежат прямо в самой записи.
+      geoLinkHtml2(s.geo,s.geoAddr)+
       '<div style="margin-top:4px">'+(active?'<span style="color:var(--red);font-weight:700">⛔ до '+fmtFull(s.until)+' (~'+leftMin+' мин)</span>':'<span style="color:var(--text3)">блок истёк</span>')+'</div>'+
       (active?'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;padding:3px 8px;font-size:11px" onclick="unblockLogin(\''+esc(s.email||'')+'\',\''+esc(s.did||'')+'\')">🔓 Снять</button>':'')+
       '</div>';
@@ -6411,6 +6449,18 @@ function geoLinkHtml(uid,i){
   const yandex='https://yandex.ru/maps/?text='+encodeURIComponent(i.geo);
   const addr=i.geoAddr?('<div style="font-size:11px;color:var(--text3);margin-top:2px">🏠 '+esc(i.geoAddr)+'</div>'):'';
   return '<a href="'+map+'" target="_blank" rel="noopener" style="color:var(--primary)">📍 '+esc(i.geo)+'</a> <a href="'+yandex+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3)">(карта)</a>'+addr;
+}
+// Ссылка на карту по «голым» координатам. geoLinkHtml требует uid и запись
+// пользователя, а в журнале входов координаты уже записаны в самой строке.
+function geoLinkHtml2(geo,addr){
+  if(!geo)return '';
+  const c=String(geo).trim();
+  const map='https://maps.google.com/?q='+encodeURIComponent(c);
+  const yandex='https://yandex.ru/maps/?text='+encodeURIComponent(c);
+  return '<div><a href="'+map+'" target="_blank" rel="noopener" style="color:var(--primary)">🗺 Открыть карту</a>'+
+    ' <a href="'+yandex+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3)">(яндекс)</a></div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:2px;word-break:break-all">📐 '+esc(c)+'</div>'+
+    (addr?'<div style="font-size:11px;color:var(--text3);margin-top:2px">🏠 '+esc(addr)+'</div>':'');
 }
 function toggleHideFromList(hide){
   db.ref('users/'+currentUser.uid+'/hideFromList').set(hide?true:null).then(()=>toast(hide?'🙈 Ты скрыт из списка пользователей':'👁 Ты снова виден в списке',true));
