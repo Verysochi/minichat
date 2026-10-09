@@ -1605,7 +1605,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 01:40';
+const BUILD='10.10.2026 02:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4075,7 +4075,7 @@ function bubbleInner(m,key,senderInside){
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div>';}
       else c+=mediaWaitHtml();
     } else if(m.type==='video'){
-      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" src="'+loaded+'"></video></div>';
+      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div>';
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div>';}
       else c+=mediaWaitHtml();
     } else if(m.type==='audio'){
@@ -5713,7 +5713,7 @@ function mediaListHtml(list,small){
   list.forEach(m=>{
     const src=m.data||mediaCache[m.key];
     if(m.type==='video'){
-      if(src)vids.push('<div class="polaroid"><video controls playsinline src="'+src+'"></video></div>');
+      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+src+'"></video></div>');
       else if(m.thumb)vids.push('<div class="polaroid"><img src="'+m.thumb+'" onclick="mediaClick(\''+m.key+'\',\'video\')" style="cursor:pointer"></div>');
       else{loadMediaSilent(m.key);vids.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div>');}
       return;
@@ -6031,6 +6031,36 @@ function sendComment(base,id){
       toast('💬 Добавлено',true);}).catch(()=>{postingBusy=false;toast('Ошибка отправки');});};
   if(pm)uploadChunked(ck,pm.data,{name:pm.name}).then(finish).catch(()=>{postingBusy=false;toast('Ошибка загрузки');});else finish();
 }
+// Видео при перерисовке начиналось с нуля: карточка новости/поста строится заново
+// целиком, вместе с тегом <video>, поэтому после любой реакции, лайка или нового
+// комментария воспроизведение сбрасывалось на 0:00. Теперь перед перерисовкой
+// запоминаем, где остановились, и возвращаем видео на то же место.
+function snapVideos(){
+  const snap={};
+  document.querySelectorAll('video[data-mk]').forEach(v=>{
+    const mk=v.getAttribute('data-mk');
+    if(!mk||!v.currentTime)return;              // не смотрели — сохранять нечего
+    snap[mk]={t:v.currentTime,paused:v.paused,muted:v.muted,vol:v.volume};
+  });
+  return snap;
+}
+function restoreVideos(snap){
+  if(!snap)return;
+  Object.keys(snap).forEach(mk=>{
+    const v=document.querySelector('video[data-mk="'+mk+'"]');
+    if(!v)return;
+    const s=snap[mk];
+    const apply=()=>{
+      try{
+        v.muted=s.muted;v.volume=s.vol;
+        v.currentTime=s.t;
+        if(!s.paused)v.play().catch(()=>{});
+      }catch(e){}
+    };
+    if(v.readyState>=1)apply();
+    else v.addEventListener('loadedmetadata',apply,{once:true});
+  });
+}
 function inlineMediaHtml(item,cls){
   const sm=cls==='cmedia';
   if(item.mediaList&&item.mediaList.length)return mediaListHtml(item.mediaList,sm);
@@ -6038,7 +6068,7 @@ function inlineMediaHtml(item,cls){
   if(item.ext&&item.mediaKey){
     // одиночное фото — тоже коллаж (можно листать, если потом добавятся кадры)
     if(item.mediaType!=='video')return mediaListHtml([{key:item.mediaKey,type:'image',thumb:item.thumb}],sm);
-    if(mediaCache[item.mediaKey])return '<div class="polaroid"><video controls playsinline src="'+mediaCache[item.mediaKey]+'"></video></div>';
+    if(mediaCache[item.mediaKey])return '<div class="polaroid"><video controls playsinline data-mk="'+esc(item.mediaKey)+'" src="'+mediaCache[item.mediaKey]+'"></video></div>';
     if(item.thumb)return '<div class="polaroid"><img src="'+item.thumb+'" onclick="mediaClick(\''+item.mediaKey+'\',\''+item.mediaType+'\')"></div>';
     loadMediaSilent(item.mediaKey);
     return '<div class="media-box '+(cls||'')+'"><div class="ph">⏳</div></div>';}
@@ -6080,6 +6110,7 @@ function commentsBlock(base,n,id){
 function cmtSlot(id){return '<div class="cmt-inline" id="ncm_'+id+'"></div>';}
 function renderNews(){
   const list=document.getElementById('newsList');if(!list||!currentUser)return;
+  const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);
   document.getElementById('newsComposer').style.display=currentUser.isAdmin?'block':'none';
   document.getElementById('proposeComposer').style.display=currentUser.isAdmin?'none':'block';
@@ -6119,6 +6150,7 @@ function renderNews(){
       '<div>'+whoListHtml('news',id,n)+'</div>';
     list.appendChild(div);});
   keepScroll.set();
+  restoreVideos(vidSnap);
   // Карточка перерисована целиком, а блок комментариев жил внутри неё —
   // открытая ветка исчезала сама. Возвращаем её на место.
   if(CP)renderCommentsPanel();
@@ -6130,6 +6162,7 @@ function clearFreshGlow(){document.querySelectorAll('.news-fresh').forEach(e=>e.
 function setColTab(t){colTab=t;renderMyColumn();}
 function renderMyColumn(){
   const list=document.getElementById('myColumnList');if(!list||!currentUser)return;
+  const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);list.innerHTML='';
   const fl=document.getElementById('myColFriendsList');
   const composer=document.getElementById('myColComposer');
@@ -6153,6 +6186,7 @@ function renderMyColumn(){
   if(!items.length){list.innerHTML='<div class="status-line muted" style="font-size:12px;padding:12px">В твоей колонке пока пусто</div>';return;}
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,true));});
   keepScroll.set();
+  restoreVideos(vidSnap);
   if(CP)renderCommentsPanel();     // открытая ветка не должна схлопываться
 }
 function postColumn(){
@@ -6215,6 +6249,7 @@ function renderProfileColumn(){
 }
 function renderViewColumn(){
   const list=document.getElementById('vpColumnList');if(!list||!currentUser||!viewProfileUid)return;
+  const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);list.innerHTML='';
   const items=lastUserPosts?Object.entries(lastUserPosts).filter(([,p])=>p.authorUid===viewProfileUid).sort((a,b)=>b[1].ts-a[1].ts):[];
   items.forEach(([id,p])=>{if(!(p.views&&p.views[currentUser.uid]))db.ref('userPosts/'+id+'/views/'+currentUser.uid).set(true);if(p.mediaList)p.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});else maybeLoad(p);if(p.comments)Object.values(p.comments).forEach(cc=>maybeLoad(cc));});
@@ -6222,6 +6257,7 @@ function renderViewColumn(){
   const canDel=currentUser.isAdmin||viewProfileUid===currentUser.uid;
   items.forEach(([id,p])=>{p._id=id;list.insertAdjacentHTML('beforeend',postHtml(p,id,canDel));});
   keepScroll.set();
+  restoreVideos(vidSnap);
   if(CP)renderCommentsPanel();
 }
 
