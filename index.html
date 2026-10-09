@@ -1317,6 +1317,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card">
       <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
       <button class="btn btn-primary" id="vpWriteBtn" style="min-height:40px" onclick="writeToUser()">💬 Написать</button>
+      <button class="btn btn-outline" style="margin-top:8px" id="vpUnfriendBtn" onclick="removeFriend(viewProfileUid)">💔 Убрать из друзей</button>
       <button class="btn btn-danger" style="margin-top:8px" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
     </div>
   </div>
@@ -5197,6 +5198,34 @@ function acceptFriend(f){const up={};up['friends/'+currentUser.uid+'/'+f]=true;u
       toast('✅ В контактах',true);renderPeople();})
     .catch(e=>{console.warn('acceptFriend',e);toast('⚠️ Не удалось принять заявку');});}
 function declineFriend(f){db.ref('friendRequests/'+currentUser.uid+'/'+f).remove().catch(()=>toast('⚠️ Не удалось отклонить'));}
+// Убрать из друзей. Такой кнопки в проекте не было вообще: принять заявку
+// можно, а разорвать дружбу — нет. Дружба взаимная, поэтому убираем у обоих.
+// Заодно чистим то, что было привязано к этой дружбе: связь «кто кому кем»
+// и незакрытые запросы — иначе у второго человека осталось бы «ты мой коллега».
+function removeFriend(uid){
+  if(!uid)return;
+  if(uid===currentUser.uid){toast('Себя не убрать 😄');return;}
+  if(!isFriend(uid)){toast('Он и так не в друзьях');return;}
+  const name=nameOf(uid);
+  if(!confirm('Убрать '+name+' из друзей?\\n\\nУ него дружба тоже исчезнет. История переписки останется.'))return;
+  const up={};
+  up['friends/'+currentUser.uid+'/'+uid]=null;
+  up['friends/'+uid+'/'+currentUser.uid]=null;
+  up['rels/'+currentUser.uid+'/'+uid]=null;
+  up['rels/'+uid+'/'+currentUser.uid]=null;
+  up['relReqs/'+uid+'/'+currentUser.uid]=null;
+  up['relReqs/'+currentUser.uid+'/'+uid]=null;
+  // дружба и связь — одним запросом. Если сюда затесать ещё и что-то, чего
+  // правила не пустят, откатится ВСЁ, и человек ничего не удалит.
+  db.ref().update(up).then(()=>{
+    try{localStorage.removeItem('mc_fr_'+uid);}catch(e){}
+    const a=relSentGet();if(a[uid]){delete a[uid];relSentSet(a);}
+    notifyUser(uid,'frienddel','Убрал из друзей','💔 '+displayNameOf(currentUser)+' убрал(а) тебя из друзей',{});
+    toast('💔 '+name+' больше не в друзьях',true);
+    refreshRelUi();renderProfile();renderViewColumn();
+    if(document.getElementById('mainScreen').classList.contains('active'))renderChatList();
+  }).catch(e=>{console.warn('removeFriend',e);toast('⚠️ Не удалось убрать из друзей');});
+}
 // ===== Социальные связи (rels) =====
 // Связь подтверждается тем, кого назвали: А предлагает «коллега», Б жмёт
 // «Принять» — и связь становится взаимной. Раньше статус ставился молча одной
@@ -5471,6 +5500,9 @@ function openUserProfile(uid){
   // себя не блокируем и не пишем самому себе
   document.getElementById('vpBlockBtn').style.display=isMe?'none':'block';
   if(!isMe)document.getElementById('vpBlockBtn').textContent=(lastBlocks&&lastBlocks[uid])?'✅ Разблокировать':'🚫 Заблокировать';
+  // Кнопка разрыва дружбы — только если он реально в друзьях
+  const uf=document.getElementById('vpUnfriendBtn');
+  if(uf)uf.style.display=(!isMe&&isFriend(uid))?'block':'none';
   document.getElementById('vpVisRow').style.display=isMe?'flex':'none';
   paintVisibilitySwitches();
   renderVpRel();
