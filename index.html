@@ -318,7 +318,12 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
    искры ✦✧✷✹, из-за чего реакции выглядели кашей. Теперь у каждого своя
    тема: сердца уходят вверх, угли от огня — вверх, слёзы вниз, смех —
    в стороны. */
-.fx-hand,.fx-heart,.fx-ember,.fx-tear,.fx-drop{position:fixed;z-index:900;pointer-events:none;
+/* Общие свойства для ВСЕХ частиц. Раньше здесь был список из пяти классов,
+   а десять тотемных животных я описал отдельно — и БЕЗ position:fixed.
+   Из-за этого они выпадали из потока и ложились рядком в левом верхнем углу
+   страницы. Поэтому перечисляем все: и эмоции, и животных. */
+.fx-hand,.fx-heart,.fx-ember,.fx-tear,.fx-drop,
+.fx-cat,.fx-dog,.fx-frog,.fx-panda,.fx-sapsan,.fx-fox,.fx-monkey,.fx-tiger,.fx-elephant,.fx-parrot{position:fixed;z-index:900;pointer-events:none;
   line-height:1;transform:translate(-50%,-50%)}
 .fx-hand{font-size:22px;animation:fxRain 1.3s cubic-bezier(.25,.6,.35,1) forwards}
 .fx-heart{font-size:20px;animation:fxFloat 1.5s ease-out forwards}
