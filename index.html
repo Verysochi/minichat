@@ -205,7 +205,10 @@ img.avatar.sq{border-radius:8px}
 .song-bar .song-play{width:32px;height:32px;font-size:14px}
 .song-bar-info{flex:1;min-width:0}
 .song-bar-title{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
-.song-bar-track{height:5px;border-radius:3px;background:var(--surface3);overflow:hidden;cursor:pointer}
+/* Дорожка перемотки: тонкая полоска, но с щедрой зоной нажатия — пальцем
+   попасть в 5 пикселей невозможно. */
+.song-bar-track{height:5px;border-radius:3px;background:var(--surface3);cursor:pointer;
+  padding:11px 0;margin:-11px 0;background-clip:content-box;touch-action:none}
 .song-bar-prog{height:100%;width:0;background:var(--primary);border-radius:3px;transition:width .12s linear}
 .song-bar-close{flex:0 0 auto;width:26px;height:26px;border-radius:8px;border:none;background:var(--red);color:#fff;font-size:13px;font-weight:700;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;transition:filter .15s}
 .song-bar-close:hover{filter:brightness(1.2)}
@@ -1576,7 +1579,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <button class="song-play" id="songBarBtn" onclick="toggleSong(songKey)">▶</button>
   <div class="song-bar-info" onclick="toggleSong(songKey)">
     <div class="song-bar-title" id="songBarTitle">🎵 песня</div>
-    <div class="song-bar-track"><div class="song-bar-prog" id="songBarProg"></div></div>
+    <div class="song-bar-track" id="songBarTrack" title="Перемотать"
+      onclick="seekSongBar(event)"><div class="song-bar-prog" id="songBarProg"></div></div>
   </div>
   <input type="range" class="song-vol" id="songBarVol" min="0" max="100" value="100" title="Громкость"
     onclick="event.stopPropagation()" oninput="setSongVol(this.value)">
@@ -2681,6 +2685,24 @@ function seekSong(key,frac){
   songPendingSeek=frac;
   try{toggleSong(key);}catch(e){songPendingSeek=null;}
 }
+// Тап по дорожке в ВЕРХНЕЙ панели. Раньше дорожка лежала внутри блока с
+// onclick=toggleSong и обработчика перемотки не имела вовсе: тап по ней
+// просто включал или выключал звук. Теперь это перемотка, а не play/pause.
+function seekSongBar(ev){
+  if(ev){if(ev.stopPropagation)ev.stopPropagation();}
+  if(!songKey)return;
+  let x=null;
+  if(ev){
+    if(typeof ev.clientX==='number')x=ev.clientX;
+    else if(ev.changedTouches&&ev.changedTouches.length)x=ev.changedTouches[0].clientX;
+    else if(ev.touches&&ev.touches.length)x=ev.touches[0].clientX;
+  }
+  const tr=document.getElementById('songBarTrack');
+  if(x==null||!tr)return;
+  const r=tr.getBoundingClientRect();
+  if(!r.width)return;
+  seekSong(songKey,(x-r.left)/r.width);
+}
 // Скачать песню или голосовое к себе на устройство
 function downloadTrack(key){
   if(!key){toast('Нечего скачивать');return;}
@@ -2727,6 +2749,17 @@ document.addEventListener('touchstart',e=>{
   const p=e.touches&&e.touches[0];if(!p)return;
   seekSong(key,(p.clientX-rect.left)/rect.width);
 },{passive:true});
+// Перетаскивание мышью по дорожке верхней панели: зажал и повёл — перематывает.
+(function(){
+  let dragging=false;
+  const move=e=>{if(dragging)seekSongBar(e);};
+  const up=()=>{dragging=false;document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);};
+  document.addEventListener('mousedown',e=>{
+    if(!e.target||!e.target.closest||!e.target.closest('#songBarTrack'))return;
+    dragging=true;seekSongBar(e);
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+  });
+})();
 function ensureSongAudio(){
   if(songAudio)return songAudio;
   songAudio=new Audio();
