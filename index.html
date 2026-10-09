@@ -6310,11 +6310,12 @@ function renderLoginAttempts(){
       '<div style="color:var(--text3);font-size:11px">🤖 '+esc(s.device||'—')+'</div></div>'+
       '<div style="text-align:right;font-size:11px;color:var(--text2);min-width:0">'+
       (s.ip?'<div>🌐 '+esc(s.ip)+'</div>':'')+
-      (s.place?'<div>📍 '+esc(s.place)+'</div>':'')+
       // Раньше здесь стояло geoLinkHtml(s.uid,ALL_USERS[s.uid]||{}) — у записи
       // журнала нет uid, поэтому подставлялся пустой объект и ссылка на карту
       // не появлялась НИКОГДА. Координаты лежат прямо в самой записи.
-      geoLinkHtml2(s.geo,s.geoAddr)+
+      // Название места само кликабельно: жмёшь — открывается карта.
+      (s.place?'<div style="margin-top:2px">'+mapLink(s.place,s.geo,s.geoAddr)+'</div>':'')+
+      geoLinkHtml2(s.geo,s.geoAddr,s.place)+
       '<div style="margin-top:4px">'+(active?'<span style="color:var(--red);font-weight:700">⛔ до '+fmtFull(s.until)+' (~'+leftMin+' мин)</span>':'<span style="color:var(--text3)">блок истёк</span>')+'</div>'+
       (active?'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;padding:3px 8px;font-size:11px" onclick="unblockLogin(\''+esc(s.email||'')+'\',\''+esc(s.did||'')+'\')">🔓 Снять</button>':'')+
       '</div>';
@@ -6450,17 +6451,23 @@ function geoLinkHtml(uid,i){
   const addr=i.geoAddr?('<div style="font-size:11px;color:var(--text3);margin-top:2px">🏠 '+esc(i.geoAddr)+'</div>'):'';
   return '<a href="'+map+'" target="_blank" rel="noopener" style="color:var(--primary)">📍 '+esc(i.geo)+'</a> <a href="'+yandex+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3)">(карта)</a>'+addr;
 }
+// Кликабельная ссылка на карту по названию места. Если есть координаты —
+// точнее по ним, если нет — ищем по самому названию (Яндекс находит город).
+function mapLink(place,geo,addr){
+  const q=String(geo||place||'').trim();
+  if(!q)return '';
+  const href='https://yandex.ru/maps/?text='+encodeURIComponent(q);
+  return '<a href="'+href+'" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:underline">📍 '+esc(place||q)+'</a>';
+}
 // Ссылка на карту по «голым» координатам. geoLinkHtml требует uid и запись
 // пользователя, а в журнале входов координаты уже записаны в самой строке.
-function geoLinkHtml2(geo,addr){
+function geoLinkHtml2(geo,addr,place){
   if(!geo)return '';
   const c=String(geo).trim();
   const map='https://maps.google.com/?q='+encodeURIComponent(c);
-  const yandex='https://yandex.ru/maps/?text='+encodeURIComponent(c);
-  return '<div><a href="'+map+'" target="_blank" rel="noopener" style="color:var(--primary)">🗺 Открыть карту</a>'+
-    ' <a href="'+yandex+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--text3)">(яндекс)</a></div>'+
-    '<div style="font-size:11px;color:var(--text3);margin-top:2px;word-break:break-all">📐 '+esc(c)+'</div>'+
-    (addr?'<div style="font-size:11px;color:var(--text3);margin-top:2px">🏠 '+esc(addr)+'</div>':'');
+  return '<div><a href="'+map+'" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:underline">🗺 Точка на карте</a>'+
+    (place?' <span style="font-size:11px;color:var(--text3)">по координатам</span>':'')+'</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:2px;word-break:break-all">📐 '+esc(c)+'</div>';
 }
 function toggleHideFromList(hide){
   db.ref('users/'+currentUser.uid+'/hideFromList').set(hide?true:null).then(()=>toast(hide?'🙈 Ты скрыт из списка пользователей':'👁 Ты снова виден в списке',true));
