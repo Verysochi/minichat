@@ -6072,12 +6072,16 @@ function stashVideos(root){
     if(!VIDEO_KEEP[k])VIDEO_KEEP[k]=[];
     if(VIDEO_KEEP[k].indexOf(v)<0)VIDEO_KEEP[k].push(v);
   }
-  // чистим кэш, чтобы он не разрастался
-  const keys=Object.keys(VIDEO_KEEP);
-  let total=keys.reduce((n,k)=>n+VIDEO_KEEP[k].length,0);
-  for(const k of keys){
-    VIDEO_KEEP[k]=VIDEO_KEEP[k].filter(v=>v.parentNode||true);
-    if(total>16){VIDEO_KEEP[k]=[];total--;}
+  // подрезаем кэш, чтобы он не разрастался
+  let total=Object.keys(VIDEO_KEEP).reduce((n,k)=>n+VIDEO_KEEP[k].length,0);
+  while(total>12){
+    const keys=Object.keys(VIDEO_KEEP);
+    let freed=false;
+    for(const k of keys){
+      if(VIDEO_KEEP[k].length>1){VIDEO_KEEP[k].shift();total--;freed=true;break;}
+      if(!VIDEO_KEEP[k].length){delete VIDEO_KEEP[k];freed=true;break;}
+    }
+    if(!freed)break;
   }
 }
 function reviveVideos(root){
@@ -6085,11 +6089,15 @@ function reviveVideos(root){
   for(const k of keys){
     const arr=VIDEO_KEEP[k];
     if(!arr||!arr.length)continue;
-    const keep=arr.find(v=>!v.parentNode)||null;     // отсоединённый — вернём
-    if(!keep)continue;
+    // Отсоединённый от документа, а не «без родителя»: после innerHTML=''
+    // у старого <video> остаётся прежний родитель — просто оторванный кусок DOM.
+    // Проверка parentNode даёт неверный ответ и элемент не возвращается.
+    const idx=arr.findIndex(v=>!v.isConnected);
+    if(idx<0)continue;
     const target=root.querySelector('video[data-mk="'+k+'"]');
     if(!target)continue;
-    try{target.replaceWith(keep);}catch(e){}
+    try{target.replaceWith(arr[idx]);}catch(e){continue;}
+    arr.splice(idx,1);
   }
 }
 function snapVideos(){
