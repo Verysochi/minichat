@@ -2517,7 +2517,9 @@ function avatarHtml(i,cls,fb){const n=i?displayNameOf(i,fb):(fb||'?');const c=(c
 function profilePhotoHtml(i,fb){const n=i?displayNameOf(i,fb):(fb||'?');
   const c=frameCls(i)+(i&&i.online?' online-frame':'');
   const uid=i?uidOf(i):'';
-  if(i&&i.avatar)return '<img class="profile-photo '+c+'" src="'+i.avatar+'" onclick="openLightbox(this.src,\'Аватар: '+esc(n)+'\')">';
+  // Подпись «Аватар: имя» убрали: она только занимала место под фото и выглядела
+// лишней. Обложки и раньше открывались без подписи — теперь так же и аватар.
+if(i&&i.avatar)return '<img class="profile-photo '+c+'" src="'+i.avatar+'" onclick="openLightbox(this.src)">';
   return '<div class="profile-photo '+c+'">'+((n||'?')[0].toUpperCase())+'</div>';}
 function coverHtmlFor(info,cls){
   if(!info)return '<div class="'+cls+'"></div>';
@@ -4733,13 +4735,26 @@ function toggleRecord(mode){
 // Запись идёт ПО СЕГМЕНТАМ: пауза = останавливаем текущий сегмент, продолжение =
 // начинаем новый на том же потоке. Так пауза работает везде, даже там, где
 // MediaRecorder.pause() бросает исключение (iOS, часть Android).
+// Формат записи. Раньше просил ТОЛЬКО webm/opus. Safari на iPhone записать
+// webm не умеет, а играть — тем более, поэтому голосовое, записанное на
+// Android, у получателя на айфоне падало с «формат не поддерживается».
+// mp4/aac понимают все телефоны, поэтому идём по списку от самого
+// универсального формата и берём первый поддержанный.
+const REC_TYPES={
+  audio:['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg'],
+  video:['video/mp4','video/webm;codecs=vp8,opus','video/webm']
+};
+function pickRecType(mode){
+  const list=REC_TYPES[mode==='video'?'video':'audio']||REC_TYPES.audio;
+  if(typeof MediaRecorder==='undefined')return '';
+  for(const t of list){try{if(MediaRecorder.isTypeSupported(t))return t;}catch(e){}}
+  return '';
+}
 function startSegment(){
   if(!recStream)return;
   audioChunks=[];
-  let opts;
-  if(recMode==='video')opts=MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')?{mimeType:'video/webm;codecs=vp8,opus'}:undefined;
-  else opts=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?{mimeType:'audio/webm;codecs=opus'}:undefined;
-  mediaRecorder=new MediaRecorder(recStream,opts);
+  const want=pickRecType(recMode);
+  mediaRecorder=new MediaRecorder(recStream,want?{mimeType:want}:undefined);
   mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)audioChunks.push(e.data);};
   mediaRecorder.start();
   isRecording=true;recPaused=false;recStart=Date.now();
@@ -4750,7 +4765,7 @@ function finishRecording(){
   recSegs=[];
   if(!all.length){cancelRecorded();return;}
   const flat=[].concat.apply([],all).filter(Boolean);
-  const type=(recMode==='video')?(mediaRecorder&&mediaRecorder.mimeType)||'video/webm':(mediaRecorder&&mediaRecorder.mimeType)||'audio/webm';
+  const type=(mediaRecorder&&mediaRecorder.mimeType)||pickRecType(recMode)||(recMode==='video'?'video/webm':'audio/webm');
   const blob=new Blob(flat,{type:type});
   const r=new FileReader();
   r.onload=()=>{
