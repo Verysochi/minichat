@@ -4714,6 +4714,11 @@ function toggleRecord(mode){
   getUserMediaSmart(mode).then(stream=>{
     recStream=stream;recMode=mode;recSegs=[];audioChunks=[];
     recElapsed=0;recStart=Date.now();
+    // Песня на время записи замолкает. Раньше она продолжала играть: её звук
+    // попадал в микрофон, а таймер в верхней панели тикал и на паузе записи —
+    // получалось «второе время» рядом с секундомером записи. Возобновлять её
+    // потом не догадываемся: это был бы сюрприз, и она снова ушла бы в микрофон.
+    try{ if(songKey&&songAudio&&!songAudio.paused){songAudio.pause();songPaused=true;paintSongBtn();paintSongProgress();} }catch(e){}
     try{
       const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
       const el=mode==='video'?pv0:pa0,other=mode==='video'?pa0:pv0;
