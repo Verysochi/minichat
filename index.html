@@ -1620,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 05:40';
+const BUILD='10.10.2026 06:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2708,6 +2708,10 @@ function songMiniHtml(key,m){
     '<div class="song-body">'+
       '<div class="song-name" title="'+esc(m.name||'Голосовое')+'">'+esc((m.type==='audio'&&!isSongFile(m&&m.name))?'🎤 Голосовое':shortFileName(m.name||'🎵 песня'))+'</div>'+
       '<div class="song-seek" data-key="'+CSS_ID(key)+'" title="Перемотать"><div class="song-track"><div class="song-prog" id="songp_'+CSS_ID(key)+'" style="width:'+pct+'%"></div></div></div>'+
+      // Регулятор прямо в мини-плеере. Верхняя панель с громкостью прячется,
+      // когда открыт чат, и на телефоне до неё было не добраться — песня играла
+      // молча, а починить было нечем.
+      '<input type="range" class="song-vol song-vol-inline" min="0" max="100" value="'+volPct()+'" oninput="setSongVol(this.value)" title="Громкость">'+
     '</div>'+
     '<div class="song-time" id="songt_'+CSS_ID(key)+'">'+(dur?fmtDur(cur)+' / '+fmtDur(dur):(src?'0:00':'…'))+'</div>'+
     '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+CSS_ID(key)+'\')">⬇</button>'+
@@ -2815,7 +2819,14 @@ document.addEventListener('touchstart',e=>{
 function ensureSongAudio(){
   if(songAudio)return songAudio;
   songAudio=new Audio();
-  try{const v=+localStorage.getItem('mc_vol');if(isFinite(v))songAudio.volume=Math.max(0,Math.min(1,v/100));}catch(e){}
+  try{
+    const v=+localStorage.getItem('mc_vol');
+    // Старый ноль, который успел записаться до правки, сбрасываем на полную
+    // громкость: на телефоне громкость переключают аппаратными кнопками, и
+    // собственный элемент не должен им противоречить.
+    if(isFinite(v)&&v>0)songAudio.volume=Math.max(0,Math.min(1,v/100));
+    else{localStorage.removeItem('mc_vol');songAudio.volume=1;}
+  }catch(e){}
   songAudio.addEventListener('timeupdate',()=>paintSongProgress());
   songAudio.addEventListener('loadedmetadata',()=>{
     // долгожданная перемотка: трек только что узнал свою длину
@@ -2871,6 +2882,15 @@ function paintSongProgress(){
 }
 // id сообщений из push().key бывает с дефисом/точками — глобальный поиск по селектору ломается
 function CSS_ID(s){return String(s).replace(/[^A-Za-z0-9_-]/g,'_');}
+// Текущая громкость в процентах — одинаково для верхнего регулятора и того,
+// что внутри мини-плеера в чате.
+function volPct(){return Math.round((songAudio&&songAudio.volume!=null?songAudio.volume:1)*100);}
+// Синхронизируем все регуляторы: ползунок один, на экране их может быть два.
+function paintVol(){
+  const p=volPct();
+  const top=document.getElementById('songBarVol');if(top)top.value=p;
+  document.querySelectorAll('.song-vol-inline').forEach(i=>{i.value=p;});
+}
 // Запуск с ожиданием готовности данных: play() на ещё не загруженном src
 // падал с AbortError/NotSupported → «не запустилось» на первом нажатии.
 function startSongPlayback(a){
@@ -2910,8 +2930,9 @@ function toggleSong(key){
     a.src=data;
     showSongBar();
     const t=document.getElementById('songBarTitle');if(t)t.textContent=songName;
-    paintSongBtn();paintSongProgress();
+    paintSongBtn();paintSongProgress();paintVol();
     startSongPlayback(a);
+    warnIfSilent();
   };
   if(src){startPlay(src);return;}
   if(!mediaCache[mk]){
@@ -2933,7 +2954,7 @@ function showSongBar(){
   if(!bar)return;
   bar.style.display='flex';
   const t=document.getElementById('songBarTitle');if(t)t.textContent=songName||'🎵 песня';
-  const v=document.getElementById('songBarVol');if(v)v.value=Math.round((songAudio&&songAudio.volume!=null?songAudio.volume:1)*100);
+  const v=document.getElementById('songBarVol');if(v)v.value=volPct();
   paintSongBtn();
 }
 // Ползунок громкости статичного плеера
@@ -2941,7 +2962,19 @@ function setSongVol(v){
   const a=ensureSongAudio();
   const n=Math.max(0,Math.min(100,+v||0));
   a.volume=n/100;
-  try{localStorage.setItem('mc_vol',String(n));}catch(e){}
+  try{
+    // Ноль НЕ запоминаем: на телефоне громкость и так на устройстве, и ползунок,
+    // залипший на нуле, выглядел как «звук сломался» — песня играла в тишине,
+    // а добраться до верхнего регулятора в чате было нельзя.
+    if(n>0)localStorage.setItem('mc_vol',String(n));
+    else localStorage.removeItem('mc_vol');
+  }catch(e){}
+  paintVol();
+}
+// Громкость 0 сохраняется навсегда и выглядит как «звук сломался».
+// При старте playback предупреждаем — иначе песня «играет» в тишине.
+function warnIfSilent(){
+  if(songAudio&&songAudio.volume===0)toast('🔇 Громкость на нуле — подними регулятор',true);
 }
 function stopSong(){
   songKey=null;songPaused=true;songName='';              // сначала гасим songKey — иначе async error от load() покажет лишний тост
@@ -4915,6 +4948,16 @@ function finishRecording(){
   recSegs=[];
   if(!all.length){cancelRecorded();return;}
   const flat=[].concat.apply([],all).filter(Boolean);
+  // Защита от ПУСТОЙ записи. Раньше при отказе микрофона событие ondataavailable
+  // не срабатывало, в recSegs попадал пустой массив — и отправлялось «голосовое»
+  // размером 34 байта: одна шапка data:audio/mp4;...;base64, и ни байта звука.
+  // Такое сообщение потом не plays — «Формат не поддерживается», длительность 0:00.
+  const bytes=flat.reduce((n,b)=>n+(b&&b.size||0),0);
+  if(bytes<200){
+    cancelRecorded();
+    toast('🎤 Микрофон не отдал звук — запись пустая');
+    return;
+  }
   const type=(mediaRecorder&&mediaRecorder.mimeType)||pickRecType(recMode)||(recMode==='video'?'video/webm':'audio/webm');
   const blob=new Blob(flat,{type:type});
   const r=new FileReader();
