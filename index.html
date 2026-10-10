@@ -1186,7 +1186,11 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card">
       <div class="card-title">🔑 Пароль</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Пароль хранится в Firebase, админ его не видит. После первого входа с временным паролем поменяй его здесь.</div>
-      <button class="btn btn-outline" onclick="changePassDialog()">🔑 Сменить пароль</button>
+      <div class="row">
+        <button class="btn btn-outline" style="flex:1" onclick="changePassDialog()">🔑 Сменить пароль</button>
+        <button class="btn btn-outline" style="flex:1" onclick="linkPasswordDialog()">➕ Привязать</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">Привязать пароль можно только когда ты уже вошёл — тогда в приложении на телефоне вход будет и по почте.</div>
     </div>
     <div class="profile-card">
       <div class="card-title">👁 Как меня видят</div>
@@ -1811,16 +1815,17 @@ function makeSession(uid,single){const t=Math.random().toString(36).slice(2)+Dat
     console.error('makeSession: не удалось записать токен в '+TO,e&&e.code);
     return db.ref(TO+'/'+t).set(Date.now());
   });}
-// Проверяем, что токен ещё жив в базе. Админ, вошедший с другого устройства,
-// стирает прежние токены — и этот вход вышибается тут же, без ожидания F5.
+// Проверяем, что токен ещё жив в базе. Устройств теперь может быть несколько,
+// поэтому чужие входы больше не затирают наш — выкидывает только если токен
+// убрали вручную (например, выход с этого устройства).
 function ensureSessionAlive(){
-  if(!currentUser||!currentUser.isAdmin)return;      // один-вход-режим нужен только админу
+  if(!currentUser)return;
   const u=currentUser.uid,t=localStorage.getItem('mc_token');
   if(!u||!t){forceLogout('⏰ Вход истёк — войди заново');return;}
   db.ref('users/'+u).once('value').then(s=>{
     const i=s.val();
     if(!i||!((i.toks&&i.toks[t])||i.sessionToken===t))
-      forceLogout('🔒 Вход с другого устройства — здесь разлогинено');
+      forceLogout('🔒 Вход завершён — войди заново');
   }).catch(()=>{});   // нет прав на чтение — не выкидываем зря
 }
 // Гасим токен ТОЛЬКО этого устройства (остальные входы остаются живы)
@@ -2058,6 +2063,32 @@ function changePassDialog(){
     });
 }
 
+// Привязка пароля к аккаунту, который создан через Google. Нужна, чтобы войти
+// в приложении на телефоне по почте: Google из WebView не пускает, а по паролю —
+// пускает. Ссылка добавляет провайдер пароля к текущему Google-аккаунту.
+function linkPasswordDialog(){
+  const u=firebase.auth&&firebase.auth().currentUser;
+  if(!u){toast('Сначала войди');return;}
+  if(!u.email){toast('Нет почты — привязать нечего');return;}
+  if(u.providerData.some(p=>p.providerId==='password')){
+    toast('Пароль уже привязан — используй «Сменить пароль»',true);return;}
+  const n1=prompt('Придумай пароль (мин 6 символов):');
+  if(!n1)return;
+  if(n1.length<6){toast('Мин 6 символов');return;}
+  const n2=prompt('Пароль ещё раз:');
+  if(n1!==n2){toast('Пароли не совпали');return;}
+  toast('⏳ Привязываю...');
+  firebase.auth().currentUser.linkWithCredential(
+    firebase.auth.EmailAuthProvider.credential(u.email,n1))
+    .then(()=>toast('✅ Пароль привязан — теперь можно входить по почте',true))
+    .catch(er=>{
+      const c=(er&&er.code)||'';
+      if(c==='auth/requires-recent-login')toast('Войди заново через Google и повтори');
+      else if(c==='auth/weak-password')toast('Пароль слишком простой');
+      else if(c==='auth/credential-already-in-use')toast('Этот пароль уже занят');
+      else toast('Не получилось: '+(er&&er.message||c));
+    });
+}
 function forgotPass(){
   const email=(prompt('Введи свою почту — Firebase отправит ссылку для смены пароля:')||'').trim().toLowerCase();
   if(!email)return;
@@ -2163,7 +2194,10 @@ const REQUIRE_EMAIL_VERIFY=false;
   else localStorage.removeItem('mc_rl');
   localStorage.removeItem('mc_rp');        // старый открытый пароль из localStorage — чистим
   logLogin(uid,info,'password');
-  await makeSession(uid,!!info.isAdmin);
+  // Несколько устройств разрешены всем, включая админа: каждый вход сохраняет
+  // свой токен, а не затирает остальные. Раньше админ с Windows выкидывал
+  // приложение с телефона и наоборот.
+  await makeSession(uid,false);
   enterApp(uid,info);
 }
 // Повторная отправка письма подтверждения
@@ -2219,7 +2253,7 @@ async function finishGoogleLogin(result){
     if(info.firebaseUid!==u.uid)db.ref('users/'+uid+'/firebaseUid').set(u.uid).catch(()=>{});
     if(info.authEmail!==email)db.ref('users/'+uid+'/authEmail').set(email).catch(()=>{});
     logLogin(uid,info,'google');
-    await makeSession(uid,true);enterApp(uid,info);   // админ всегда: один активный вход
+    await makeSession(uid,false);enterApp(uid,info);   // несколько устройств одновременно
   }catch(er){console.error(er);e.textContent='Ошибка входа: '+(er.message||er);}
 }
 // Вопрос капчи генерируется при открытии формы, а не при отправке — иначе
