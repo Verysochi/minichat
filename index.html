@@ -100,12 +100,14 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
    имя собеседника. Держим их за одной кнопкой «⋯» — по нажатию они выезжают
    влево, к ней самой. На широком экране показываются как раньше, кнопки нет. */
 .chat-actions{display:flex;align-items:center;gap:5px}
-.chat-more-btn{display:none}
+/* Селектор из двух классов — иначе .header-btn, объявленный ниже, перебивает
+   его по равной специфичности и кнопка «⋯» остаётся на широком экране. */
+.header-btn.chat-more-btn{display:none}
 @media(max-width:560px){
   .chat-actions{display:none}
   #chatHeader.open .chat-actions{display:flex;animation:chatActionsIn .22s cubic-bezier(.2,.9,.3,1)}
   #chatHeader.open .chat-actions .header-btn{width:34px;height:34px;font-size:15px}
-  .chat-more-btn{display:flex}
+  .header-btn.chat-more-btn{display:flex}
 }
 @keyframes chatActionsIn{
   from{opacity:0;transform:translateX(26px) scale(.9)}
@@ -1642,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 07:25';
+const BUILD='10.10.2026 07:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
