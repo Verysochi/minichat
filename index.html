@@ -1644,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 07:40';
+const BUILD='10.10.2026 08:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1656,7 +1656,9 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='';
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='',recGen=0,recFailStreak=0;
+// Поколение записи. Пока flushRecorder ждёт последний кусок, запись могут
+// отменить (🗑) — тогда результат должен молча выброситься, а не отправиться.
 // Форматы, которые на этом устройстве молча пишут пустоту. Запоминаем между
 // запусками: иначе первый же голос на телефоне снова ушёл бы в никуда.
 function blockedTypes(){
@@ -4995,7 +4997,7 @@ function startSegment(){
   if(!recStream)return;
   audioChunks=[];
   const want=pickRecType(recMode);
-  recLastWant=want;
+  recLastWant=want;recGen++;
   mediaRecorder=new MediaRecorder(recStream,want?{mimeType:want}:undefined);
   mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)audioChunks.push(e.data);};
   mediaRecorder.start();
@@ -5007,20 +5009,23 @@ function finishRecording(){
   recSegs=[];
   if(!all.length){cancelRecorded();return;}
   const flat=[].concat.apply([],all).filter(Boolean);
-  // Защита от ПУСТОЙ записи. Раньше при отказе микрофона событие ondataavailable
-  // не срабатывало, в recSegs попадал пустой массив — и отправлялось «голосовое»
-  // размером 34 байта: одна шапка data:audio/mp4;...;base64, и ни байта звука.
-  // Такое сообщение потом не plays — «Формат не поддерживается», длительность 0:00.
+  // Защита от ПУСТОЙ записи. Причина была не в микрофоне: MediaRecorder отдаёт
+  // последний кусок асинхронно, а файл собирался раньше — выходило «голосовое»
+  // размером 34 байта, одна шапка data:audio/mp4;...;base64, и ни байта звука.
+  // Такое сообщение не проигрывалось: 0:00 и «Формат не поддерживается».
   const bytes=flat.reduce((n,b)=>n+(b&&b.size||0),0);
   if(bytes<200){
-    // Запоминаем формат, который на этом устройстве не пишет звук, и на
-    // следующей попытке берём следующий по списку. Иначе пришлось бы гадать.
-    if(recLastWant)blockType(recLastWant);
+    // Формат отбрасываем только после ДВУХ пустых записей подряд. Раньше одна
+    // неудача навсегда выкидывала тип из списка, хотя причиной могла быть
+    // вовсе не он — и следующая запись ломалась уже по-настоящему.
+    recFailStreak++;
+    if(recFailStreak>=2&&recLastWant)blockType(recLastWant);
     cancelRecorded();
-    toast(recLastWant?'🎤 Формат не пишет звук — переключила. Запиши ещё раз':'🎤 Микрофон не отдал звук — запись пустая',true);
+    toast(recFailStreak>=2?'🎤 Формат не пишет звук — переключила. Запиши ещё раз':'🎤 Запись вышла пустой — запиши ещё раз',true);
     return;
   }
   const type=(mediaRecorder&&mediaRecorder.mimeType)||pickRecType(recMode)||(recMode==='video'?'video/webm':'audio/webm');
+  recFailStreak=0;   // запись получилась — счётчик неудач сброшен
   const blob=new Blob(flat,{type:type});
   const r=new FileReader();
   r.onload=()=>{
@@ -5050,12 +5055,15 @@ function toggleRecPause(){
   if(isRecording){
     // пауза: останавливаем сегмент и кладём его в список
     recElapsed+=Date.now()-recStart;
-    try{ mediaRecorder.requestData&&mediaRecorder.requestData(); mediaRecorder.stop(); }catch(e){}
-    recSegs.push(audioChunks);
     isRecording=false;recPaused=true;
-    if(sb){sb.textContent='⏹';sb.classList.remove('paused');sb.title='Продолжить запись';}
-    if(lb){const t=Math.floor(recElapsed/1000);lb.textContent='⏸ '+Math.floor(t/60)+':'+String(t%60).padStart(2,'0')+' пауза';}
-    if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
+    const gen=recGen;
+    flushRecorder(()=>{
+      if(gen!==recGen)return;
+      recSegs.push(audioChunks);
+      if(sb){sb.textContent='⏹';sb.classList.remove('paused');sb.title='Продолжить запись';}
+      if(lb){const t=Math.floor(recElapsed/1000);lb.textContent='⏸ '+Math.floor(t/60)+':'+String(t%60).padStart(2,'0')+' пауза';}
+      if(mb){mb.classList.remove('recording');mb.title='Продолжить запись';}
+    });
     return;
   }
   if(recPaused){
@@ -5067,14 +5075,36 @@ function toggleRecPause(){
 }
 // ⏹ — просто остановить запись. Само НЕ отправляет: дальше ➤ отправит,
 // а 🗑 удалит. Раньше кнопка удаления успевала отправить голосовое.
+// MediaRecorder отдаёт последний кусок АСИНХРОННО: события dataavailable и stop
+// прилетают позже, чем код после stop(). Раньше файл собирался сразу же, до их
+// прихода, и в него попадала одна шапка data: — 34 байта вместо записи.
+// Теперь ждём реального flush, и только потом собираем файл.
+function flushRecorder(cb){
+  const mr=mediaRecorder;
+  if(!mr||mr.state==='inactive'){cb();return;}
+  let done=false;
+  const finish=()=>{if(done)return;done=true;cb();};
+  mr.addEventListener('stop',finish,{once:true});
+  try{mr.requestData&&mr.requestData();}catch(e){}
+  try{mr.stop();}catch(e){finish();return;}
+  setTimeout(finish,2500);          // страховка: событие может не прийти вовсе
+}
 function stopRecording(autoSend){
   if(!isRecording&&!recPaused)return;
   if(isRecording){
     recElapsed+=Date.now()-recStart;
-    try{ mediaRecorder.requestData&&mediaRecorder.requestData(); mediaRecorder.stop(); }catch(e){}
-    recSegs.push(audioChunks);
-    isRecording=false;
+    isRecording=false;recPaused=true;
+    const gen=recGen;
+    flushRecorder(()=>{
+      if(gen!==recGen)return;      // запись уже отменили — не собираем
+      recSegs.push(audioChunks);
+      finishStopNow(autoSend);
+    });
+    return;
   }
+  finishStopNow(autoSend);
+}
+function finishStopNow(autoSend){
   recPaused=false;clearInterval(recTimer);recTimer=null;
   if(autoSend===true)recAutoSend=true;
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
@@ -5101,7 +5131,7 @@ function sendRecorded(){
     .catch(e=>{recordedSending=false;document.getElementById('msgInput').placeholder=old;
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
-function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;
+function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;recGen++;
   recordedSending=false;recSegs=[];audioChunks=[];recElapsed=0;recPausedAt=0;
   if(recStream){try{recStream.getTracks().forEach(t=>t.stop());}catch(e){}}
   recStream=null;mediaRecorder=null;isRecording=false;
