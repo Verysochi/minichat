@@ -1620,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 04:55';
+const BUILD='10.10.2026 05:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2980,6 +2980,8 @@ function setAppBadge(n){
   try{ if(navigator.clearAppBadge&&n<=0) navigator.clearAppBadge(); }catch(e){}
 }
 function notifPermission(){return ('Notification' in window)?Notification.permission:'unsupported';}
+// Приложение на телефоне отдаёт разрешения сама — об этом знает мостик MiniChatNative.
+const NATIVE_APP=(function(){try{return !!(window.MiniChatNative&&window.MiniChatNative.isApp&&window.MiniChatNative.isApp());}catch(e){return false;}})();
 async function toggleNotifs(on){
   if(!on){
     // Выключить разрешение из приложения браузер не даёт — честно говорим об этом.
@@ -2994,6 +2996,23 @@ async function toggleNotifs(on){
   if(p==='granted'){const b=document.getElementById('notifHintBar');if(b)b.style.display='none';}
 }
 async function askNotifPermission(){
+  // В приложении на телефоне системный запрос показывает сама обёртка:
+  // внутри WebView Notification.requestPermission() молча ничего не делает —
+  // браузер не умеет просить разрешение Android. Поэтому зовём обёртку.
+  if(NATIVE_APP){
+    return new Promise(res=>{
+      let done=false;
+      const finish=p=>{
+        if(done)return;done=true;
+        if(p==='granted'){toast('🔔 Уведомления включены',true);try{navigator.serviceWorker&&navigator.serviceWorker.ready.then(r=>{swReg=r;});}catch(e){}}
+        else showNotifDenied();
+        res(p);
+      };
+      window.__mcNotifResult=finish;
+      try{window.MiniChatNative.requestNotifications();}catch(e){finish('error');return;}
+      setTimeout(()=>finish('error'),30000);   // обёртка не ответила — не висем
+    });
+  }
   if(!('Notification' in window)){toast('Браузер не умеет уведомления');return 'unsupported';}
   try{
     const p=await Notification.requestPermission();
@@ -3001,6 +3020,23 @@ async function askNotifPermission(){
     else toast('Уведомления запрещены — их можно включить в настройках браузера');
     return p;
   }catch(e){return 'error';}
+}
+// Если человек отказал и система больше не спрашивает — остаётся только ручной путь.
+function showNotifDenied(){
+  if(NATIVE_APP&&window.MiniChatNative&&window.MiniChatNative.openSettings){
+    notifHintShown=false;
+    const bar=document.getElementById('notifHintBar');
+    if(bar){
+      bar.innerHTML='<span>🔔 Уведомления запрещены. Разрешить можно только в настройках приложения.</span>'+
+        '<button class="btn btn-primary btn-sm" style="width:auto" onclick="window.MiniChatNative.openSettings()">Настройки</button>'+
+        '<button class="btn btn-outline btn-sm" style="width:auto" onclick="hideNotifHint()">Позже</button>';
+      bar.style.display='flex';
+      notifHintShown=true;
+    }
+    toast('⚠️ Нужно разрешить уведомления в настройках');
+    return;
+  }
+  toast('Уведомления запрещены — их можно включить в настройках браузера');
 }
 // Мягкая подсказка в приложении, если разрешение ещё не выдано
 let notifHintShown=false;
@@ -3948,6 +3984,14 @@ function patchRockButtons(){
     b.setAttribute('onclick',"event.stopPropagation();"+(mine
       ?('rockRemove('+JSON.stringify(base)+','+JSON.stringify(id)+')')
       :('rockPick('+JSON.stringify(base)+','+JSON.stringify(id)+','+JSON.stringify(ctx)+",'🤘')")));
+  });
+  // Открытый список «кто рокнул» тоже обязан меняться сразу. Раньше он
+  // оставался прежним и писал «Никто не рокнул», хотя реакция уже стояла:
+  // подпись данных реакции отбрасывает, и перерисовки карточки не было.
+  document.querySelectorAll('.who-line[data-who-base]').forEach(el=>{
+    const wb=el.getAttribute('data-who-base'),wid=el.getAttribute('data-who-id');
+    const wnode=(wb==='news')?(lastNews&&lastNews[wid]):(lastUserPosts&&lastUserPosts[wid]);
+    if(wnode)el.innerHTML=whoLineHtml(wb,wid,wnode);
   });
   // Рок в комментарии не должен сворачивать ветку — перерисовываем её, если открыта
   if(CP&&typeof renderCommentsPanel==='function')renderCommentsPanel();
@@ -5941,20 +5985,27 @@ function cancelEdit(){editingNewsId=null;newsMediaQueue=[];renderMediaContainer(
   document.getElementById('newsInput').value='';document.getElementById('newsTitle').value='';document.getElementById('composerTitle').textContent='Новая новость';document.getElementById('newsSubmitBtn').textContent='📣 Опубликовать';document.getElementById('newsCancelBtn').style.display='none';}
 function deleteNews(id){if(!confirm('Удалить новость?'))return;db.ref('news/'+id).remove().then(()=>toast('🗑'));}
 function toggleWho(base,id){const k=base+':'+id;openWho[k]=!openWho[k];if(base==='news')renderNews();else{renderProfileColumn();renderViewColumn();renderMyColumn();}}
+// Сам список «кто рокнул» — вынесен отдельно от кнопки, потому что его
+// приходится обновлять на месте: подпись данных реакции специально
+// отбрасывает, чтобы лента не перерисовывалась целиком на каждый рок.
+function whoLineHtml(base,id,n){
+  const reacts=n.reactions?Object.entries(n.reactions):[];const views=n.views?Object.entries(n.views):[];
+  // Раньше сюда попадали ТОЛЬКО те, кто поставил именно 🤘. Реакций стало
+  // несколько (❤️ 🔥 😂 😢), и все остальные молча пропадали из списка —
+  // человека не было видно, хотя он реакцию поставил. Теперь учитываем любую.
+  const rockers=reacts.filter(([u,v])=>u&&v&&ALL_USERS[u]);
+  const rocked=new Set(rockers.map(([u])=>u));
+  const viewers=views.filter(([u])=>!rocked.has(u));
+  let h='';
+  h+=rockers.length?rockers.map(([u,v])=>'<div class="who-row clickable" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>'+esc(v)+'</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Никто не рокнул</div>';
+  h+=viewers.length?viewers.map(([u])=>'<div class="who-row clickable" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>👁</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Тихих зрителей нет</div>';
+  return h;
+}
 function whoListHtml(base,id,n){
   const k=base+':'+id;let html='<button class="c-reply-btn" onclick="toggleWho(\''+base+'\',\''+id+'\')">👥 Кто рокнул</button>';
   if(openWho[k]){
-    const reacts=n.reactions?Object.entries(n.reactions):[];const views=n.views?Object.entries(n.views):[];
-    // Раньше сюда попадали ТОЛЬКО те, кто поставил именно 🤘. Реакций стало
-    // несколько (❤️ 🔥 😂 😢), и все остальные молча пропадали из списка —
-    // человека не было видно, хотя он реакцию поставил. Теперь учитываем любую.
-    const rockers=reacts.filter(([u,v])=>u&&v&&ALL_USERS[u]);
-    const rocked=new Set(rockers.map(([u])=>u));
-    const viewers=views.filter(([u])=>!rocked.has(u));
-    html+='<div class="who-line">';
-    html+=rockers.length?rockers.map(([u,v])=>'<div class="who-row clickable" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>'+esc(v)+'</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Никто не рокнул</div>';
-    html+=viewers.length?viewers.map(([u])=>'<div class="who-row clickable" onclick="openUserProfile(\''+u+'\')">'+avatarHtml(ALL_USERS[u],'sq')+' <span>👁</span> '+nameSpan(u)+'</div>').join(''):'<div class="status-line muted">Тихих зрителей нет</div>';
-    html+='</div>';}
+    html+='<div class="who-line" data-who-base="'+escA(base)+'" data-who-id="'+escA(id)+'">'+whoLineHtml(base,id,n)+'</div>';
+  }
   return html;
 }
 function pickCommentMedia(base,id){

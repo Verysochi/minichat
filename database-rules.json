@@ -87,11 +87,6 @@
       },
       ".indexOn": "ts"
     },
-        "$from": {
-          ".validate": "newData.val() === null || (newData.hasChild('rel') && newData.child('rel').isString() && newData.child('rel').val().length <= 40 && newData.hasChild('ts') && newData.child('ts').isNumber())"
-        }
-      }
-    },
     "news": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
       ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
@@ -102,7 +97,7 @@
         "reactions": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('approvals').child(auth.uid).exists()",
-            ".validate": "newData.val() === '🤘'"
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 8"
           }
         }
       }
