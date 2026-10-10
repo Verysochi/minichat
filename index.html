@@ -1620,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 06:50';
+const BUILD='10.10.2026 07:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1632,10 +1632,21 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadType='',recLastWant='';
-// Неудачный формат запоминаем между запусками: иначе первый же ровный голос
-// на телефоне снова уходил бы в пустоту.
-try{const b=localStorage.getItem('mc_rectype');if(b)recBadType=b;}catch(e){}
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='';
+// Форматы, которые на этом устройстве молча пишут пустоту. Запоминаем между
+// запусками: иначе первый же голос на телефоне снова ушёл бы в никуда.
+function blockedTypes(){
+  if(recBadList===null){
+    recBadList=[];
+    try{const s=localStorage.getItem('mc_rectype');if(s)recBadList=s.split(',').filter(Boolean);}catch(e){}
+  }
+  return recBadList;
+}
+function blockType(t){
+  if(!t)return;
+  const b=blockedTypes();
+  if(b.indexOf(t)<0){b.push(t);try{localStorage.setItem('mc_rectype',b.join(','));}catch(e){}}
+}
 let MSGS={},mediaCache={},translations={},THUMBS={},loadingMedia={},failedMedia={},lightboxKey=null;
 let freshSeenBefore=0,postingBusy=false,freshShown={};
 let editingNewsId=null,openComments={},openWho={},openReactionPicker={},pendingCommentMedia={},pendingReply={},gAvatarData=null,gCoverData=null,CP=null,lastPostsSig='',lastNewsSig='';
@@ -4931,12 +4942,12 @@ const REC_TYPES={
   video:['video/mp4','video/webm;codecs=vp8,opus','video/webm']
 };
 function pickRecType(mode){
-  const list=(REC_TYPES[mode==='video'?'video':'audio']||REC_TYPES.audio).slice();
-  // Тип, который на этом устройстве молча пишет пустоту, выкидываем из списка.
+  const all=REC_TYPES[mode==='video'?'video':'audio']||REC_TYPES.audio;
   // На Android WebView 'audio/mp4' проходит проверку isTypeSupported, но внутри
   // отдаёт 'audio/mp4;codecs=opus' и не выдаёт ни байта: файл в 34 байта.
-  const bad=recBadType?list.indexOf(recBadType):-1;
-  if(bad>=0)list.splice(bad,1);   // именно >=0: первый в списке тоже убираем
+  // Всё, что уже признано бесполезным, выкидываем из списка целиком.
+  const blocked=new Set(blockedTypes());
+  const list=all.filter(t=>!blocked.has(t));
   if(typeof MediaRecorder==='undefined')return '';
   for(const t of list){try{if(MediaRecorder.isTypeSupported(t))return t;}catch(e){}}
   return '';
@@ -4965,7 +4976,7 @@ function finishRecording(){
   if(bytes<200){
     // Запоминаем формат, который на этом устройстве не пишет звук, и на
     // следующей попытке берём следующий по списку. Иначе пришлось бы гадать.
-    if(recLastWant){recBadType=recLastWant;try{localStorage.setItem('mc_rectype',recLastWant);}catch(e){}}
+    if(recLastWant)blockType(recLastWant);
     cancelRecorded();
     toast(recLastWant?'🎤 Формат не пишет звук — переключила. Запиши ещё раз':'🎤 Микрофон не отдал звук — запись пустая',true);
     return;
