@@ -1620,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 04:10';
+const BUILD='10.10.2026 04:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2109,7 +2109,10 @@ function toggleAdminHint(){
 async function doLogin(){
   const login=document.getElementById('loginEmail').value.trim(),pass=document.getElementById('loginPass').value;
   const e=document.getElementById('loginError');e.textContent='';
-  if(isAdminLogin(login)&&ADMIN_EMAIL){googleAdminLogin();return;}
+  // Админский вход: с паролем — обычный вход по почте, без пароля — через Google.
+  // Раньше тут стояло безусловное «уводи в Google», из-за чего пароль, введённый
+  // с почтой админа, просто игнорировался и снова вылезал Google.
+  if(isAdminLogin(login)&&ADMIN_EMAIL&&!pass){googleAdminLogin();return;}
   if(!login||!pass){e.textContent='Заполни все поля';return;}
   if(!firebase.auth){e.textContent='Firebase Auth не загрузился — проверь интернет';return;}
   // блокировка на 2 часа после попытки входа чужим Google-аккаунтом:
