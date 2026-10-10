@@ -64,6 +64,10 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--primary);color:var(--primary-text)}
 .btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
+/* Выбранная вкладка обязана отличаться от невыбранной. Раньше у вкладок
+   «Друзья»/«Другие» не было стиля для .active — обе выглядели одинаково,
+   и казалось, что они переставлены местами. */
+.btn-outline.active{background:var(--primary);color:var(--primary-text);border-color:var(--primary)}
 .btn-danger{background:var(--red);color:#fff}
 /* min-height:32px — в админке кнопки были 29px, на телефоне в них сложно попасть */
 .btn-sm{padding:8px 14px;font-size:14px;width:auto;margin-top:0;min-height:32px;display:inline-flex;align-items:center;justify-content:center}
@@ -83,21 +87,14 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .error-msg{color:var(--red);font-size:13px;margin-top:8px;min-height:18px}
 .success-msg{color:var(--green);font-size:13px;margin-top:8px;min-height:18px}
 .header{display:flex;align-items:center;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--surface2);gap:5px;min-height:52px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;position:relative}
-/* На телефоне в шапке профиля было 6 кнопок подряд — они не помещались.
-   Теперь одна кнопка «⋯», а остальные выезжают из-под неё вниз. */
+/* Кнопки в шапке на телефоне прятались под «⋯» — открыть их было негде, толку
+   от кнопки не было. Теперь они идут в ряд, просто мельче, и жать можно сразу. */
 .header-more{display:flex;align-items:center;gap:5px}
 .header-more-btn{display:none}
 @media(max-width:560px){
   .header{overflow:visible}
-  .header-more{position:absolute;top:calc(100% + 6px);right:8px;z-index:220;
-    flex-direction:column;gap:6px;align-items:stretch;
-    background:var(--surface);border:1px solid var(--surface3);border-radius:14px;
-    padding:8px;box-shadow:0 14px 40px rgba(0,0,0,.55);
-    opacity:0;visibility:hidden;transform:translateY(-10px) scale(.96);transform-origin:top right;
-    transition:opacity .2s ease,transform .24s cubic-bezier(.2,.9,.3,1),visibility .2s}
-  .header-more.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
-  .header-more .header-btn{width:100%;height:40px;border-radius:11px;justify-content:flex-start;padding-left:14px;font-size:17px}
-  .header-more-btn{display:flex}
+  .header-more{gap:4px}
+  .header-more .header-btn{width:32px;height:32px;font-size:15px}
 }
 /* Заголовок растягивается и прижимает все кнопки вправо — на телефоне они
    иначе уезжали за левый край и были не видны */
@@ -1144,7 +1141,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <button class="header-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
       <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
     </div>
-    <button class="header-btn header-more-btn" onclick="toggleHeaderMore('profMore',this)" title="Ещё">⋯</button>
   </div>
   <div class="profile-wrap">
     <div class="cover-slot">
@@ -1624,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 03:05';
+const BUILD='10.10.2026 04:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
