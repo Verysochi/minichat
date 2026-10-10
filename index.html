@@ -1620,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 04:35';
+const BUILD='10.10.2026 04:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2170,7 +2170,10 @@ async function finishEmailLogin(cred,login){
   if(!info.firebaseUid)db.ref('users/'+uid+'/firebaseUid').set(user?user.uid:'').catch(()=>{});
   if(info.authEmail!==email)db.ref('users/'+uid+'/authEmail').set(email).catch(()=>{});
   if(info.ban&&info.ban.full){await firebase.auth().signOut();e.textContent='⛔ Забанен';return;}
-  if(info.isAdmin&&ADMIN_EMAIL){await firebase.auth().signOut();e.textContent='Админ входит через Google — нажми кнопку ниже';return;}
+  // Раньше здесь стоял запрет: админ может входить только через Google. Он был
+  // нужен, пока пароля у админа не существовало. Теперь пароль есть, и запрет
+  // просто выкидывал человека уже после успешной проверки почты и пароля.
+  // Безопасность обеспечивает сам Firebase: без верного пароля он не пустит.
   // Одобрение живёт в approvals/, куда писать может только админ. Проверять users/<uid>/approved
   // бессмысленно: свою ветку пользователь правит сам и дописал бы approved:true руками.
   // Ключ — uid Firebase: именно его проверяют правила базы.
