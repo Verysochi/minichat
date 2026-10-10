@@ -1620,7 +1620,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 06:45';
+const BUILD='10.10.2026 06:50';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4936,7 +4936,7 @@ function pickRecType(mode){
   // На Android WebView 'audio/mp4' проходит проверку isTypeSupported, но внутри
   // отдаёт 'audio/mp4;codecs=opus' и не выдаёт ни байта: файл в 34 байта.
   const bad=recBadType?list.indexOf(recBadType):-1;
-  if(bad>0)list.splice(bad,1);
+  if(bad>=0)list.splice(bad,1);   // именно >=0: первый в списке тоже убираем
   if(typeof MediaRecorder==='undefined')return '';
   for(const t of list){try{if(MediaRecorder.isTypeSupported(t))return t;}catch(e){}}
   return '';
