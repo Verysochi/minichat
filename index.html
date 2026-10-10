@@ -96,6 +96,22 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
   .header-more{gap:4px}
   .header-more .header-btn{width:32px;height:32px;font-size:15px}
 }
+/* Шапка чата на телефоне: кнопок много, они налезали друг на друга и съедали
+   имя собеседника. Держим их за одной кнопкой «⋯» — по нажатию они выезжают
+   влево, к ней самой. На широком экране показываются как раньше, кнопки нет. */
+.chat-actions{display:flex;align-items:center;gap:5px}
+.chat-more-btn{display:none}
+@media(max-width:560px){
+  .chat-actions{display:none}
+  #chatHeader.open .chat-actions{display:flex;animation:chatActionsIn .22s cubic-bezier(.2,.9,.3,1)}
+  #chatHeader.open .chat-actions .header-btn{width:34px;height:34px;font-size:15px}
+  .chat-more-btn{display:flex}
+}
+@keyframes chatActionsIn{
+  from{opacity:0;transform:translateX(26px) scale(.9)}
+  to{opacity:1;transform:translateX(0) scale(1)}
+}
+.chat-more-btn.active{background:var(--primary);color:var(--primary-text)}
 /* Заголовок растягивается и прижимает все кнопки вправо — на телефоне они
    иначе уезжали за левый край и были не видны */
 .header h2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1324,11 +1340,15 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 </div>
 
 <div id="chatScreen" class="screen">
-  <div class="header">
+  <div class="header" id="chatHeader">
     <button class="header-btn back-btn" onclick="closeChat()"><span class="hicon">←</span></button>
     <button class="header-btn hide-narrow" onclick="closeChat()"><span class="hicon">🏠</span></button>
     <div id="chatAvatarWrap" onclick="openChatProfile()" style="cursor:pointer"></div>
     <div class="header-col" onclick="openChatProfile()" style="cursor:pointer"><h2 id="chatTitle">Чат</h2><div class="chat-sub" id="chatSub"></div></div>
+    <!-- На телефоне в шапке чата было до восьми кнопок: они налезали друг на
+         друга и съедали имя собеседника. Теперь они спрятаны за одной кнопкой
+         и по нажатию выезжают влево. На компьютере показываются как раньше. -->
+    <div class="chat-actions" id="chatActions">
     <button class="header-btn" id="callAudioBtn" style="display:none" onclick="startCall(currentOtherUid,'audio')"><span class="hicon">📞</span></button>
     <button class="header-btn" id="callVideoBtn" style="display:none" onclick="startCall(currentOtherUid,'video')"><span class="hicon">📹</span></button>
     <button class="header-btn" id="giBtn" onclick="showScreen('groupInfoScreen')" style="display:none"><span class="hicon">ℹ️</span></button>
@@ -1337,6 +1357,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
+    </div>
+    <button class="header-btn chat-more-btn" id="chatMoreBtn" onclick="toggleChatActions()" title="Ещё">⋯</button>
   </div>
   <div class="typing" id="incognitoBanner" style="display:none;color:#fdcb6e">🕵️ Инкогнито: только чтение</div>
   <div class="typing" id="typingIndicator"></div>
@@ -1620,7 +1642,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 07:05';
+const BUILD='10.10.2026 07:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1863,8 +1885,10 @@ async function boot(){
   window.addEventListener('beforeunload',()=>{if(currentUser){db.ref('users/'+currentUser.uid).update({online:false,lastSeen:Date.now()});if(callState)hangup(false);}});
   document.addEventListener('click',e=>{if(highlightedMsg&&!e.target.closest('.msg')&&!e.target.closest('.reaction-train'))clearHighlight();});
   // Выезжающее меню шапки само закрывается, если нажали мимо него
-  document.addEventListener('click',e=>{if(!e.target.closest('.header-more')&&!e.target.closest('.header-more-btn'))closeAllHeaderMore();});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAllHeaderMore();});
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.header-more')&&!e.target.closest('.header-more-btn'))closeAllHeaderMore();
+    if(!e.target.closest('#chatActions')&&!e.target.closest('#chatMoreBtn'))closeChatActions();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAllHeaderMore();closeChatActions();}});
   // Один обработчик на всю ленту: тап по подписи «От …» в пересланном сообщении
   document.addEventListener('click',e=>{
     // Кнопка «Перейти в чат» внутри пересланного сообщения
@@ -1987,6 +2011,7 @@ function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frL
 
 function showScreen(id){
   closeAllHeaderMore();   // выезжающее меню шапки не должно переезжать на другой экран
+  if(id!=='chatScreen')closeChatActions();   // то же — для кнопок шапки личного чата
   // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
   // угодно: обычный человек мог зайти и увидеть всех пользователей вместе
   // с кнопками «Бан», «Удалить» и прочим. Закрываем на уровне экрана.
@@ -3632,7 +3657,19 @@ function closeChat(){
   if(msgRef)msgRef.off();if(typRef)typRef.off();msgRef=null;typRef=null;
   if(isRecording)stopRecording();cancelRecorded();   // closeChat: музыку не рвём
   if(currentChatId&&!currentIsGroup&&!currentIncognito)db.ref('typing/'+currentChatId+'/'+currentUser.uid).remove();
-  currentChatId=null;currentOtherUid=null;currentIsGroup=false;currentIncognito=false;chatMediaQueue=[];showScreen('mainScreen');
+  currentChatId=null;currentOtherUid=null;currentIsGroup=false;currentIncognito=false;chatMediaQueue=[];closeChatActions();showScreen('mainScreen');
+}
+// Кнопка «⋯» в шапке чата: нажимаешь — кнопки выезжают влево, нажимаешь
+// ещё раз или мимо — уезжают обратно.
+function toggleChatActions(){
+  const h=document.getElementById('chatHeader');if(!h)return;
+  const on=!h.classList.contains('open');
+  h.classList.toggle('open',on);
+  const b=document.getElementById('chatMoreBtn');if(b)b.classList.toggle('active',on);
+}
+function closeChatActions(){
+  const h=document.getElementById('chatHeader');if(h)h.classList.remove('open');
+  const b=document.getElementById('chatMoreBtn');if(b)b.classList.remove('active');
 }
 function notifyIncoming(m){const prev=previewFor(m.type,m.name);
   const n=nameOf(m.sender,'кто-то');toast('💬 '+n+': '+prev);beep();vibrate();
