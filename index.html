@@ -1655,7 +1655,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 13:35';
+const BUILD='10.10.2026 14:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1831,7 +1831,11 @@ function checkSession(){
       // Возвращаем ту страницу, где человек был до F5 (админку, чаты, профиль…)
       // Показываем её в КОНЦЕ enterApp — раньше он успевал перебить её главным экраном
       const sc=localStorage.getItem('mc_screen');
-      pendingRestore=(sc&&sc!=='loginScreen'&&sc!=='registerScreen'&&document.getElementById(sc))?sc:null;
+      // Чат восстанавливать нельзя: открытый чат — это ещё и его содержимое,
+      // а оно живёт в памяти. Возвращались на пустую оболочку «Чат» без
+      // переписки — выглядело как «страница поймалась не на ту».
+      const NO_RESTORE=['loginScreen','registerScreen','chatScreen'];
+      pendingRestore=(sc&&NO_RESTORE.indexOf(sc)<0&&document.getElementById(sc))?sc:null;
       enterApp(uid,i);
     }else{clearSession();showScreen('loginScreen');}})
     .catch(()=>{clearSession();showScreen('loginScreen');});
@@ -2078,7 +2082,10 @@ function showScreen(id,fromBack){
   }
   currentScreenId=id;
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
-  if(id!=='loginScreen'&&id!=='registerScreen')localStorage.setItem('mc_screen',id);
+  // Чат не запоминаем как «куда вернуться»: его содержимое живёт в памяти,
+  // и после перезапуска там была бы пустая оболочка без переписки.
+  if(id!=='loginScreen'&&id!=='registerScreen'&&id!=='chatScreen')localStorage.setItem('mc_screen',id);
+  else if(id==='chatScreen')localStorage.removeItem('mc_screen');
   document.body.classList.toggle('login-active',id==='loginScreen'||id==='registerScreen');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
