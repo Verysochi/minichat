@@ -1644,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 09:20';
+const BUILD='10.10.2026 10:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1952,6 +1952,7 @@ function enterApp(uid,info){
   if(info.ban&&info.ban.full&&!adminHere){toast('⛔ Забанен');clearSession();showScreen('loginScreen');return;}
   currentUser=Object.assign({uid},info,{email:authEmail||info.login||''});
   currentUser.isAdmin=adminHere;                 // источник правды — почта, не запись в базе
+  pullNativeToken();                             // токен Push мог прийти, пока страница не слушала
   // Одобрение админа чинится само: запись могла не появиться (старые uid, база чистилась),
   // а без неё правила базы не пустят даже сообщения. Ключ — uid Firebase.
   if(adminHere){const fu=(firebase.auth&&firebase.auth().currentUser||{}).uid||uid;
@@ -3061,6 +3062,68 @@ function setAppBadge(n){
 function notifPermission(){return ('Notification' in window)?Notification.permission:'unsupported';}
 // Приложение на телефоне отдаёт разрешения сама — об этом знает мостик MiniChatNative.
 const NATIVE_APP=(function(){try{return !!(window.MiniChatNative&&window.MiniChatNative.isApp&&window.MiniChatNative.isApp());}catch(e){return false;}})();
+
+// ===== Приём от обёртки: токен Push, разрешения, системная камера =====
+// Мостик вызывает это из Java. Оно не должно падать: если что-то сломается,
+// лучше тихо не работать, чем уронить страницу.
+let nativeCaptureWait=null;
+window.__mcNative=function(kind,val){
+  try{
+    if(kind==='token'){saveFcmToken(val);return;}
+    if(kind==='notifPerm'){onNativeNotifPerm(val);return;}
+    if(kind==='cameraDone'){
+      const w=nativeCaptureWait;nativeCaptureWait=null;
+      if(w)w(val?'data:image/jpeg;base64,'+val:'');return;}
+    if(kind==='cameraError'){
+      const w=nativeCaptureWait;nativeCaptureWait=null;
+      if(w)w('');toast('Камера: '+(val||'не открылась'));return;}
+  }catch(e){console.warn('мост нативный',e);}
+};
+// Камера телефона вместо нашей: там есть зум, вспышка, галерея и эффекты.
+function captureViaNativeCamera(){
+  if(!NATIVE_APP||!window.MiniChatNative.camera)return Promise.resolve(null);
+  return new Promise(res=>{
+    nativeCaptureWait=res;
+    try{window.MiniChatNative.camera('image');}
+    catch(e){nativeCaptureWait=null;res(null);}
+  });
+}
+// Токен телефона для Push. Без него уведомления при закрытом приложении не придут.
+let fcmTokenSaved='';
+function saveFcmToken(tok){
+  if(!tok||!currentUser||tok===fcmTokenSaved)return;
+  fcmTokenSaved=tok;
+  db.ref('users/'+currentUser.uid+'/fcm').set(tok).catch(()=>{});
+}
+// Токен мог обновиться, пока приложение лежало: забираем сохранённый.
+function pullNativeToken(){
+  if(!NATIVE_APP||!window.MiniChatNative.token)return;
+  setTimeout(()=>{try{saveFcmToken(window.MiniChatNative.token());}catch(e){}},1200);
+}
+function onNativeNotifPerm(p){
+  const sw=document.getElementById('notifSw');if(sw)sw.checked=(p==='granted');
+  const st=document.getElementById('notifState');if(st)st.textContent=(p==='granted'?'включены':p==='denied'?'запрещены':'выключены');
+  if(p==='granted'){toast('🔔 Уведомления включены — теперь они придут и при закрытом приложении',true);
+    const b=document.getElementById('notifHintBar');if(b)b.style.display='none';}
+}
+// Посредник, который отправляет Push через Firebase Cloud Messaging.
+const PUSH_URL='https://minichat-push.minichat-push.workers.dev';
+async function pushNotify(uid,title,body,data){
+  const tok=(ALL_USERS[uid]||{}).fcm;
+  if(!tok)return;                       // у человека нет приложения — Push ему некуда
+  try{
+    const fu=firebase.auth().currentUser;if(!fu)return;
+    const idt=await fu.getIdToken();
+    const r=await fetch(PUSH_URL,{method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+idt},
+      body:JSON.stringify({tokens:[tok],title:title||'MiniChat',body:body||'',data:data||{}})});
+    if(!r.ok)return;
+    const j=await r.json();
+    // Телефон сказал, что токен больше не существует — выкидываем его,
+    // иначе приложение будет биться в него при каждом сообщении.
+    if(j.dead&&j.dead.length)db.ref('users/'+uid+'/fcm').remove().catch(()=>{});
+  }catch(e){}
+}
 async function toggleNotifs(on){
   if(!on){
     // Выключить разрешение из приложения браузер не даёт — честно говорим об этом.
@@ -3132,7 +3195,14 @@ function showNotifHint(){
   bar.style.display='flex';
 }
 function applyTheme(id){if(!THEMES.find(t=>t.id===id))id='dark';document.documentElement.setAttribute('data-theme',id);localStorage.setItem('mc_theme',id);if(currentUser)db.ref('users/'+currentUser.uid+'/theme').set(id);}
-function notifyUser(uid,type,title,text,extra){if(!uid||uid===currentUser.uid||!ALL_USERS[uid])return;db.ref('notifs/'+uid).push(Object.assign({type,title:title||'',text,ts:Date.now(),read:false},extra||{}));}
+function notifyUser(uid,type,title,text,extra){
+  if(!uid||uid===currentUser.uid||!ALL_USERS[uid])return;
+  const payload=Object.assign({type,title:title||'',text,ts:Date.now(),read:false},extra||{});
+  db.ref('notifs/'+uid).push(payload);
+  // Запись в базе — для открытого приложения. Настоящее уведомление на
+  // закрытый телефон отправляет посредник через Firebase Cloud Messaging.
+  pushNotify(uid,title,text,{type:type,chatId:(extra&&extra.chatWith)||(extra&&extra.chatId)||''});
+}
 // Рассылка всем друзьям: новая запись в колонке интересует их всех.
 // Раньше уведомление не уходило НИКОМУ — запись просто появлялась молча.
 function notifyAllFriends(type,title,text,extra){
@@ -3304,6 +3374,15 @@ function closeChooser(){document.getElementById('mediaChooser').classList.remove
 function chooseGal(){closeChooser();document.getElementById('mediaGal').click();}
 async function chooseCam(facing){
   closeChooser();
+  // В приложении открываем обычную камеру телефона: свой плеер камеры был хуже —
+  // без зума, вспышки, галереи и эффектов.
+  if(NATIVE_APP){
+    toast('📷 Открываю камеру телефона…');
+    const url=await captureViaNativeCamera();
+    if(url){addAttachmentFromDataUrl(url,'image');toast('📷 Готово');return;}
+    toast('Камера закрыта без снимка');
+    return;
+  }
   const ov=document.getElementById('cameraOverlay'),video=document.getElementById('cameraPreview'),err=document.getElementById('cameraError');
   err.textContent='';
   ov.classList.add('active');
@@ -3358,6 +3437,15 @@ function captureAttachmentPhoto(){
   toast('📸 Фото добавлено',true);
 }
 function dataUrlBytes(data){const p=data.indexOf(',');if(p<0)return 0;return Math.max(0,Math.ceil((data.length-p-1)*3/4));}
+// Снимок из системной камеры телефона кладём тем же путём, что и из галереи.
+async function addAttachmentFromDataUrl(url,type){
+  const t=pendingMediaTarget;
+  const name=(type==='video'?'camera_':'camera_')+Date.now()+(type==='video'?'.mp4':'.jpg');
+  const item={type:type==='video'?'video':'image',data:url,name:name,size:dataUrlBytes(url),
+              thumb:type==='video'?null:await thumbFromDataUrl(url,'image')};
+  if(!t){toast('Куда добавлять?');return;}
+  pushToQueue(t,item);
+}
 function pushToQueue(target,item){
   const q=queueFor(target);if(!q)return;
   if(q.length>=MAX_MEDIA_ITEMS){toast('Максимум '+MAX_MEDIA_ITEMS+' файлов');return;}
