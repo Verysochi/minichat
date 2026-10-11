@@ -1644,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 11:55';
+const BUILD='10.10.2026 12:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -5436,12 +5436,17 @@ async function setupCall(id,peer,type,role){
 // вечного «Подключение», и без этих цифр её не увидеть.
   const iceStats={host:0,srflx:0,prflx:0,relay:0,tcp:0,udp:0};
   pc.onicecandidate=e=>{
-    if(!e.candidate){db.ref('calls/'+id+'/iceStats/'+role).set(iceStats).catch(()=>{});return;}
+    if(!e.candidate){
+      if(callState){callState.ice=Object.assign({},iceStats);try{db.ref('calls/'+id+'/iceStats/'+role).set(iceStats).catch(()=>{});}catch(x){}}
+      return;
+    }
     const c=e.candidate;
     if(iceStats[c.type]!=null)iceStats[c.type]++;
     if(/^tcp$/i.test(c.protocol||''))iceStats.tcp++;
     if(/^udp$/i.test(c.protocol||''))iceStats.udp++;
-    db.ref('calls/'+id+'/ice/'+role).push({c:c.toJSON()});
+    // toJSON() НЕ содержит типа и протокола — без них в базе нечего было
+    // прочитать, и причина вечного «Подключение» оставалась загадкой.
+    db.ref('calls/'+id+'/ice/'+role).push({c:c.toJSON(),t:c.type,p:c.protocol});
   };
   pc.ontrack=e=>{const rv=document.getElementById('remoteVideo');if(rv.srcObject!==e.streams[0])rv.srcObject=e.streams[0];};
   pc.onconnectionstatechange=()=>{if(pc&&(pc.connectionState==='failed'||pc.connectionState==='disconnected')){toast('Связь потеряна');hangup(true);}};
@@ -5494,14 +5499,18 @@ function showCallOverlay(type){document.getElementById('callOverlay').classList.
   document.getElementById('callName').textContent=nameOf(callState.peer);
   document.getElementById('callType').textContent=(type==='video'?'📹 Видео':'📞 Аудио')+' · соединение...';
   // Раньше надпись «соединение...» висела бесконечно: если ICE не соединился
-  // (мобильный NAT, запрещён UDP), человек так и ждал. Теперь через полторы
-  // минуты честно говорим, что не вышло, и закрываем звонок.
+  // (мобильный NAT, запрещён UDP), человек так и ждал. Теперь ждём недолго и
+  // показываем, СКОЛЬКО путей нашлось: если relay — ноль, то напрямую не
+  // соединиться в принципе, и никакое терпение не поможет.
   clearCallTimeout();
   callTimeout=setTimeout(()=>{
     if(!callState||callState.activeTs)return;
-    toast('Не удалось соединиться — сеть не пропускает звонок');
+    const st=callState.ice||{};
+    const noRelay=!st.relay;
+    toast(noRelay?'Не соединилось: не нашлось ни одного пути через TURN'
+                  :'Не соединилось за 40 секунд',true);
     hangup(true);
-  },90000);
+  },40000);
   const show=type==='video'?'block':'none';
   document.getElementById('remoteVideo').style.display=show;document.getElementById('localVideo').style.display=show;}
 function hangup(remote){
