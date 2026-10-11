@@ -2056,9 +2056,11 @@ function showScreen(id,fromBack){
   // Запоминаем маршрут и добавляем запись в историю браузера, чтобы кнопка
   // «назад» работала и на компьютере, а не уводила с сайта.
   const prevId=currentScreenId;
-  if(prevId&&prevId!==id){
+  if(prevId&&prevId!==id&&!fromBack){
+    // При возврате НАЗАД стек трогать нельзя: мы только что сняли с него вершину,
+    // и экран, ОТКУДА ушли, снова попал бы в стек — «назад» прыгал бы туда-обратно.
     navTrack(prevId,id);
-    if(!fromBack)try{history.pushState({mc:Date.now(),screen:id},'');}catch(e){}
+    try{history.pushState({mc:Date.now(),screen:id},'');}catch(e){}
   }
   currentScreenId=id;
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
