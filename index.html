@@ -1284,6 +1284,17 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         <label class="sw" title="Включить / выключить"><input type="checkbox" id="notifSw" onchange="toggleNotifs(this.checked)"><span class="sw-track"></span></label>
       </div>
       <div style="font-size:12px;color:var(--text3);margin-top:6px">Чтобы уведомления приходили, когда вкладка свёрнута, добавь MiniChat на главный экран телефона.</div>
+      <!-- Проверка уведомлений своими руками. Раньше было непонятно, где обрыв:
+           то ли телефон не забрал токен, то ли запрещены уведомления, то ли
+           Firebase принял, а показать нечем. Здесь видно каждое звено цепочки. -->
+      <div id="pushDiag" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--surface2)">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">🔍 Проверка уведомлений</div>
+        <div id="pushDiagInfo" style="font-size:11px;color:var(--text3);line-height:1.6"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="pushDiagTest()">🔔 Проверить</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="showScreen('notifScreen')">Журнал</button>
+        </div>
+      </div>
     </div>
     <div class="profile-card">
       <button class="btn btn-primary" onclick="saveProfileAll()">💾 Сохранить всё</button>
@@ -1644,7 +1655,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 12:40';
+const BUILD='10.10.2026 13:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3151,6 +3162,49 @@ function pullNativeToken(){
   if(!NATIVE_APP||!window.MiniChatNative.token)return;
   setTimeout(()=>{try{saveFcmToken(window.MiniChatNative.token());}catch(e){}},1200);
 }
+// Проверка цепочки уведомлений на живом устройстве.
+// Каждое звено показывается отдельно: без этого непонятно, где обрыв.
+async function pushDiagRender(){
+  const box=document.getElementById('pushDiagInfo');if(!box)return;
+  const rows=[];
+  const isApp=NATIVE_APP;
+  rows.push((isApp?'✅':'ℹ️')+' Запущено в приложении: '+(isApp?'да':'в браузере'));
+  if(!isApp){box.innerHTML=rows.join('<br>');return;}
+  let tok='';
+  try{tok=(window.MiniChatNative.token&&window.MiniChatNative.token())||'';}catch(e){}
+  rows.push((tok?'✅':'❌')+' Токен телефона: '+(tok?tok.slice(0,14)+'…'+tok.slice(-6):'не получен'));
+  const mine=(ALL_USERS[currentUser.uid]||{}).fcm||'';
+  rows.push((mine?'✅':'❌')+' Токен в базе: '+(mine?'записан':'нет'));
+  box.innerHTML=rows.join('<br>');
+  if(tok&&tok!==fcmTokenSaved)saveFcmToken(tok);
+}
+// Проверка: просим разрешение и отправляем Push САМОМУ СЕБЕ.
+async function pushDiagTest(){
+  await pushDiagRender();
+  if(NATIVE_APP&&window.MiniChatNative.requestNotifications){
+    window.MiniChatNative.requestNotifications();
+    await new Promise(r=>setTimeout(r,1200));
+  }
+  let tok='';
+  try{tok=(window.MiniChatNative.token&&window.MiniChatNative.token())||'';}catch(e){}
+  if(tok)saveFcmToken(tok);
+  await new Promise(r=>setTimeout(r,700));
+  const mine=(ALL_USERS[currentUser.uid]||{}).fcm||tok;
+  if(!mine){toast('Токен не получен — телефон не зарегистрирован в Firebase');return;}
+  toast('⏳ Отправляю проверку…');
+  try{
+    const fu=firebase.auth().currentUser;if(!fu){toast('Нет входа');return;}
+    const idt=await fu.getIdToken();
+    const r=await fetch(PUSH_URL,{method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+idt},
+      body:JSON.stringify({tokens:[mine],title:'✅ Проверка MiniChat',
+                           body:'Если ты видишь это — уведомления работают',
+                           data:{type:'test'}})});
+    const j=await r.json();
+    toast(j.sent?('Отправлено: '+j.sent+'. Жди уведомление.'):('Не отправлено: '+JSON.stringify(j).slice(0,90)),!j.sent);
+    pushDiagRender();
+  }catch(e){toast('Ошибка отправки: '+e.message);}
+}
 function onNativeNotifPerm(p){
   const sw=document.getElementById('notifSw');if(sw)sw.checked=(p==='granted');
   const st=document.getElementById('notifState');if(st)st.textContent=(p==='granted'?'включены':p==='denied'?'запрещены':'выключены');
@@ -3716,8 +3770,6 @@ function openChat(chatId,otherUid,spy){
   currentChatId=chatId;currentOtherUid=otherUid;currentIsGroup=isGid(chatId);
   currentIncognito=!!spy||(currentIsGroup&&!isMember(chatId)&&!!currentUser.isAdmin);
   if(msgRef)msgRef.off();if(typRef)typRef.off();
-  rememberChatSeen(currentChatId);          // прощальный след: до этого места я уже видел
-  const lastSeenChat=+(localStorage.getItem(seenStampKey(chatId))||0);
   cancelRecorded();
   // Раньше здесь стоял stopSong() — при открытии любого чата музыка и голосовое
   // обрывались. Убираем: трек играет, пока его не остановят вручную.
@@ -3760,7 +3812,7 @@ function openChat(chatId,otherUid,spy){
   setTimeout(()=>{const c=document.getElementById('messagesContainer');if(c)c.scrollTop=c.scrollHeight;},120);
   scheduleChatBottom();
   // Реакции, накопленные пока меня не было в чате, проигрываются при входе.
-  setTimeout(()=>{rememberChatSeen(chatId);replayMissedReactions(chatId,lastSeenChat);},1400);
+  setTimeout(()=>replayMissedReactions(chatId),1500);
 }
 // Чат открывается — прижимаем ленту к низу. Раньше был ОДИН прокрут вниз, и он
 // срабатывал раньше, чем догрузились картинки и видео: высота ленты менялась,
@@ -3886,6 +3938,22 @@ function commitMessage(chatId,key,payload,preview){
         db.ref(path).update({lastMsg:preview,lastTs:payload.ts,unread:1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me}).catch(()=>{});
       });
     }}
+  // Уведомление о сообщении. Раньше его здесь НЕ БЫЛО: получатель узнавал о новом
+  // сообщении только если этот чат уже был открыт — потому что слушатель сообщений
+  // вешается на открытый чат. Закрытый чат молчал, и Push тоже не уходил: слать
+  // его было некому. Теперь уведомление получает и открытое приложение, и телефон.
+  const brief=(payload.type==='text'&&payload.text)?String(payload.text).slice(0,120):(preview||'');
+  const who=displayNameOf(currentUser);
+  if(isGid(chatId)){
+    db.ref('groups/'+chatId).once('value').then(s3=>{
+      const g3=s3.val()||{};
+      Object.keys(g3.members||{}).forEach(uid=>{
+        if(uid!==currentUser.uid)notifyUser(uid,'chat',who,brief,{chatWith:currentUser.uid});
+      });
+    }).catch(()=>{});
+  }else if(currentOtherUid&&currentOtherUid!==currentUser.uid){
+    notifyUser(currentOtherUid,'chat',who,brief,{chatWith:currentUser.uid});
+  }
 }
 function sendQueuedItem(chatId,item,textWithFirst,idx){
   const key=db.ref('messages/'+chatId).push().key;
@@ -4344,37 +4412,65 @@ function reactFaceHtml(uid){
   return '<span class="r-face r-face-txt" style="background:'+(i&&i.color||'#555')+';color:#fff" title="'+escA(n)+'">'+esc(ch)+'</span>';
 }
 // Анимация реакций, которых человек не видел. Зашёл в чат — а реакции
-// проигрались, как будто он всё это время был в переписке. Раньше при входе
-// показывалась только готовая метка, без движения.
-const REPLAY_MAX=6;
-function replayMissedReactions(chatId,lastSeen){
-  if(!lastSeen||!MSGS)return;
-  let played=0;
+// проигрались, как будто он всё это время был в переписке.
+//
+// Раньше фильтр сравнивал ВРЕМЯ СООБЩЕНИЯ с моментом последнего захода.
+// Это неверно: реакцию на старое сообщение ставят спустя часы, и она всегда
+// отсекалась. Теперь помним, какие конкретно реакции уже показывали,
+// по паре «сообщение:кто поставил» — так ничего не теряется.
+const REPLAY_MAX=8;
+function seenRxKey(chatId){return 'mc_rx_'+chatId;}
+function loadSeenReactions(chatId){
+  try{return JSON.parse(localStorage.getItem(seenRxKey(chatId))||'{}')||{};}
+  catch(e){return {};}
+}
+function saveSeenReactions(chatId,obj){
+  try{
+    const ks=Object.keys(obj);
+    if(ks.length>400){for(let i=0;i<200;i++)delete obj[ks[i]];}
+    localStorage.setItem(seenRxKey(chatId),JSON.stringify(obj));
+  }catch(e){}
+}
+function replayMissedReactions(chatId){
+  if(!MSGS||!chatId)return;
+  const seen=loadSeenReactions(chatId);
+  const box=document.getElementById('messagesContainer');
+  let played=0,changed=false;
+  const boxTop=box?box.getBoundingClientRect().top:0;
+  const boxBot=box?box.getBoundingClientRect().bottom:1e9;
+
   Object.keys(MSGS).forEach(key=>{
-    if(played>=REPLAY_MAX)return;
     const m=MSGS[key];
     if(!m)return;
-    if((m.ts||0)<=lastSeen)return;              // это случилось, пока я смотрел
     const rs=m.reactions||{};
-    const who=Object.keys(rs).filter(u=>rs[u]&&u!==currentUser.uid);
-    if(!who.length)return;
-    who.forEach(u=>{
-      if(played>=REPLAY_MAX)return;
+    Object.keys(rs).forEach(u=>{
       const emoji=rs[u];
-      const gap=played*520;
+      if(!emoji)return;
+      const mk=key+':'+u;
+      if(seen[mk]===emoji)return;              // эту уже показывали
+      seen[mk]=emoji;changed=true;
+      if(played>=REPLAY_MAX)return;
+      if(u===currentUser.uid)return;           // свою реакцию не проигрываем
+      const el=document.querySelector('.msg[data-key="'+CSS_ID(key)+'"]');
+      if(!el)return;
+      const b=el.getBoundingClientRect();
+      if(!b.width||!b.height)return;
+      // Анимация за экраном не видна: проиграть её — значит ничего не показать.
+      // Берём только то, что попадает в окно чата.
+      if(b.bottom<boxTop||b.top>boxBot)return;
       played++;
+      const gap=played*520;
       setTimeout(()=>{
-        const el=document.querySelector('.msg[data-key="'+CSS_ID(key)+'"]');
-        if(!el)return;
-        const b=el.getBoundingClientRect();
-        if(!b.width||!b.height)return;
-        fxReactionAt(b.left+b.width/2,b.top+Math.min(b.height,140)/2,emoji);
+        const e2=document.querySelector('.msg[data-key="'+CSS_ID(key)+'"]');
+        if(!e2)return;
+        const r2=e2.getBoundingClientRect();
+        if(!r2.width||!r2.height)return;
+        fxReactionAt(r2.left+r2.width/2,r2.top+Math.min(r2.height,140)/2,emoji);
       },500+gap);
     });
   });
+  if(changed)saveSeenReactions(chatId,seen);
 }
-function seenStampKey(chatId){return 'mc_seen_'+chatId;}
-function rememberChatSeen(chatId){try{if(chatId)localStorage.setItem(seenStampKey(chatId),String(Date.now()));}catch(e){}}
 function setMsgReaction(basePath,id,context,emoji){
   const ref=db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid);
   // Снимаем координаты СРАЗУ, до закрытия панели. Раньше мы сохраняли сам
@@ -6936,6 +7032,7 @@ function renderProfileEdit(){
   if(sw){sw.checked=np==='granted';sw.disabled=(np==='unsupported');}
   const ns=document.getElementById('notifState');
   if(ns)ns.textContent=(np==='granted'?'включены':np==='denied'?'запрещены в браузере':np==='unsupported'?'браузер не умеет':'выключены');
+  pushDiagRender();   // раздел проверки виден сразу при открытии профиля
   const fr=document.getElementById('frameRow');fr.innerHTML='';
   FRAMES.forEach(f=>{const b=document.createElement('button');b.className='frame-opt'+((i.frame||'')===f.id?' sel':'');
     b.innerHTML='<span class="frame-dot'+(f.id?' frame-'+f.id:'')+'"></span>'+f.name;
