@@ -1644,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 10:05';
+const BUILD='10.10.2026 11:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1656,7 +1656,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='',recGen=0,recFailStreak=0;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='',recGen=0,recFailStreak=0,currentScreenId=null;
 // Поколение записи. Пока flushRecorder ждёт последний кусок, запись могут
 // отменить (🗑) — тогда результат должен молча выброситься, а не отправиться.
 // Форматы, которые на этом устройстве молча пишут пустоту. Запоминаем между
@@ -2014,7 +2014,35 @@ function doLogout(){
 }
 function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frLRef,frqLRef,ginLRef,blkLRef,postsLRef,incomingRef,prLRef,propLRef,delLogRef,sessLogRef,attLogRef,relLRef,relqLRef,msgRef,typRef].forEach(r=>{if(r)r.off();});}
 
-function showScreen(id){
+// ===== Маршрут «назад» =====
+// Раньше кнопка назад полагалась на историю браузера. Она ничего не знает о
+// наших экранах: на компьютере уводила с сайта, а на телефоне выкидывала из
+// приложения. Теперь ведём свой стек экранов и возвращаем по нему.
+const NAV_ROOTS=['mainScreen','newsScreen','myColumnScreen','friendsScreen','adminScreen'];
+let navStack=[],navLock=false;
+function navTrack(prev,next){
+  if(!prev||prev===next)return;
+  if(NAV_ROOTS.indexOf(next)>=0){navStack=[];return;}   // перешли на вкладку — стек сбросили
+  if(NAV_ROOTS.indexOf(prev)>=0){navStack=[prev];return;}
+  navStack.push(prev);
+}
+// Вернуться на шаг назад. fromHistory=true — когда назад нажали в браузере,
+// тогда новую запись в историю добавлять не надо, иначе получится зацикливание.
+function goBack(fromHistory){
+  if(!currentUser)return false;
+  if(currentScreenId==='chatScreen'){closeChat();return true;}
+  if(navStack.length){const prev=navStack.pop();showScreen(prev,true);return true;}
+  if(currentScreenId&&NAV_ROOTS.indexOf(currentScreenId)<0){navStack=[];showScreen('mainScreen',true);return true;}
+  if(fromHistory)return false;
+  return false;
+}
+window.addEventListener('popstate',()=>{
+  // Браузер ушёл назад по своей истории: возвращаем экран и не добавляем
+  // новую запись, иначе кнопка «назад» залипла бы в цикл.
+  if(navLock)return;
+  navLock=true;goBack(true);setTimeout(()=>{navLock=false;},60);
+});
+function showScreen(id,fromBack){
   closeAllHeaderMore();   // выезжающее меню шапки не должно переезжать на другой экран
   if(id!=='chatScreen')closeChatActions();   // то же — для кнопок шапки личного чата
   // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
@@ -2025,6 +2053,14 @@ function showScreen(id){
     id=(currentUser?'mainScreen':'loginScreen');
   }
   document.body.classList.remove('booting');   // загрузка закончилась — первый экран показан
+  // Запоминаем маршрут и добавляем запись в историю браузера, чтобы кнопка
+  // «назад» работала и на компьютере, а не уводила с сайта.
+  const prevId=currentScreenId;
+  if(prevId&&prevId!==id){
+    navTrack(prevId,id);
+    if(!fromBack)try{history.pushState({mc:Date.now(),screen:id},'');}catch(e){}
+  }
+  currentScreenId=id;
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
   if(id!=='loginScreen'&&id!=='registerScreen')localStorage.setItem('mc_screen',id);
   document.body.classList.toggle('login-active',id==='loginScreen'||id==='registerScreen');
@@ -3614,6 +3650,9 @@ function afterMediaLoad(key){
     try{fn();}catch(e){}
   });
   renderCovers();
+  // Подгрузившийся файл меняет высоту ленты — если чат как раз открывается,
+  // он обязан остаться прижатым к низу, иначе прыгнет в середину.
+  if(document.getElementById('chatScreen')&&document.getElementById('chatScreen').classList.contains('active'))scheduleChatBottom();
   ppRefreshKey(key);   // открытый кадр в фотоплеере обновляем на полное качество
 }
 function dataUrlToBlob(u){const a=u.split(','),m=(a[0].match(/:(.*?);/)||[,'application/octet-stream'])[1],b=atob(a[1]),u8=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u8[i]=b.charCodeAt(i);return new Blob([u8],{type:m});}
@@ -3662,10 +3701,13 @@ function openChat(chatId,otherUid,spy){
   currentChatId=chatId;currentOtherUid=otherUid;currentIsGroup=isGid(chatId);
   currentIncognito=!!spy||(currentIsGroup&&!isMember(chatId)&&!!currentUser.isAdmin);
   if(msgRef)msgRef.off();if(typRef)typRef.off();
+  rememberChatSeen(currentChatId);          // прощальный след: до этого места я уже видел
+  const lastSeenChat=+(localStorage.getItem(seenStampKey(chatId))||0);
   cancelRecorded();
   // Раньше здесь стоял stopSong() — при открытии любого чата музыка и голосовое
   // обрывались. Убираем: трек играет, пока его не остановят вручную.
   MSGS={};mediaCache={};translations={};chatMediaQueue=[];renderMediaContainer('chat');
+  chatOpenAt=Date.now();
   document.getElementById('messagesContainer').innerHTML='';
   document.getElementById('msgInput').value='';document.getElementById('typingIndicator').textContent='';
   const dm=!currentIsGroup&&!currentIncognito&&otherUid;
@@ -3701,6 +3743,24 @@ function openChat(chatId,otherUid,spy){
   msgRef.on('child_changed',sn=>{MSGS[sn.key]=sn.val();updateMsgEl(sn.key,sn.val());});
   if(!currentIsGroup&&!currentIncognito){typRef=db.ref('typing/'+chatId+'/'+otherUid);typRef.on('value',sn=>{const v=sn.val();document.getElementById('typingIndicator').textContent=(v&&v.ts&&(Date.now()-v.ts<3000))?'печатает...':'';});}
   setTimeout(()=>{const c=document.getElementById('messagesContainer');if(c)c.scrollTop=c.scrollHeight;},120);
+  scheduleChatBottom();
+  // Реакции, накопленные пока меня не было в чате, проигрываются при входе.
+  setTimeout(()=>{rememberChatSeen(chatId);replayMissedReactions(chatId,lastSeenChat);},1400);
+}
+// Чат открывается — прижимаем ленту к низу. Раньше был ОДИН прокрут вниз, и он
+// срабатывал раньше, чем догрузились картинки и видео: высота ленты менялась,
+// и чат оставался посередине. Теперь держим низ, пока открытие не завершилось.
+let chatOpenAt=0;
+function stickChatBottom(){
+  const c=document.getElementById('messagesContainer');
+  if(!c||!c.scrollHeight)return;
+  c.scrollTop=c.scrollHeight;
+}
+function scheduleChatBottom(){
+  stickChatBottom();
+  [90,220,450,800,1400,2400].forEach(t=>setTimeout(()=>{
+    if(Date.now()-chatOpenAt<4000)stickChatBottom();
+  },t));
 }
 function markRead(cid){db.ref('messages/'+cid).once('value').then(s=>{const up={};s.forEach(c=>{const m=c.val();if(m.sender!==currentUser.uid&&!m.read){up[c.key+'/read']=true;up[c.key+'/deliv']=true;}});if(Object.keys(up).length)db.ref('messages/'+cid).update(up);});}
 function deleteChat(){
@@ -4268,6 +4328,38 @@ function reactFaceHtml(uid){
   if(i&&i.avatar)return '<img class="r-face" src="'+i.avatar+'" title="'+escA(n)+'">';
   return '<span class="r-face r-face-txt" style="background:'+(i&&i.color||'#555')+';color:#fff" title="'+escA(n)+'">'+esc(ch)+'</span>';
 }
+// Анимация реакций, которых человек не видел. Зашёл в чат — а реакции
+// проигрались, как будто он всё это время был в переписке. Раньше при входе
+// показывалась только готовая метка, без движения.
+const REPLAY_MAX=6;
+function replayMissedReactions(chatId,lastSeen){
+  if(!lastSeen||!MSGS)return;
+  let played=0;
+  Object.keys(MSGS).forEach(key=>{
+    if(played>=REPLAY_MAX)return;
+    const m=MSGS[key];
+    if(!m)return;
+    if((m.ts||0)<=lastSeen)return;              // это случилось, пока я смотрел
+    const rs=m.reactions||{};
+    const who=Object.keys(rs).filter(u=>rs[u]&&u!==currentUser.uid);
+    if(!who.length)return;
+    who.forEach(u=>{
+      if(played>=REPLAY_MAX)return;
+      const emoji=rs[u];
+      const gap=played*520;
+      played++;
+      setTimeout(()=>{
+        const el=document.querySelector('.msg[data-key="'+CSS_ID(key)+'"]');
+        if(!el)return;
+        const b=el.getBoundingClientRect();
+        if(!b.width||!b.height)return;
+        fxReactionAt(b.left+b.width/2,b.top+Math.min(b.height,140)/2,emoji);
+      },500+gap);
+    });
+  });
+}
+function seenStampKey(chatId){return 'mc_seen_'+chatId;}
+function rememberChatSeen(chatId){try{if(chatId)localStorage.setItem(seenStampKey(chatId),String(Date.now()));}catch(e){}}
 function setMsgReaction(basePath,id,context,emoji){
   const ref=db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid);
   // Снимаем координаты СРАЗУ, до закрытия панели. Раньше мы сохраняли сам
@@ -5323,7 +5415,19 @@ async function setupCall(id,peer,type,role){
   document.getElementById('localVideo').srcObject=localStream;
   pc=new RTCPeerConnection(RTC);
   localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
-  pc.onicecandidate=e=>{if(e.candidate)db.ref('calls/'+id+'/ice/'+role).push({c:e.candidate.toJSON()});};
+  // Считаем, какие пути нашлись. host — свой адрес, srflx — через STUN,
+// relay — через TURN. Если relay нет, соединение невозможно: значит UDP
+// закрыт, а публичные TURN-серверы не ответили. Самая частая причина
+// вечного «Подключение», и без этих цифр её не увидеть.
+  const iceStats={host:0,srflx:0,prflx:0,relay:0,tcp:0,udp:0};
+  pc.onicecandidate=e=>{
+    if(!e.candidate){db.ref('calls/'+id+'/iceStats/'+role).set(iceStats).catch(()=>{});return;}
+    const c=e.candidate;
+    if(iceStats[c.type]!=null)iceStats[c.type]++;
+    if(/^tcp$/i.test(c.protocol||''))iceStats.tcp++;
+    if(/^udp$/i.test(c.protocol||''))iceStats.udp++;
+    db.ref('calls/'+id+'/ice/'+role).push({c:c.toJSON()});
+  };
   pc.ontrack=e=>{const rv=document.getElementById('remoteVideo');if(rv.srcObject!==e.streams[0])rv.srcObject=e.streams[0];};
   pc.onconnectionstatechange=()=>{if(pc&&(pc.connectionState==='failed'||pc.connectionState==='disconnected')){toast('Связь потеряна');hangup(true);}};
   // Причина вечного «Подключение» была неочевидной, поэтому пишем состояние
