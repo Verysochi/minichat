@@ -1644,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 11:20';
+const BUILD='10.10.2026 11:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2060,7 +2060,10 @@ function showScreen(id,fromBack){
     // При возврате НАЗАД стек трогать нельзя: мы только что сняли с него вершину,
     // и экран, ОТКУДА ушли, снова попал бы в стек — «назад» прыгал бы туда-обратно.
     navTrack(prevId,id);
-    try{history.pushState({mc:Date.now(),screen:id},'');}catch(e){}
+    // Запись в историю браузера нужна только на сайте: там кнопка «назад» —
+    // это кнопка самого браузера. В приложении назад обрабатывает обёртка,
+    // и история браузера там только мешает: она копится и обрезается сама.
+    if(!NATIVE_APP)try{history.pushState({mc:Date.now(),screen:id},'');}catch(e){}
   }
   currentScreenId=id;
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
@@ -3109,6 +3112,16 @@ window.__mcNative=function(kind,val){
   try{
     if(kind==='token'){saveFcmToken(val);return;}
     if(kind==='notifPerm'){onNativeNotifPerm(val);return;}
+    if(kind==='back'){
+      // Кнопка «назад» на телефоне. Раньше обёртка звала историю WebView —
+      // она ничего не знает о наших экранах и могла решить, что идти некуда.
+      // Теперь решение принимает страница, а обёртка спрашивает у неё.
+      const moved=goBack();
+      if(!moved&&window.MiniChatNative&&window.MiniChatNative.backUnhandled){
+        window.MiniChatNative.backUnhandled();
+      }
+      return;
+    }
     if(kind==='cameraDone'){
       const w=nativeCaptureWait;nativeCaptureWait=null;
       if(w)w(val?'data:image/jpeg;base64,'+val:'');return;}
