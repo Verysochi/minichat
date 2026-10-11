@@ -1644,7 +1644,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 08:05';
+const BUILD='10.10.2026 09:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2721,8 +2721,11 @@ function fileLineHtml(m,fn,key){
     esc(shortFileName(m.name))+'</div><div class="dl-size">'+fmtSize(m.size)+'</div></div>'+
     '<button class="btn btn-primary btn-sm" style="margin:0" onclick="'+fn+'(\''+key+'\')">⬇ Скачать</button>';
 }
-function mediaWaitHtml(){
-  return '<div class="media-box" style="max-width:200px"><div class="ph">⏳</div></div>';
+function mediaWaitHtml(key){
+  // data-wait: по нему afterMediaLoad понимает, что этот экран ещё ждёт ИМЕННО
+  // этот файл. Без метки приходилось перерисовывать все ленты на каждый
+  // догруженный файл, и видео в колонке начиналось заново — картинка тряслась.
+  return '<div class="media-box" data-wait="'+escA(key||'')+'" style="max-width:200px"><div class="ph">⏳</div></div>';
 }
 // Видео-файл (📎): достаём кадр-превью, чтобы не показывать иконку 🎬
 function ensureVideoThumb(key,m){
@@ -3508,7 +3511,21 @@ function afterMediaLoad(key){
     const p=pendingOpen;pendingOpen=null;
     setTimeout(()=>{if(MSGS[p.key])ppOpenChat(p.key);else openLightbox(mediaCache[p.key]||'');},60);
   }
-  renderNews();renderProfileColumn();renderViewColumn();renderMyColumn();renderCovers();
+  // Раньше на КАЖДЫЙ догруженный файл перерисовывались все четыре ленты сразу.
+// В колонке их много, один экран успевал пересобраться несколько раз, и видео
+// начиналось заново — картинка «тряслась». Теперь трогаем только те экраны,
+// где этот конкретный файл ещё стоит заглушкой.
+  [[ 'newsList',renderNews ],
+   [ 'profileColList',renderProfileColumn ],
+   [ 'vpColumnList',renderViewColumn ],
+   [ 'myColumnList',renderMyColumn ]
+  ].forEach(([boxId,fn])=>{
+    const box=document.getElementById(boxId);
+    if(!box||typeof fn!=='function')return;
+    if(!box.querySelector('[data-wait="'+key+'"]'))return;   // тут этот файл уже показан
+    try{fn();}catch(e){}
+  });
+  renderCovers();
   ppRefreshKey(key);   // открытый кадр в фотоплеере обновляем на полное качество
 }
 function dataUrlToBlob(u){const a=u.split(','),m=(a[0].match(/:(.*?);/)||[,'application/octet-stream'])[1],b=atob(a[1]),u8=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u8[i]=b.charCodeAt(i);return new Blob([u8],{type:m});}
@@ -4256,13 +4273,13 @@ function bubbleInner(m,key,senderInside){
     } else if(m.type==='image'){
       if(loaded)c+='<div class="polaroid"><img src="'+loaded+'" onclick="ppOpenChat(\''+key+'\')"></div>';
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div>';}
-      else c+=mediaWaitHtml();
+      else c+=mediaWaitHtml(mk);
     } else if(m.type==='video'){
       if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div>';
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div>';}
-      else c+=mediaWaitHtml();
+      else c+=mediaWaitHtml(mk);
     } else if(m.type==='audio'){
-      if(loaded)c+=songMiniHtml(key,m);else c+=mediaWaitHtml();
+      if(loaded)c+=songMiniHtml(key,m);else c+=mediaWaitHtml(mk);
     } else {
       c+='<div style="font-size:40px;text-align:center;padding:12px">'+fileIconLarge(m.name)+'</div>';
       c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
@@ -5148,7 +5165,17 @@ function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=fal
   const pr=document.getElementById('recPreview');if(pr)pr.classList.remove('active');}
 
 // ===== ЗВОНКИ =====
-const RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:turn.anyfirewall.com:443?transport=tcp',credential:'webrtc',username:'webrtc'}]};
+// Общедоступные TURN-серверы — шанс, что хоть один отвечает. Свои бесплатно
+// не поднять: нужен публичный IP. Зато с ними звонок проходит, когда UDP
+// у абонента закрыт, а TCP/TLS пробрасывается.
+const RTC={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'turn:turn.anyfirewall.com:443?transport=tcp',credential:'webrtc',username:'webrtc'},
+  {urls:'turns:turn.anyfirewall.com:443?transport=tcp',credential:'webrtc',username:'webrtc'},
+  {urls:'turn:openrelay.metered.ca:80',credential:'openrelayproject',username:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp',credential:'openrelayproject',username:'openrelayproject'}
+]};
 function writeCallMsg(peer,callType,status,dur){
   const cid=getChatId(currentUser.uid,peer);const key=db.ref('messages/'+cid).push().key;
   const payload={sender:currentUser.uid,ts:Date.now(),type:'call',callType,callStatus:status,dur:dur||0};
@@ -5211,6 +5238,12 @@ async function setupCall(id,peer,type,role){
   pc.onicecandidate=e=>{if(e.candidate)db.ref('calls/'+id+'/ice/'+role).push({c:e.candidate.toJSON()});};
   pc.ontrack=e=>{const rv=document.getElementById('remoteVideo');if(rv.srcObject!==e.streams[0])rv.srcObject=e.streams[0];};
   pc.onconnectionstatechange=()=>{if(pc&&(pc.connectionState==='failed'||pc.connectionState==='disconnected')){toast('Связь потеряна');hangup(true);}};
+  // Причина вечного «Подключение» была неочевидной, поэтому пишем состояние
+  // и в консоль, и в базу: по записи видно, что именно не сошлось.
+  pc.oniceconnectionstatechange=()=>{
+    console.log('ICE:',pc.iceConnectionState,'| connection:',pc.connectionState);
+    try{if(callState)db.ref('calls/'+id+'/iceState').set(pc.iceConnectionState);}catch(e){}
+  };
   db.ref('calls/'+id).on('value',async s=>{
     const c=s.val();if(!c||!callState||callState.id!==id)return;
     if(c.status==='ended'||c.status==='declined'){clearCallTimeout();toast(c.status==='declined'?'Отклонено':'Звонок завершён');hangup(true);return;}
@@ -5219,11 +5252,36 @@ async function setupCall(id,peer,type,role){
     try{
       if(role==='callee'&&c.offer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.offer);const ans=await pc.createAnswer();await pc.setLocalDescription(ans);db.ref('calls/'+id+'/answer').set(ans.toJSON());db.ref('calls/'+id+'/status').set('active');}
       if(role==='caller'&&c.answer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.answer);db.ref('calls/'+id+'/status').set('active');}
+      // Описание удалённой стороны появилось — доедаем отложенные кандидаты
+      if(pc.remoteDescription)await flushIceQueue();
       const remoteIce=(role==='caller'?c.ice&&c.ice.callee:c.ice&&c.ice.caller)||{};
-      for(const k in remoteIce){if(!callState.iceDone[k]){callState.iceDone[k]=1;try{await pc.addIceCandidate(remoteIce[k].c);}catch(e){console.warn('addIce',e);}}}
+      for(const k in remoteIce){
+        if(callState.iceDone[k])continue;
+        // Кандидат, пришедший ДО setRemoteDescription, WebRTC принимать
+        // отказывается, а раньше он при этом помечался как обработанный и
+        // больше не повторялся. Соединение не наступало никогда — на экране
+        // вечно висело «Подключение». Те такие кладём в очередь и добавляем,
+        // как только появится описание удалённой стороны.
+        if(!pc.remoteDescription){(callState.iceQueue=callState.iceQueue||{})[k]=remoteIce[k].c;continue;}
+        callState.iceDone[k]=1;
+        try{await pc.addIceCandidate(remoteIce[k].c);}catch(e){console.warn('addIce',e);}
+      }
+      await flushIceQueue();
     }catch(e){console.warn('sdp '+role,e);}   // раньше ошибка просто исчезала — звонок «молча» не соединялся
   });
   if(role==='caller'){const offer=await pc.createOffer();await pc.setLocalDescription(offer);db.ref('calls/'+id+'/offer').set(offer.toJSON());}
+}
+// Добавление отложенных ICE-кандидатов. Вызывается после setRemoteDescription.
+async function flushIceQueue(){
+  if(!callState||!pc)return;
+  const q=callState.iceQueue;
+  if(!q||!pc.remoteDescription)return;
+  callState.iceQueue={};
+  for(const k in q){
+    if(callState.iceDone[k])continue;
+    callState.iceDone[k]=1;
+    try{await pc.addIceCandidate(q[k]);}catch(e){console.warn('addIce(очередь)',e);}
+  }
 }
 function showCallOverlay(type){document.getElementById('callOverlay').classList.add('active');
   document.getElementById('callName').textContent=nameOf(callState.peer);
