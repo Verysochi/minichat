@@ -1655,7 +1655,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='10.10.2026 14:05';
+const BUILD='11.10.2026 18:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3814,7 +3814,7 @@ function openChat(chatId,otherUid,spy){
     const c=document.getElementById('messagesContainer');
     setTimeout(()=>{if(!c)return;if(m.sender===currentUser.uid||nearMessagesBottom(c))c.scrollTop=c.scrollHeight;},30);
   });
-  msgRef.on('child_changed',sn=>{MSGS[sn.key]=sn.val();updateMsgEl(sn.key,sn.val());});
+  msgRef.on('child_changed',sn=>{const key=sn.key;const old=(MSGS[key]&&MSGS[key].reactions)||{};const nv=sn.val()||{};const nre=nv.reactions||{};MSGS[key]=nv;updateMsgEl(key,nv,{oldReactions:old,newReactions:nre});});
   if(!currentIsGroup&&!currentIncognito){typRef=db.ref('typing/'+chatId+'/'+otherUid);typRef.on('value',sn=>{const v=sn.val();document.getElementById('typingIndicator').textContent=(v&&v.ts&&(Date.now()-v.ts<3000))?'печатает...':'';});}
   setTimeout(()=>{const c=document.getElementById('messagesContainer');if(c)c.scrollTop=c.scrollHeight;},120);
   scheduleChatBottom();
@@ -4495,6 +4495,16 @@ function setMsgReaction(basePath,id,context,emoji){
     // используют свою вспышку (rockFlash) — она там и была по вайбу.
     const chatCtx=(context==='msg');
     if(at&&chatCtx)try{fxReactionAt(at.x,at.y,emoji);}catch(e){}
+    // Уведомление автору сообщения о реакции в чате
+    if(context==='msg'){
+      try{
+        const m=(typeof MSGS!=='undefined'&&MSGS)?MSGS[id]:null;
+        if(m&&m.sender&&m.sender!==currentUser.uid){
+          notifyUser(m.sender,'react','Реакция '+emoji, displayNameOf(currentUser)+' отреагировал(а) на сообщение',
+            {chatWith:currentUser.uid});
+        }
+      }catch(e){}
+    }
   });
 }
 function msgReactionsHtml(m,key){
@@ -5188,11 +5198,27 @@ function appendMessage(m,key){const c=document.getElementById('messagesContainer
   c.appendChild(d);
   if(m.sender===currentUser.uid||wasNear)c.scrollTop=c.scrollHeight;
   if(songKey)paintSongBtn();}
-function updateMsgEl(key,m){const el=document.querySelector('.msg[data-key="'+key+'"]');if(!el)return;
+function updateMsgEl(key,m,rx){const el=document.querySelector('.msg[data-key="'+key+'"]');if(!el)return;
   // Менялись только реакции/прочтение — пересобирать сообщение целиком нельзя:
   // innerHTML заново создаёт картинки, и лента видимо дёргается. Меняем ряд кнопок.
   const sig=msgSig(m);
-  if(el.dataset.sig===sig){patchMsgActions(el,key,m);return;}
+  if(el.dataset.sig===sig){
+    // Анимация новой реакции от другого пользователя — при patchMsgActions
+    // кнопки просто заменяются, анимации нет. Добавляем её тут.
+    if(rx&&rx.oldReactions&&rx.newReactions){
+      try{
+        Object.keys(rx.newReactions).forEach(u=>{
+          if(u===currentUser.uid)return;
+          const oldv=rx.oldReactions[u];
+          const newv=rx.newReactions[u];
+          if(newv && newv!==oldv){
+            const r=el.getBoundingClientRect();
+            if(r.width&&r.height)fxReactionAt(r.left+r.width/2,r.top+Math.min(r.height,140)/2,newv);
+          }
+        });
+      }catch(e){}
+    }
+    patchMsgActions(el,key,m);return;}
   const box=document.getElementById('messagesContainer');
   const keepScroll=box?box.scrollTop:null;                 // лента должна остаться ровно на месте
   el.onclick=e=>{if(!e.target.closest('.r-btn')&&!e.target.closest('.r-badge')&&!e.target.closest('.msg-del-btn')&&!e.target.closest('.msg-fwd-btn')&&!e.target.closest('.msg-react-btn'))highlightMsg(key,e);};
@@ -5510,6 +5536,12 @@ function startCall(peer,type){if(!peer)return;if(callState){toast('Уже в з�
   // «идёт звонок», а вторую сторона так и не получала — и никто не понимал почему.
   db.ref('calls/'+id).set({from:currentUser.uid,to:peer,type,status:'ringing',ts:Date.now()})
     .catch(e=>{console.warn('callCreate',e);try{hangup(true);}catch(x){callState=null;}toast('⚠️ Звонок не начался');});
+  // Уведомляем через Push, чтобы звонок дошёл и при закрытом приложении
+  try{
+    const who=displayNameOf(currentUser);
+    notifyUser(peer,'call',(type==='video'?'📹':'📞')+' Входящий звонок', who + ((type==='video')?' звонит по видео':' звонит по аудио'),
+      {callId:id,from:currentUser.uid,type:type});
+  }catch(e){}
   setupCall(id,peer,type,'caller');}
 async function setupCall(id,peer,type,role){
   callState={id,peer,type,role,iceDone:{}};showCallOverlay(type);
