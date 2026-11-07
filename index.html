@@ -1684,7 +1684,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 20:15';
+const BUILD='11.10.2026 20:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4579,7 +4579,15 @@ function placeReactionTrain(el,ev){
   const w=tr.offsetWidth||0,h=tr.offsetHeight||0;                   // класс уже добавлен → панель display:flex
   // границы колонки приложения: на ПК панель не должна вылезать за её края
   let x0=8,x1=vw-8;
-  const sc=document.querySelector('.screen.active')||document.getElementById('messagesContainer');
+  // В десктоп-раскладке активны сразу две панели; берём ту, где само сообщение
+  let sc=null;
+  try{
+    if(document.body.classList.contains('desktop-split') && el){
+      sc = el.closest('#chatScreen') || el.closest('#mainScreen') || document.querySelector('#chatScreen.screen.active') || document.querySelector('.screen.active');
+    } else {
+      sc = document.querySelector('.screen.active') || document.getElementById('messagesContainer');
+    }
+  }catch(e){ sc = document.querySelector('.screen.active'); }
   if(sc){const sr=sc.getBoundingClientRect();if(sr.width>0){x0=Math.max(8,sr.left+8);x1=Math.min(vw-8,sr.right-8);}}
   // Центрируем панель ровно по точке тапа — и только при нехватке места
   // сдвигаем её внутрь колонки (ближе всего к пальцу/курсору).
