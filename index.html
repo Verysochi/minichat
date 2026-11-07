@@ -911,6 +911,29 @@ img,video,canvas{max-width:100%}
   .fwd-jump-bar{width:min(100% - 24px,var(--app-w));left:50%;right:auto;transform:translateX(-50%)}
   #toast{max-width:min(88vw,calc(var(--app-w) - 24px))}
   .reaction-train{max-width:calc(var(--app-w) - 16px)}
+
+  /* ===== Десктоп-раскладка (вариант C): список чатов слева, чат справа ===== */
+  body.desktop-split{background:var(--bg);overflow:hidden}
+  body.desktop-split .screen{max-width:none;margin:0;left:auto;right:auto;border:none;box-shadow:none}
+  body.desktop-split #mainScreen,
+  body.desktop-split #chatScreen{position:fixed;top:0;bottom:68px;height:auto}
+  body.desktop-split #mainScreen{left:0;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
+  body.desktop-split #chatScreen{left:360px;right:0;width:auto;z-index:2}
+  body.desktop-split #chatScreen.active{display:flex !important}
+  body.desktop-split:not(.chat-open-desktop) #chatScreen{display:flex !important}
+  body.desktop-split:not(.chat-open-desktop) #chatScreen > *:not(#desktopChatPlaceholder){display:none !important}
+  body.desktop-split:not(.chat-open-desktop) #desktopChatPlaceholder{display:flex !important;flex:1;align-items:center;justify-content:center;color:var(--text3);font-size:16px;padding:24px;text-align:center;background:var(--bg)}
+  body.desktop-split.chat-open-desktop #desktopChatPlaceholder{display:none !important}
+  /* При открытом чате на ПК mainScreen остаётся видимым (левая панель) */
+  body.desktop-split.chat-open-desktop #mainScreen{display:flex !important}
+  body.desktop-split .bottom-nav{left:0;right:0;width:100%;transform:none;max-width:none;border-radius:0}
+  /* Контент чата на всю правую панель */
+  body.desktop-split #chatScreen .messages,
+  body.desktop-split #chatScreen .header,
+  body.desktop-split #chatScreen .input-bar,
+  body.desktop-split #chatScreen .typing{max-width:none;margin-left:0;margin-right:0;width:100%}
+  /* Не-чатовые экраны на десктопе в split-режиме: показываем как обычно поверх */
+  body.desktop-split .screen.active:not(#mainScreen):not(#chatScreen){position:fixed;inset:0 0 68px 0;z-index:20;max-width:none;margin:0;display:flex}
 }
 /* ===== Анимации кнопок: ПК — при наведении, телефон — при нажатии ===== */
 .header-btn{transition:background .2s ease,color .2s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease}
@@ -1358,6 +1381,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 </div>
 
 <div id="chatScreen" class="screen">
+  <div id="desktopChatPlaceholder" style="display:none">💬 Выберите чат слева, чтобы начать переписку</div>
   <div class="header" id="chatHeader">
     <button class="header-btn back-btn" onclick="closeChat()"><span class="hicon">←</span></button>
     <button class="header-btn hide-narrow" onclick="closeChat()"><span class="hicon">🏠</span></button>
@@ -1660,7 +1684,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 19:55';
+const BUILD='11.10.2026 20:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2040,6 +2064,16 @@ function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frL
 // приложения. Теперь ведём свой стек экранов и возвращаем по нему.
 const NAV_ROOTS=['mainScreen','newsScreen','myColumnScreen','friendsScreen','adminScreen'];
 let navStack=[],navLock=false;
+function isDesktop(){return window.innerWidth>=900;}
+function isChatSplitContext(id){return id==='mainScreen'||id==='chatScreen';}
+function updateDesktopSplit(){
+  const on=isDesktop() && !!currentUser && isChatSplitContext(currentScreenId);
+  document.body.classList.toggle('desktop-split', !!on);
+  if(!on){ document.body.classList.remove('chat-open-desktop'); return; }
+  if(currentScreenId==='chatScreen' && currentChatId) document.body.classList.add('chat-open-desktop');
+  else if(currentScreenId==='mainScreen' && !currentChatId) document.body.classList.remove('chat-open-desktop');
+}
+window.addEventListener('resize',()=>{ try{ updateDesktopSplit(); }catch(e){} });
 function navTrack(prev,next){
   if(!prev||prev===next)return;
   if(NAV_ROOTS.indexOf(next)>=0){navStack=[];return;}   // перешли на вкладку — стек сбросили
@@ -2086,6 +2120,7 @@ function showScreen(id,fromBack){
     if(!NATIVE_APP)try{history.pushState({mc:Date.now(),screen:id},'');}catch(e){}
   }
   currentScreenId=id;
+  updateDesktopSplit();
   // Запоминаем страницу, чтобы после F5 вернуться на неё, а не на главную
   // Чат не запоминаем как «куда вернуться»: его содержимое живёт в памяти,
   // и после перезапуска там была бы пустая оболочка без переписки.
@@ -2094,6 +2129,11 @@ function showScreen(id,fromBack){
   document.body.classList.toggle('login-active',id==='loginScreen'||id==='registerScreen');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Десктоп-раскладка: в режиме чатов список слева остаётся видимым
+  if(document.body.classList.contains('desktop-split') && (id==='mainScreen'||id==='chatScreen')){
+    document.getElementById('mainScreen').classList.add('active');
+    document.getElementById('chatScreen').classList.add('active');
+  }
   // Панель музыки показывается только вне чата (в чате есть свой плеер)
   try{ if(typeof setSongBarVisible==='function'&&songKey)setSongBarVisible(true); }catch(e){}
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
