@@ -1726,7 +1726,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 21:25';
+const BUILD='11.10.2026 21:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2907,7 +2907,7 @@ function songMiniHtml(key,m){
       '<input type="range" class="song-vol song-vol-inline" min="0" max="100" value="'+volPct()+'" oninput="setSongVol(this.value)" title="Громкость">'+
     '</div>'+
     '<div class="song-time" id="songt_'+CSS_ID(key)+'">'+(dur?fmtDur(cur)+' / '+fmtDur(dur):(src?'0:00':'…'))+'</div>'+
-    '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+CSS_ID(key)+'\')">⬇</button>'+
+    '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇</button>'+
   '</div>';
 }
 // ===== статичный плеер под верхней рамкой чата + управление песнями =====
@@ -2955,8 +2955,10 @@ function seekSongBar(ev){
 // Скачать песню или голосовое к себе на устройство
 function downloadTrack(key){
   if(!key){toast('Нечего скачивать');return;}
-  const m=MSGS[key];if(!m){toast('Файл недоступен');return;}
-  const src=songSrcFor(m,key);
+  let rk=key; let m=MSGS[rk];
+  if(!m){ rk=realKeyFor(key); m=rk?MSGS[rk]:null; }
+  if(!m){toast('Файл недоступен');return;}
+  const src=songSrcFor(m,rk);
   if(!src){toast('Файл ещё загружается…');return;}
   const name=(m.type==='audio'&&!isSongFile(m&&m.name))?('голосовое_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.webm'):(m.name||'файл');
   try{
@@ -4696,7 +4698,7 @@ function bubbleInner(m,key,senderInside){
     const loaded=mediaCache[mk];
     if(isSongFile(m.name)){
       // песня (mp3/wav/…) — всегда мини-плеер, привязанный к сообщению
-      c+=songMiniHtml(key,m);
+      c+=songMiniHtml(key,m)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇ Скачать</button></div>';
     } else if(m.asFile){
       // обычный файл (📎) — иконка, имя, размер, кнопка скачивания, без мини-картинки.
       // Для видео-файла вместо иконки — маленькое превью кадра (размером как у фото).
@@ -4719,7 +4721,8 @@ function bubbleInner(m,key,senderInside){
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';}
       else c+=mediaWaitHtml(mk)+'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';
     } else if(m.type==='audio'){
-      if(loaded)c+=songMiniHtml(key,m);else c+=mediaWaitHtml(mk);
+      if(loaded)c+=songMiniHtml(key,m)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇ Скачать</button></div>';
+      else c+=mediaWaitHtml(mk)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button></div>';
     } else {
       c+='<div style="font-size:40px;text-align:center;padding:12px">'+fileIconLarge(m.name)+'</div>';
       c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
@@ -4728,7 +4731,7 @@ function bubbleInner(m,key,senderInside){
   // ВАЖНО: только «c+=» — иначе перезаписывается уже собранная шапка пересланного,
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
   else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
-  else if(m.type==='audio'&&d)c+=songMiniHtml(key,m);
+  else if(m.type==='audio'&&d)c+=songMiniHtml(key,m)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇ Скачать</button></div>';
   else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
