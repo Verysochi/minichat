@@ -150,6 +150,8 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .seg-read{flex:0 0 auto;width:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:9px;font-weight:600;padding:4px}
 .seg-read .ri{font-size:15px;line-height:1;color:var(--primary)}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.mc-rubber{transition:transform .28s cubic-bezier(.22,1,.36,1);will-change:transform}
+.mc-rubber.mc-rubber-drag{transition:none}
 .chat-item,.user-item{display:flex;align-items:center;padding:11px 14px;gap:10px;cursor:pointer;border-bottom:1px solid var(--surface);-webkit-tap-highlight-color:transparent}
 .chat-item:active,.user-item:active{background:var(--surface2)}
 /* Список чатов: карточки со скруглёнными краями вместо острых прямоугольников */
@@ -946,7 +948,8 @@ img,video,canvas{max-width:100%}
   #chatList,#friendsExtra,.messages{max-width:var(--app-w);margin-left:auto;margin-right:auto;width:100%}
   .polaroid img,.polaroid video{max-width:340px}
   .cover-band{height:220px}
-  .seg,.news-ctlbar{max-width:var(--app-w);margin:0 auto;width:100%}
+  .seg{max-width:var(--app-w);margin:0 auto;width:100%}
+  .news-ctlbar{max-width:860px;margin:8px auto 0;width:calc(100% - 24px);border-radius:12px}
   .profile-photo{width:120px}
   /* Плавающие панели не должны вылезать за пределы колонки приложения:
      «Переслано в …», тост и панель реакций держатся внутри той же рамки, что и контент. */
@@ -1141,7 +1144,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 
 <div id="myColumnScreen" class="screen">
   <div class="header">
-    <button class="header-btn back-btn desktop-root-back" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <button class="header-btn desk-nav-btn" onclick="showScreen('mainScreen')" title="Чаты"><span class="hicon">💬</span></button>
     <div class="header-col"><h2>📝 Моя колонка</h2></div>
     <button class="header-btn desk-nav-btn" onclick="showScreen('friendsScreen')" title="Друзья"><span class="hicon">🤝</span></button>
@@ -1751,7 +1753,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='07.11.2026 14:20';
+const BUILD='07.11.2026 15:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3910,6 +3912,72 @@ async function handleClipboardImagePaste(e){
   }catch(err){ console.warn('handleClipboardImagePaste', err); }
 }
 try{ document.addEventListener('paste', handleClipboardImagePaste, true); }catch(e){}
+
+// ===== Антистресс: pull-down «резинка» в прокручиваемых контейнерах (мобайл) =====
+(function initRubberBand(){
+  const MAX=110, RES=0.42;
+  let st=null;
+  function scrollable(el){
+    while(el && el!==document.body){
+      if(el.classList && (el.classList.contains('scroll') || el.classList.contains('messages') || el.id==='newsScroll' || el.id==='notifList' || el.id==='myColumnList' || el.id==='friendsList' || el.id==='chatList')){
+        const oy=getComputedStyle(el).overflowY;
+        if(oy==='auto'||oy==='scroll'||oy==='overlay'||el.scrollHeight>el.clientHeight+1) return el;
+      }
+      if(el.classList && el.classList.contains('scroll')) return el;
+      el=el.parentElement;
+    }
+    // fallback: nearest with .scroll
+    return null;
+  }
+  function nearestScroll(el){
+    while(el && el!==document.body){ if(el.classList && (el.classList.contains('scroll')||el.classList.contains('messages'))) return el; el=el.parentElement; }
+    return null;
+  }
+  document.addEventListener('touchstart',function(e){
+    try{
+      if(!e.touches||e.touches.length!==1) return;
+      const t=e.touches[0], el=nearestScroll(e.target);
+      if(!el) return;
+      // не трогаем, если внутри интерактивного горизонтального/особого контрола? оставим контейнерам
+      st={el:el, y0:t.clientY, x0:t.clientX, pulling:0, baseTop:el.scrollTop, dy:0};
+    }catch(_){ }
+  },{passive:true,capture:true});
+  document.addEventListener('touchmove',function(e){
+    try{
+      if(!st||!e.touches||e.touches.length!==1) return;
+      const t=e.touches[0], dy=t.clientY-st.y0, dx=t.clientX-st.x0;
+      if(!st.pulling){
+        if(Math.abs(dx)>Math.abs(dy)+6) { st=null; return; } // горизонтальный жест
+        if(dy>6 && st.el.scrollTop<=0){ st.pulling=1; st.el.classList.add('mc-rubber','mc-rubber-drag'); }
+        else if(dy<-6 || st.el.scrollTop>0){ return; }
+        else return;
+      }
+      if(!st.pulling) return;
+      if(st.el.scrollTop>0){ // ушли из верха — отпускаем
+        st.el.style.transform=''; st.el.classList.remove('mc-rubber-drag'); st.pulling=0; return;
+      }
+      const pull=Math.max(0, dy);
+      const y=Math.min(MAX, pull*RES);
+      st.dy=y;
+      st.el.style.transform='translateY('+y+'px)';
+      if(e.cancelable) e.preventDefault();
+    }catch(_){ }
+  },{passive:false,capture:true});
+  function endRubber(){
+    try{
+      if(st&&st.el){
+        st.el.classList.add('mc-rubber');
+        st.el.classList.remove('mc-rubber-drag');
+        st.el.style.transform='';
+        const el=st.el;
+        setTimeout(()=>{ try{el.classList.remove('mc-rubber');}catch(_){ } },320);
+      }
+    }catch(_){ }
+    st=null;
+  }
+  document.addEventListener('touchend',endRubber,{passive:true,capture:true});
+  document.addEventListener('touchcancel',endRubber,{passive:true,capture:true});
+})();
 
 // ===== ЗАГРУЗКА/ОТПРАВКА =====
 function uploadChunked(key,data,meta){
