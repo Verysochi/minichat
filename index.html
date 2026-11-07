@@ -770,7 +770,9 @@ img,video,canvas{max-width:100%}
 .call-top{position:absolute;top:22px;left:0;right:0;text-align:center;z-index:2}
 .call-top .nm{font-size:20px;font-weight:700}
 .call-controls{position:absolute;bottom:26px;left:0;right:0;display:flex;gap:12px;justify-content:center;z-index:2;flex-wrap:wrap}
-.call-btn{width:54px;height:54px;border-radius:50%;border:none;background:var(--surface2);color:#fff;font-size:22px;cursor:pointer}
+.call-btn{width:54px;height:54px;border-radius:50%;border:none;background:var(--surface2);color:#fff;font-size:22px;cursor:pointer;position:relative}
+.call-btn.muted{background:rgba(239,68,68,.35);box-shadow:0 0 0 2px rgba(239,68,68,.45) inset}
+.call-btn.muted::after{content:'';position:absolute;inset:0;border-radius:50%;pointer-events:none}
 .call-btn.hang{background:var(--red)}
 .call-card{background:var(--surface);border-radius:20px;padding:26px;text-align:center;max-width:320px;width:90%}
 /* Полароид-лайтбокс — тёмный фон в тон темы */
@@ -1655,7 +1657,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 19:10';
+const BUILD='11.10.2026 19:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -5636,6 +5638,11 @@ async function flushIceQueue(){
 function showCallOverlay(type){document.getElementById('callOverlay').classList.add('active');
   document.getElementById('callName').textContent=nameOf(callState.peer);
   document.getElementById('callType').textContent=(type==='video'?'📹 Видео':'📞 Аудио')+' · соединение...';
+  // Сброс состояния кнопок от прошлого звонка
+  try{
+    const mb=document.getElementById('callMicBtn'); if(mb){mb.textContent='🎙';mb.classList.remove('muted');mb.title='Выключить микрофон';}
+    const cb=document.getElementById('callCamBtn'); if(cb){cb.textContent='📷';cb.classList.remove('muted');cb.title='Выключить камеру';}
+  }catch(e){}
   // Раньше надпись «соединение...» висела бесконечно: если ICE не соединился
   // (мобильный NAT, запрещён UDP), человек так и ждал. Теперь ждём недолго и
   // показываем, СКОЛЬКО путей нашлось: если relay — ноль, то напрямую не
@@ -5664,15 +5671,27 @@ function hangup(remote){
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   callState=null;document.getElementById('callOverlay').classList.remove('active');document.getElementById('remoteVideo').srcObject=null;
 }
-function toggleMic(){if(!localStream)return;const t=localStream.getAudioTracks()[0];if(t){t.enabled=!t.enabled;document.getElementById('callMicBtn').textContent=t.enabled?'🎙':'';}}
+function toggleMic(){
+  if(!localStream)return;
+  const t=localStream.getAudioTracks()[0];if(!t)return;
+  t.enabled=!t.enabled;
+  const b=document.getElementById('callMicBtn');
+  if(b){b.textContent=t.enabled?'🎙':'🔇';b.classList.toggle('muted',!t.enabled);b.title=t.enabled?'Выключить микрофон':'Включить микрофон';}
+}
 async function toggleCam(){
   if(!localStream)return;const vt=localStream.getVideoTracks()[0];
-  if(vt){vt.enabled=!vt.enabled;document.getElementById('callCamBtn').textContent=vt.enabled?'📷':'🚫';return;}
+  const b=document.getElementById('callCamBtn');
+  if(vt){
+    vt.enabled=!vt.enabled;
+    if(b){b.textContent=vt.enabled?'📷':'🚫';b.classList.toggle('muted',!vt.enabled);b.title=vt.enabled?'Выключить камеру':'Включить камеру';}
+    return;
+  }
   try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing}});const nt=s.getVideoTracks()[0];
     localStream.addTrack(nt);
     const sender=pc&&pc.getSenders().find(x=>x.track&&x.track.kind==='video');
     if(sender)await sender.replaceTrack(nt);else if(pc)pc.addTrack(nt,localStream);
-    document.getElementById('localVideo').srcObject=localStream;document.getElementById('localVideo').style.display='block';document.getElementById('remoteVideo').style.display='block';document.getElementById('callCamBtn').textContent='📷';
+    document.getElementById('localVideo').srcObject=localStream;document.getElementById('localVideo').style.display='block';document.getElementById('remoteVideo').style.display='block';
+    if(b){b.textContent='📷';b.classList.remove('muted');b.title='Выключить камеру';}
   }catch(e){toast('Нет камеры');}
 }
 async function flipCam(){
