@@ -1751,7 +1751,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='07.11.2026 13:45';
+const BUILD='07.11.2026 14:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3830,21 +3830,86 @@ function submitLinkAdd(){
   const raw=((document.getElementById('linkAddUrl')||{}).value||'').trim();
   const url=safeHttpUrl(raw);
   if(!url){ toast('Нужна ссылка, начинающаяся с http:// или https://'); return; }
-  // Если это прямое медиа/известный embed — всё равно отобразим как медиа (удобнее)
-  const em=parseEmbedUrl(url);
-  let item;
-  if(em && (em.type==='image'||em.type==='video'||em.type==='embed')){
-    item = em.type==='image' ? {type:'image',url:url,extUrl:1,name:title||'image',linkTitle:title||''} :
-           em.type==='video' ? {type:'video',url:url,extUrl:1,name:title||'video',linkTitle:title||''} :
-           {type:'embed',url:url,embedUrl:em.embed,provider:em.provider,extUrl:1,name:title||em.provider,linkTitle:title||''};
-  } else {
-    item={type:'link',url:url,extUrl:1,name:title||url,linkTitle:title||'',provider:'Ссылка'};
-  }
+  // «Ссылка с названием» — всегда сохраняем как именованную ссылку (не превращаем в медиа)
+  const item={type:'link',url:url,extUrl:1,name:title||url,linkTitle:title||'',provider:'Ссылка'};
   pendingMediaTarget=t;
   pushToQueue(t,item);
   closeLinkAdd();
-  toast(item.type==='link'?'🔗 Ссылка добавлена':'▶ Медиа добавлено',true);
+  toast('🔗 Ссылка добавлена',true);
 }
+function pasteTargetFromEl(el){
+  if(!el) return null;
+  const id = el.id||'';
+  if(id==='msgInput' || (el.closest && (el.closest('#chatScreen')||el.closest('#chatInputBar')) && (id==='msgInput' || el.tagName==='TEXTAREA'))) return {kind:'queue', target:'chat'};
+  if(id==='newsInput'||id==='newsTitle' || (el.closest && el.closest('#newsComposer'))) return {kind:'queue', target:'news'};
+  if(id==='propText'||id==='propTitle' || (el.closest && el.closest('#proposeComposer'))) return {kind:'queue', target:'propose'};
+  if(id==='myColInput' || (el.closest && el.closest('#myColComposer'))) return {kind:'queue', target:'myColumn'};
+  if(id==='colInput') return {kind:'queue', target:'column'};
+  if(id==='cpInput' || (el.closest && el.closest('#commentsPanel'))) {
+    const cid = (typeof cpId==='function' ? cpId() : (CP&&CP.id)) || '';
+    return cid ? {kind:'comment', id:cid} : null;
+  }
+  if(/^nci_/.test(id)) return {kind:'comment', id:id.slice(4)};
+  // общий случай: если фокус в текстовом поле внутри известного экрана/композера
+  if(el.closest){
+    if(el.closest('#chatScreen')) return {kind:'queue', target:'chat'};
+    if(el.closest('#newsComposer')) return {kind:'queue', target:'news'};
+    if(el.closest('#proposeComposer')) return {kind:'queue', target:'propose'};
+    if(el.closest('#myColComposer')) return {kind:'queue', target:'myColumn'};
+  }
+  return null;
+}
+async function addPastedImageFile(file, ctx){
+  if(!file) return false;
+  const type = (file.type&&file.type.indexOf('video/')===0)?'video':'image';
+  try{
+    let data;
+    if(type==='image' && typeof compressImage==='function'){
+      data = await compressImage(file, 1200, 0.82);
+    } else {
+      data = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+    }
+    const th = (typeof thumbFromDataUrl==='function') ? await thumbFromDataUrl(data,type) : (type==='image'?data:null);
+    const name = file.name || ('clipboard_'+Date.now()+'.'+(type==='video'?'mp4':'png'));
+    if(ctx && ctx.kind==='comment'){
+      pendingCommentMedia[ctx.id] = {data,type,name,thumb:th,size:file.size||null};
+      if(typeof renderCommentsPanel==='function') renderCommentsPanel();
+      toast('📎 Изображение добавлено в комментарий', true);
+      return true;
+    }
+    if(ctx && ctx.kind==='queue'){
+      pendingMediaTarget = ctx.target;
+      pushToQueue(ctx.target, {type,data,name,thumb:th,size:file.size||null});
+      toast('📎 Изображение вставлено', true);
+      return true;
+    }
+  }catch(e){ console.warn('paste image',e); toast('Не удалось вставить изображение'); }
+  return false;
+}
+async function handleClipboardImagePaste(e){
+  try{
+    const cd = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData);
+    if(!cd) return;
+    let imgs = [];
+    if(cd.items && cd.items.length){
+      for(let i=0;i<cd.items.length;i++){
+        const it=cd.items[i];
+        if(it && it.kind==='file' && it.type && it.type.indexOf('image/')===0){
+          const f=it.getAsFile(); if(f) imgs.push(f);
+        }
+      }
+    }
+    if(!imgs.length && cd.files && cd.files.length){
+      for(let i=0;i<cd.files.length;i++){ const f=cd.files[i]; if(f && f.type && f.type.indexOf('image/')===0) imgs.push(f); }
+    }
+    if(!imgs.length) return; // обычная вставка текста
+    const ctx = pasteTargetFromEl(e.target || document.activeElement);
+    if(!ctx) return;
+    e.preventDefault();
+    for(const f of imgs){ await addPastedImageFile(f, ctx); }
+  }catch(err){ console.warn('handleClipboardImagePaste', err); }
+}
+try{ document.addEventListener('paste', handleClipboardImagePaste, true); }catch(e){}
 
 // ===== ЗАГРУЗКА/ОТПРАВКА =====
 function uploadChunked(key,data,meta){
@@ -3979,7 +4044,18 @@ function downloadName(m){
   return (base||orig)+ext;
 }
 function triggerDownloadUrl(url,name){
-  try{const a=document.createElement('a');a.href=url;a.download=name||'file';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000);}catch(e){toast('Не удалось скачать');}
+  try{
+    const isExt = /^https?:\/\//i.test(url||'') && !/^blob:/i.test(url||'');
+    if(isExt){
+      // cross-origin download атрибут часто игнорируется — пробуем через blob, иначе открываем
+      fetch(url,{mode:'cors',credentials:'omit'}).then(r=>{ if(!r.ok) throw 0; return r.blob(); }).then(b=>{
+        const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name||'file'; document.body.appendChild(a); a.click();
+        setTimeout(()=>{ try{URL.revokeObjectURL(u); a.remove();}catch(e){} }, 4000);
+      }).catch(()=>{ try{ window.open(url,'_blank','noopener'); }catch(e){ location.href=url; } });
+      return;
+    }
+    const a=document.createElement('a');a.href=url;a.download=name||'file';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000);
+  }catch(e){try{window.open(url,'_blank','noopener');}catch(_){toast('Не удалось открыть файл');}}
 }
 function downloadDataUrl(dataUrl,name){
   if(!dataUrl){toast('Сначала дождись загрузки');return;}
@@ -6674,7 +6750,10 @@ function downloadImgSrc(src,name){
   if(!src){toast('Сначала дождись загрузки');return;}
   try{
     if(/^data:/i.test(src)||/^blob:/i.test(src)){ downloadDataUrl(src,name||'image.jpg'); return; }
-    // внешний/обычный URL — открываем через ссылку
+    if(/^https?:\/\//i.test(src)){
+      toast('Открываю файл...');
+      triggerDownloadUrl(src,name||'image'); return;
+    }
     triggerDownloadUrl(src,name||'image'); toast('💾 Сохраняю...');
   }catch(e){toast('Не удалось скачать');}
 }
@@ -6732,14 +6811,26 @@ function mediaListHtml(list,small){
       }
       h+='<div class="cg cg-'+Math.min(imgs.length,9)+'">'+cells+'</div>';
     }
-    // Кнопка скачать для изображений (под медиа)
+    // Кнопка скачать/открыть для изображений (под медиа)
     if(imgs.length===1){
       const im=imgs[0];
-      h+='<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadMediaListItem(\'image\',\''+esc(im.key||'')+'\',\''+esc(String(im.src||'').replace(/'/g,"\\'"))+'\',\'image.jpg\')">⬇ Скачать</button></div>';
+      const isExt = im.url || (!im.key && /^https?:\/\//i.test(im.src||''));
+      if(isExt){
+        const openUrl = esc(im.url || im.src || '');
+        h+='<div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0;display:inline-flex;text-decoration:none" href="'+openUrl+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть</a></div>';
+      } else {
+        h+='<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadMediaListItem(\'image\',\''+esc(im.key||'')+'\',\''+esc(String(im.src||'').replace(/'/g,"\\'"))+'\',\'image.jpg\')">⬇ Скачать</button></div>';
+      }
     }else{
-      // несколько фото — скачиваем по одному (с задержкой, чтобы браузер не заблокировал)
-      const payload=JSON.stringify(imgs.map(x=>({k:x.key||'',s:(/^data:|^blob:/i.test(x.src)?x.src:''),n:''}))).replace(/</g,'\\u003c');
-      h+='<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadImageSet(this)" data-imgs=\''+payload.replace(/'/g,"&#39;")+'\'>⬇ Скачать фото ('+imgs.length+')</button></div>';
+      // несколько фото — скачиваем локальные/загруженные; внешние открываем?
+      const hasExt = imgs.some(x=>x.url || (!x.key && /^https?:\/\//i.test(x.src||'')));
+      if(hasExt){
+        // смешанные/внешние — даём открыть каждое через плеер/клик; кнопка не скачивает криво
+        h+='<div style="font-size:12px;color:var(--text3);margin-top:4px">Нажми на фото, чтобы открыть</div>';
+      } else {
+        const payload=JSON.stringify(imgs.map(x=>({k:x.key||'',s:(/^data:|^blob:/i.test(x.src)?x.src:''),n:''}))).replace(/</g,'\\u003c');
+        h+='<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadImageSet(this)" data-imgs=\''+payload.replace(/'/g,"&#39;")+'\'>⬇ Скачать фото ('+imgs.length+')</button></div>';
+      }
     }
   }
   return h;
