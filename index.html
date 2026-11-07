@@ -936,8 +936,8 @@ img,video,canvas{max-width:100%}
   /* Новости — адаптивный десктоп */
   #newsScreen .scroll{display:block;padding:16px 20px 24px;max-width:1400px;margin:0 auto;width:100%;box-sizing:border-box}
   #newsComposer,#proposeComposer{max-width:860px;margin:0 auto 14px;width:100%}
-  #newsList{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:14px;max-width:860px;width:100%;margin:0 auto;padding-top:6px !important;box-sizing:border-box;column-count:unset}
-  #newsList .news-card{break-inside:auto;margin:0;display:block;width:calc(50% - 7px);min-width:280px;max-width:100%;box-sizing:border-box}
+  #newsList{display:flex;flex-direction:column;align-items:stretch;gap:14px;max-width:860px;width:100%;margin:0 auto;padding-top:6px !important;box-sizing:border-box}
+  #newsList .news-card{margin:0;display:block;width:100%;box-sizing:border-box}
   /* список «Колонки друзей» — в одну линию с остальными контейнерами */
   #myColFriendsList{max-width:var(--app-w);width:100%;margin:0 auto;box-sizing:border-box}
   /* у .card есть боковые поля 12px, а здесь задана ширина 100% — без этой правки
@@ -1475,7 +1475,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <button class="row" onclick="closeAttachMenu();toggleRecord('audio')">🎤 Голосовое сообщение</button>
       <button class="row" onclick="closeAttachMenu();toggleRecord('video')">🎥 Видео сообщение</button>
       <button class="row" onclick="closeAttachMenu();addFileToContainer()">📎 Любой файл</button>
-      <button class="row" onclick="closeAttachMenu();addMediaUrl('chat')">🔗 Медиа по ссылке (YouTube, фото, видео…)</button>
+      <button class="row" onclick="closeAttachMenu();addMediaUrl('chat')">▶ Медиа по ссылке (YouTube/фото/видео)</button>
+      <button class="row" onclick="closeAttachMenu();openLinkAdd('chat')">🔗 Добавить ссылку с названием</button>
     </div>
     <div class="input-bar" id="chatInputBar">
     <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" title="Голосовое сообщение">🎤</button>
@@ -1621,13 +1622,23 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <input type="file" id="chatFileInput" style="display:none" onchange="onChatFilePicked(this)" multiple>
 <div class="lightbox" id="lightbox"><div class="pp-wrap" onclick="event.stopPropagation()"><div class="pp-count" id="ppCount"></div><div class="pp-frame"><img id="lightboxImg" alt=""><div class="lb-caption" id="lightboxCaption"></div></div><button class="pp-nav pp-prev" onclick="ppMove(-1)">❮</button><button class="pp-nav pp-next" onclick="ppMove(1)">❯</button></div></div>
 <!-- комментарии выезжают справа, кнопки «Поделиться / Комменты» остаются на месте -->
+<div class="mini-overlay" id="linkAddOverlay" onclick="if(event.target===this)closeLinkAdd()">
+  <div class="mini-card" style="max-width:420px;text-align:left">
+    <div class="card-title" style="text-align:center">🔗 Добавить ссылку</div>
+    <div class="input-group" style="margin:8px 0"><label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px">Название (как показывать)</label><input type="text" id="linkAddTitle" placeholder="Например: Мой сайт" maxlength="120"></div>
+    <div class="input-group" style="margin:8px 0"><label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px">Ссылка</label><input type="url" id="linkAddUrl" placeholder="https://..." inputmode="url"></div>
+    <button class="btn btn-primary" onclick="submitLinkAdd()">Добавить ссылку</button>
+    <button class="btn btn-outline" style="margin-top:6px" onclick="closeLinkAdd()">Отмена</button>
+  </div>
+</div>
 <div class="mini-overlay" id="mediaChooser" onclick="if(event.target===this)closeChooser()">
   <div class="mini-card">
     <div class="card-title" style="text-align:center">Откуда берём?</div>
     <button class="btn btn-primary" onclick="chooseGal()">🖼 Галерея</button>
     <button class="btn btn-outline" onclick="chooseCam('user')">🤳 Фронтальная камера</button>
     <button class="btn btn-outline" onclick="chooseCam('env')">📷 Основная камера</button>
-    <button class="btn btn-outline" onclick="chooseUrlMedia()">🔗 Вставить ссылку (YouTube, фото, видео…)</button>
+    <button class="btn btn-outline" onclick="chooseUrlMedia()">▶ Медиа по ссылке (YouTube/фото/видео)</button>
+    <button class="btn btn-outline" onclick="openLinkAdd()">🔗 Добавить ссылку с названием</button>
     <button class="btn btn-outline" style="margin-top:6px" onclick="closeChooser()">Отмена</button>
   </div>
 </div>
@@ -1740,7 +1751,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='07.11.2026 13:05';
+const BUILD='07.11.2026 13:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2920,11 +2931,12 @@ function buildMediaFromUrl(raw){
   const em=parseEmbedUrl(s);
   if(em && em.type==='image') return {type:'image',url:s,extUrl:1,name:'image',size:0};
   if(em && em.type==='video') return {type:'video',url:s,extUrl:1,name:'video',size:0};
-  if(em && em.type==='embed') return {type:'embed',url:s,embedUrl:em.embed,provider:em.provider,extUrl:1,name:em.provider,size:0};
-  if(isDirectImageUrl(s)) return {type:'image',url:s,extUrl:1,name:'image',size:0};
-  if(isDirectVideoUrl(s)) return {type:'video',url:s,extUrl:1,name:'video',size:0};
-  // Не распознали как медиа — добавим как ссылку-вложение (покажем карточкой)
-  return {type:'embed',url:s,embedUrl:'',provider:'Ссылка',extUrl:1,name:'link',size:0};
+  if(em && em.type==='embed') return {type:'embed',url:s,embedUrl:em.embed,provider:em.provider,extUrl:1,name:em.provider,linkTitle:'',size:0};
+  if(em && em.type==='link') return {type:'link',url:s,extUrl:1,name:em.provider||'Ссылка',linkTitle:'',provider:em.provider||'Ссылка',size:0};
+  if(isDirectImageUrl(s)) return {type:'image',url:s,extUrl:1,name:'image',linkTitle:'',size:0};
+  if(isDirectVideoUrl(s)) return {type:'video',url:s,extUrl:1,name:'video',linkTitle:'',size:0};
+  // Не распознали как медиа — добавим как именованную/обычную ссылку
+  return {type:'link',url:s,extUrl:1,name:'Ссылка',linkTitle:'',provider:'Ссылка',size:0};
 }
 function fileLineHtml(m,fn,key){
   return '<div class="dl-fileline"><div class="dl-name" title="'+esc(m.name||'')+'">'+fileIconLarge(m.name)+' '+
@@ -3760,7 +3772,8 @@ function renderMediaContainer(target){
   q.forEach((it,idx)=>{
     // asFile — это «файл»: показываем иконку+имя, а не мини-картинку.
     // Исключение: видео-файл — вместо иконки маленькое превью (как у фото).
-    if(it.extUrl && it.type==='embed')html+='<div class="mc-file"><span class="mc-ficon">▶</span><span class="mc-fname">'+esc(it.provider||'Видео')+': '+esc((it.url||'').slice(0,40))+'</span><span class="mc-fsize">ссылка</span><button class="mc-remove" style="position:static" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    if(it.extUrl && it.type==='link')html+='<div class="mc-file"><span class="mc-ficon">🔗</span><span class="mc-fname">'+esc(it.linkTitle||it.name||'Ссылка')+'</span><span class="mc-fsize">'+esc((it.url||'').slice(0,36))+'</span><button class="mc-remove" style="position:static" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    else if(it.extUrl && it.type==='embed')html+='<div class="mc-file"><span class="mc-ficon">▶</span><span class="mc-fname">'+esc(it.linkTitle||it.provider||'Видео')+': '+esc((it.url||'').slice(0,36))+'</span><span class="mc-fsize">медиа</span><button class="mc-remove" style="position:static" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
     else if(it.extUrl && it.type==='image')html+='<div class="mc-item"><img src="'+esc(it.url||'')+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
     else if(it.extUrl && it.type==='video')html+='<div class="mc-item"><div class="ph" style="height:100%;display:flex;align-items:center;justify-content:center">🎬</div><span class="mc-type">URL</span><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
     else if(it.asFile&&it.type==='video'&&it.thumb)html+='<div class="mc-item"><img src="'+it.thumb+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
@@ -3772,17 +3785,49 @@ function renderMediaContainer(target){
   html+='</div>';
   el.innerHTML=html;
 }
+let linkAddTarget=null;
 function addMediaUrl(target){
   const t=target||pendingMediaTarget||'chat';
-  const raw=prompt('Вставь ссылку на фото, видео или ролик (YouTube, VK, TikTok, Rutube и т.д.):');
+  const raw=prompt('Вставь ссылку на медиа (YouTube, фото, видео, VK, Rutube и т.д.):');
   if(raw==null)return;
   const item=buildMediaFromUrl(raw);
   if(!item)return;
   pendingMediaTarget=t;
   pushToQueue(t,item);
-  toast('🔗 Ссылка добавлена',true);
+  toast(item.type==='link'?'🔗 Ссылка добавлена':'▶ Медиа добавлено',true);
 }
 function chooseUrlMedia(){ closeChooser(); addMediaUrl(pendingMediaTarget||'chat'); }
+function openLinkAdd(target){
+  const t=target||pendingMediaTarget||'chat';
+  linkAddTarget=t; pendingMediaTarget=t;
+  try{closeChooser();}catch(e){}
+  const ti=document.getElementById('linkAddTitle'), u=document.getElementById('linkAddUrl');
+  if(ti) ti.value=''; if(u) u.value='';
+  const o=document.getElementById('linkAddOverlay'); if(o) o.classList.add('active');
+  setTimeout(()=>{try{(ti||u).focus();}catch(e){}},50);
+}
+function closeLinkAdd(){ const o=document.getElementById('linkAddOverlay'); if(o) o.classList.remove('active'); }
+function submitLinkAdd(){
+  const t=linkAddTarget||pendingMediaTarget||'chat';
+  const title=((document.getElementById('linkAddTitle')||{}).value||'').trim();
+  const raw=((document.getElementById('linkAddUrl')||{}).value||'').trim();
+  const url=safeHttpUrl(raw);
+  if(!url){ toast('Нужна ссылка, начинающаяся с http:// или https://'); return; }
+  // Если это прямое медиа/известный embed — всё равно отобразим как медиа (удобнее)
+  const em=parseEmbedUrl(url);
+  let item;
+  if(em && (em.type==='image'||em.type==='video'||em.type==='embed')){
+    item = em.type==='image' ? {type:'image',url:url,extUrl:1,name:title||'image',linkTitle:title||''} :
+           em.type==='video' ? {type:'video',url:url,extUrl:1,name:title||'video',linkTitle:title||''} :
+           {type:'embed',url:url,embedUrl:em.embed,provider:em.provider,extUrl:1,name:title||em.provider,linkTitle:title||''};
+  } else {
+    item={type:'link',url:url,extUrl:1,name:title||url,linkTitle:title||'',provider:'Ссылка'};
+  }
+  pendingMediaTarget=t;
+  pushToQueue(t,item);
+  closeLinkAdd();
+  toast(item.type==='link'?'🔗 Ссылка добавлена':'▶ Медиа добавлено',true);
+}
 
 // ===== ЗАГРУЗКА/ОТПРАВКА =====
 function uploadChunked(key,data,meta){
@@ -4815,24 +4860,23 @@ function bubbleInner(m,key,senderInside){
       c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
     }
   }
-  // Внешнее медиа по ссылке (без загрузки в хранилище)
-  else if(m.extUrl || (m.url && (m.type==='embed'||m.type==='image'||m.type==='video'))){
+  // Внешнее медиа/ссылка (без загрузки в хранилище)
+  else if(m.extUrl || (m.url && (m.type==='link'||m.type==='embed'||m.type==='image'||m.type==='video'))){
     const mu=safeHttpUrl(m.url||m.embedUrl||'');
-    if(m.type==='image' || (!m.embedUrl && mu && isDirectImageUrl(mu))){
+    const linkTitle = m.linkTitle || m.name || m.provider || '';
+    if(m.type==='link' || (!m.embedUrl && mu && !isDirectImageUrl(mu) && !isDirectVideoUrl(mu) && m.type!=='image' && m.type!=='video' && m.type!=='embed')){
+      c+='<div class="card" style="margin:2px 0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface2);border:1px solid var(--surface3)"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(linkTitle||'Ссылка')+'</div><div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(mu)+'</div></div><a class="btn btn-primary btn-sm" style="width:auto;flex:0 0 auto;text-decoration:none;margin:0" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Открыть</a></div>';
+    } else if(m.type==='image' || (!m.embedUrl && mu && isDirectImageUrl(mu))){
       c+='<div class="polaroid"><img src="'+esc(mu)+'" onclick="openLightbox(this.src)" loading="lazy" referrerpolicy="no-referrer"></div>';
       c+='<div><a class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть</a></div>';
-    } else if(m.embedUrl || m.type==='embed'){
-      if(m.embedUrl){
-        c+='<div class="polaroid" style="max-width:min(420px,100%);width:100%"><iframe src="'+esc(safeHttpUrl(m.embedUrl)||m.embedUrl)+'" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
-      } else {
-        c+='<div class="polaroid" style="padding:14px;text-align:center">▶ '+esc(m.provider||'Видео по ссылке')+'</div>';
-      }
+    } else if(m.embedUrl && m.type!=='link'){
+      c+='<div class="polaroid" style="max-width:min(420px,100%);width:100%"><iframe src="'+esc(safeHttpUrl(m.embedUrl)||m.embedUrl)+'" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
       if(mu) c+='<div style="margin-top:4px"><a class="btn btn-outline btn-sm" style="width:auto;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть '+esc(m.provider||'ссылку')+'</a></div>';
     } else if(m.type==='video' || (mu && isDirectVideoUrl(mu))){
       c+='<div class="polaroid"><video controls playsinline preload="metadata" src="'+esc(mu)+'"></video></div>';
       if(mu) c+='<div><a class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть / Скачать</a></div>';
     } else if(mu){
-      c+='<div><a href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 '+esc(mu)+'</a></div>';
+      c+='<div class="card" style="margin:2px 0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface2);border:1px solid var(--surface3)"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(linkTitle||'Ссылка')+'</div><div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(mu)+'</div></div><a class="btn btn-primary btn-sm" style="width:auto;flex:0 0 auto;text-decoration:none;margin:0" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Открыть</a></div>';
     }
     if(m.text) c+='<div style="margin-top:6px">'+mentionHtml(m.text)+'</div>';
   }
@@ -6631,13 +6675,14 @@ function mediaListHtml(list,small){
   list.forEach((m,idx)=>{
     const extUrl=m.extUrl || (!!m.url && !m.key && !m.data);
     const u=safeHttpUrl(m.url||'');
-    // Внешние эмбеды (YouTube/VK/TikTok/...)
-    if(m.type==='embed' || (extUrl && m.embedUrl)){
-      if(m.embedUrl){
+    // Внешние ссылки/эмбеды (YouTube/VK/TikTok/или обычная ссылка с названием)
+    if(m.type==='link' || m.type==='embed' || (extUrl && (m.embedUrl || (!isDirectImageUrl(u) && !isDirectVideoUrl(u) && (m.provider||m.linkTitle))))){
+      const title = m.linkTitle || m.name || m.provider || (m.type==='link'?'Ссылка':'Видео');
+      if(m.embedUrl && m.type!=='link'){
         vids.push('<div class="polaroid" style="max-width:min(520px,100%);width:100%"><iframe src="'+esc(safeHttpUrl(m.embedUrl)||m.embedUrl)+'" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
           (u?'<div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть '+esc(m.provider||'ссылку')+'</a></div>':''));
       } else if(u){
-        vids.push('<div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 '+esc(m.provider||'Открыть ссылку')+'</a></div>');
+        vids.push('<div class="card" style="margin:4px 0 8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(title)+'</div><div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u)+'</div></div><a class="btn btn-primary btn-sm" style="width:auto;flex:0 0 auto;text-decoration:none" href="'+esc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Открыть</a></div>');
       }
       return;
     }
@@ -6755,6 +6800,7 @@ function serializeMediaItem(m){
     if(m.embedUrl) o.embedUrl=m.embedUrl;
     if(m.provider) o.provider=m.provider;
     if(m.name) o.name=m.name;
+    if(m.linkTitle) o.linkTitle=m.linkTitle;
     if(m.thumb) o.thumb=m.thumb;
     return o;
   }
@@ -6766,10 +6812,13 @@ function applyPrimaryMedia(it,list){
   const m=list[0];
   it.mediaList=serializeMediaList(list);
   if(m.extUrl || m.url){
-    it.extUrl=1; it.url=m.url||''; it.type=m.type||it.type;
+    it.extUrl=1; it.url=m.url||'';
+    it.mediaType=m.type||it.mediaType||'embed';
+    if(m.type) it.type=m.type; // для совместимости рендера
     if(m.embedUrl) it.embedUrl=m.embedUrl;
     if(m.provider) it.provider=m.provider;
-    if(m.type==='image') { it.mediaType='image'; }
+    if(m.linkTitle) it.linkTitle=m.linkTitle;
+    if(m.name) it.mediaName=m.name;
   } else {
     it.ext=1; it.mediaKey=m.key; it.mediaType=m.type; it.mediaName=m.name; it.thumb=m.thumb||null;
   }
