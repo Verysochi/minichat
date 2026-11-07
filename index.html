@@ -1684,7 +1684,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 20:30';
+const BUILD='11.10.2026 20:50';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3795,8 +3795,41 @@ function downloadName(m){
   const base=[chat,who,when].filter(Boolean).join('_').replace(/[\\/:*?"<>|]/g,'-').trim();
   return (base||orig)+ext;
 }
+function triggerDownloadUrl(url,name){
+  try{const a=document.createElement('a');a.href=url;a.download=name||'file';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000);}catch(e){toast('Не удалось скачать');}
+}
+function downloadDataUrl(dataUrl,name){
+  if(!dataUrl){toast('Сначала дождись загрузки');return;}
+  try{
+    if(/^blob:/i.test(dataUrl)){triggerDownloadUrl(dataUrl,name);toast('💾 Сохраняю...');return;}
+    const b=dataUrlToBlob(dataUrl),u=URL.createObjectURL(b);triggerDownloadUrl(u,name);toast('💾 Сохраняю...');
+    setTimeout(()=>{try{URL.revokeObjectURL(u);}catch(e){}},5000);
+  }catch(e){toast('Не удалось скачать');}
+}
+function downloadByCacheKey(key,name){
+  const d=mediaCache[key]; if(!d){toast('Сначала дождись загрузки'); try{loadMediaSilent(key);}catch(e){} return;}
+  downloadDataUrl(d,name||('media_'+String(key).slice(-6)));
+}
+function downloadImageSet(btn){
+  try{
+    const raw=(btn&&btn.getAttribute)?btn.getAttribute('data-imgs'):'[]';
+    const list=JSON.parse(raw||'[]')||[];
+    if(!list.length){toast('Нет фото');return;}
+    let i=0;
+    const step=()=>{
+      if(i>=list.length){toast('💾 Готово');return;}
+      const it=list[i++]||{};
+      const name='image_'+i+'.jpg';
+      if(it.s && /^data:|^blob:/i.test(it.s)) downloadDataUrl(it.s,name);
+      else if(it.k) downloadByCacheKey(it.k,name);
+      setTimeout(step, 450);
+    };
+    toast('💾 Скачиваю фото…');
+    step();
+  }catch(e){toast('Не удалось скачать');}
+}
 function saveFile(key){const m=MSGS[key],d=m?(mediaCache[m.mediaKey||key]):null;if(!m||!d){toast('Сначала дождись загрузки');return;}
-  try{const b=dataUrlToBlob(d),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=downloadName(m);document.body.appendChild(a);a.click();toast('💾 Сохраняю...');setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},5000);}catch(e){toast('Не удалось');}}
+  downloadDataUrl(d,downloadName(m));}
 function compressImage(file,maxDim,q){return new Promise((res,rej)=>{const r=new FileReader();
   r.onload=e=>{const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const sc=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*sc);h=Math.round(h*sc);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',q));};img.onerror=rej;img.src=e.target.result;};
   r.onerror=rej;r.readAsDataURL(file);});}
@@ -4636,13 +4669,13 @@ function bubbleInner(m,key,senderInside){
         c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
       }
     } else if(m.type==='image'){
-      if(loaded)c+='<div class="polaroid"><img src="'+loaded+'" onclick="ppOpenChat(\''+key+'\')"></div>';
-      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div>';}
-      else c+=mediaWaitHtml(mk);
+      if(loaded)c+='<div class="polaroid"><img src="'+loaded+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
+      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';}
+      else c+=mediaWaitHtml(mk)+'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';
     } else if(m.type==='video'){
-      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div>';
-      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div>';}
-      else c+=mediaWaitHtml(mk);
+      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
+      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';}
+      else c+=mediaWaitHtml(mk)+'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';
     } else if(m.type==='audio'){
       if(loaded)c+=songMiniHtml(key,m);else c+=mediaWaitHtml(mk);
     } else {
@@ -4652,9 +4685,9 @@ function bubbleInner(m,key,senderInside){
   }
   // ВАЖНО: только «c+=» — иначе перезаписывается уже собранная шапка пересланного,
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
-  else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div>';
+  else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
   else if(m.type==='audio'&&d)c+=songMiniHtml(key,m);
-  else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div>';
+  else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
   if(m.share)c+=shareCardHtml(m);
@@ -6423,17 +6456,31 @@ function renderSpy(){
       b.appendChild(d);});});
 }
 // ===== НОВОСТИ =====
+function downloadImgSrc(src,name){
+  if(!src){toast('Сначала дождись загрузки');return;}
+  try{
+    if(/^data:/i.test(src)||/^blob:/i.test(src)){ downloadDataUrl(src,name||'image.jpg'); return; }
+    // внешний/обычный URL — открываем через ссылку
+    triggerDownloadUrl(src,name||'image'); toast('💾 Сохраняю...');
+  }catch(e){toast('Не удалось скачать');}
+}
+function downloadMediaListItem(type,key,src,name){
+  if(type==='video'){ downloadByCacheKey(key,name||('video_'+String(key||'').slice(-6)+'.mp4')); return; }
+  if(src) downloadImgSrc(src,name||('image_'+String(key||'').slice(-6)+'.jpg'));
+  else if(key) downloadByCacheKey(key,name||('image_'+String(key||'').slice(-6)+'.jpg'));
+  else toast('Сначала дождись загрузки');
+}
 function mediaListHtml(list,small){
   if(!list||!list.length)return '';
   // Видео идёт отдельным полароидом с плеером, фото — сеткой-коллажем.
   // Нажатие на любое фото открывает фотоплеер со всеми кадрами этого поста.
   const imgs=[],vids=[],wait=[];
-  list.forEach(m=>{
+  list.forEach((m,idx)=>{
     const src=m.data||mediaCache[m.key];
     if(m.type==='video'){
-      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+src+'"></video></div>');
-      else if(m.thumb)vids.push('<div class="polaroid"><img src="'+m.thumb+'" onclick="mediaClick(\''+m.key+'\',\'video\')" style="cursor:pointer"></div>');
-      else{loadMediaSilent(m.key);vids.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div>');}
+      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+src+'"></video></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');
+      else if(m.thumb)vids.push('<div class="polaroid"><img src="'+m.thumb+'" onclick="mediaClick(\''+m.key+'\',\'video\')" style="cursor:pointer"></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');
+      else{loadMediaSilent(m.key);vids.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');}
       return;
     }
     if(src)imgs.push({src:src,key:m.key||''});
@@ -6456,6 +6503,15 @@ function mediaListHtml(list,small){
         cells+='<div class="cg-i" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+imgs[i].src+'\')"><img src="'+imgs[i].src+'" alt="">'+more+'</div>';
       }
       h+='<div class="cg cg-'+Math.min(imgs.length,9)+'">'+cells+'</div>';
+    }
+    // Кнопка скачать для изображений (под медиа)
+    if(imgs.length===1){
+      const im=imgs[0];
+      h+='<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadMediaListItem(\'image\',\''+esc(im.key||'')+'\',\''+esc(String(im.src||'').replace(/'/g,"\\'"))+'\',\'image.jpg\')">⬇ Скачать</button></div>';
+    }else{
+      // несколько фото — скачиваем по одному (с задержкой, чтобы браузер не заблокировал)
+      const payload=JSON.stringify(imgs.map(x=>({k:x.key||'',s:(/^data:|^blob:/i.test(x.src)?x.src:''),n:''}))).replace(/</g,'\\u003c');
+      h+='<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadImageSet(this)" data-imgs=\''+payload.replace(/'/g,"&#39;")+'\'>⬇ Скачать фото ('+imgs.length+')</button></div>';
     }
   }
   return h;
@@ -6837,10 +6893,13 @@ function inlineMediaHtml(item,cls){
   if(item.ext&&item.mediaKey){
     // одиночное фото — тоже коллаж (можно листать, если потом добавятся кадры)
     if(item.mediaType!=='video')return mediaListHtml([{key:item.mediaKey,type:'image',thumb:item.thumb}],sm);
-    if(mediaCache[item.mediaKey])return '<div class="polaroid"><video controls playsinline data-mk="'+esc(item.mediaKey)+'" src="'+mediaCache[item.mediaKey]+'"></video></div>';
-    if(item.thumb)return '<div class="polaroid"><img src="'+item.thumb+'" onclick="mediaClick(\''+item.mediaKey+'\',\''+item.mediaType+'\')"></div>';
+    if(mediaCache[item.mediaKey])return '<div class="polaroid"><video controls playsinline data-mk="'+esc(item.mediaKey)+'" src="'+mediaCache[item.mediaKey]+'"></video></div>'+
+      '<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadByCacheKey(\''+esc(item.mediaKey)+'\',\'video_'+String(item.mediaKey||'').slice(-6)+'.mp4\')">⬇ Скачать</button></div>';
+    if(item.thumb)return '<div class="polaroid"><img src="'+item.thumb+'" onclick="mediaClick(\''+item.mediaKey+'\',\''+item.mediaType+'\')"></div>'+
+      '<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadByCacheKey(\''+esc(item.mediaKey)+'\',\'video_'+String(item.mediaKey||'').slice(-6)+'.mp4\')">⬇ Скачать</button></div>';
     loadMediaSilent(item.mediaKey);
-    return '<div class="media-box '+(cls||'')+'"><div class="ph">⏳</div></div>';}
+    return '<div class="media-box '+(cls||'')+'"><div class="ph">⏳</div></div>'+
+      '<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadByCacheKey(\''+esc(item.mediaKey)+'\',\'video_'+String(item.mediaKey||'').slice(-6)+'.mp4\')">⬇ Скачать</button></div>';}
   return '';
 }
 function commentsHtml(base,n){
