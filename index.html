@@ -296,8 +296,9 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .msg-foot .msg-time{margin-top:0}
 /* Раньше кнопки реакций были полупрозрачными и «загорались» только при наведении —
    на телефоне наведения нет, и они выглядели мёртвыми. Теперь всегда в полную силу. */
-.msg-actions{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;opacity:1;transition:opacity .2s;max-width:100%}
-.msg:hover .msg-actions,.msg.highlighted .msg-actions{opacity:1}
+.msg-actions{display:none;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%}
+/* Значки действий показываем только после нажатия/выбора сообщения — и на телефоне, и на ПК */
+.msg.highlighted .msg-actions{display:inline-flex}
 .avatar.xs{width:20px;height:20px;font-size:9px;min-width:20px}
 .avatar.sm{width:28px;height:28px;font-size:12px;min-width:28px}
 /* ===== РЕАКЦИИ ПО ЛЮДЯМ =====
@@ -1657,7 +1658,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 19:20';
+const BUILD='11.10.2026 19:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
