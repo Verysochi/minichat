@@ -936,11 +936,10 @@ img,video,canvas{max-width:100%}
   /* Новости — адаптивный десктоп */
   #newsScreen .scroll{display:block;padding:16px 20px 24px;max-width:1400px;margin:0 auto;width:100%;box-sizing:border-box}
   #newsComposer,#proposeComposer{max-width:860px;margin:0 auto 14px;width:100%}
-  #newsList{column-count:2;column-gap:14px;max-width:none;width:100%;padding-top:6px !important}
+  #newsList{column-count:2;column-gap:14px;max-width:860px;width:100%;margin:0 auto;padding-top:6px !important;box-sizing:border-box}
   #newsList .news-card{break-inside:avoid;margin:0 0 14px;display:inline-block;width:100%;box-sizing:border-box}
-  /* список «Колонки друзей» — тоже во всю ширину вьюпорта */
-  #myColFriendsList{max-width:none;width:100%}
-  #myColFriendsList .user-item{margin-left:0;margin-right:0;border-radius:0;border-bottom:1px solid var(--surface)}
+  /* список «Колонки друзей» — в одну линию с остальными контейнерами */
+  #myColFriendsList{max-width:var(--app-w);width:100%;margin:0 auto;box-sizing:border-box}
   /* у .card есть боковые поля 12px, а здесь задана ширина 100% — без этой правки
      карточка колонки вылезала на 12px вправо за свою колонку (кривой вид) */
   #myColumnScreen .card{margin-left:0;margin-right:0}
@@ -1741,7 +1740,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='07.11.2026 12:30';
+const BUILD='07.11.2026 12:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
