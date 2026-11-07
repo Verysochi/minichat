@@ -1655,7 +1655,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 18:55';
+const BUILD='11.10.2026 19:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3217,6 +3217,9 @@ function onNativeNotifPerm(p){
   const st=document.getElementById('notifState');if(st)st.textContent=(p==='granted'?'включены':p==='denied'?'запрещены':'выключены');
   if(p==='granted'){toast('🔔 Уведомления включены — теперь они придут и при закрытом приложении',true);
     const b=document.getElementById('notifHintBar');if(b)b.style.display='none';}
+  // askNotifPermission() в приложении ждёт этот колбэк — без вызова промис
+  // висел 30 секунд и возвращал 'error', из-за чего toggleNotifs откатывал UI.
+  try{ if(typeof window.__mcNotifResult==='function'){ window.__mcNotifResult(p); window.__mcNotifResult=null; } }catch(e){}
 }
 // Посредник, который отправляет Push через Firebase Cloud Messaging.
 const PUSH_URL='https://minichat-push.minichat-push.workers.dev';
