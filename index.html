@@ -1463,6 +1463,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <button class="row" onclick="closeAttachMenu();toggleRecord('audio')">🎤 Голосовое сообщение</button>
       <button class="row" onclick="closeAttachMenu();toggleRecord('video')">🎥 Видео сообщение</button>
       <button class="row" onclick="closeAttachMenu();addFileToContainer()">📎 Любой файл</button>
+      <button class="row" onclick="closeAttachMenu();addMediaUrl('chat')">🔗 Медиа по ссылке (YouTube, фото, видео…)</button>
     </div>
     <div class="input-bar" id="chatInputBar">
     <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" title="Голосовое сообщение">🎤</button>
@@ -1614,6 +1615,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="btn btn-primary" onclick="chooseGal()">🖼 Галерея</button>
     <button class="btn btn-outline" onclick="chooseCam('user')">🤳 Фронтальная камера</button>
     <button class="btn btn-outline" onclick="chooseCam('env')">📷 Основная камера</button>
+    <button class="btn btn-outline" onclick="chooseUrlMedia()">🔗 Вставить ссылку (YouTube, фото, видео…)</button>
     <button class="btn btn-outline" style="margin-top:6px" onclick="closeChooser()">Отмена</button>
   </div>
 </div>
@@ -1726,7 +1728,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 21:40';
+const BUILD='11.10.2026 22:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2863,6 +2865,55 @@ function fmtDur(s){s=+s||0;if(!isFinite(s))s=0;return Math.floor(s/60)+':'+Strin
 // ===== хелперы рендера сообщений-файлов/медиа =====
 const SONG_EXT=['mp3','wav','ogg','oga','m4a','aac','flac','opus','wma','amr','mid','midi','ape','alac','aiff'];
 function isSongFile(name){const e=(String(name||'').split('.').pop()||'').toLowerCase();return SONG_EXT.indexOf(e)>=0;}
+function safeHttpUrl(u){
+  try{ const s=String(u||'').trim(); if(!/^https?:\/\//i.test(s)) return ''; const x=new URL(s); return (x.protocol==='http:'||x.protocol==='https:')?x.href:''; }catch(e){ return ''; }
+}
+function isDirectImageUrl(u){ return /\.(jpe?g|png|gif|webp|bmp|svg)(\?|#|$)/i.test(u||''); }
+function isDirectVideoUrl(u){ return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(u||''); }
+function parseEmbedUrl(u){
+  const s=safeHttpUrl(u); if(!s) return null;
+  try{
+    const x=new URL(s), h=x.hostname.replace(/^www\./,'').toLowerCase();
+    // YouTube
+    let m=s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+    if(m) return {type:'embed',provider:'YouTube',url:s,embed:'https://www.youtube.com/embed/'+m[1]};
+    // VK video
+    m=s.match(/vk(?:video)?\.(?:com|ru)\/.*video(-?\d+_\d+)/i) || s.match(/[?&]oid=(-?\d+).*[?&]id=(\d+)/i);
+    if(/vk\.com\/video|vkvideo\.ru|vk\.com\/clip/i.test(s)){
+      // VK embeds vary; use clip/video url in iframe when possible
+      if(m && m[1]) return {type:'embed',provider:'VK',url:s,embed:'https://vk.com/video_ext.php?oid='+m[1].split('_')[0]+'&id='+m[1].split('_')[1]+'&hd=2'};
+      if(/oid=(-?\d+)/.test(s)&&/id=(\d+)/.test(s)) return {type:'embed',provider:'VK',url:s,embed:'https://vk.com/video_ext.php?'+x.searchParams.toString()};
+      return {type:'embed',provider:'VK',url:s,embed:s};
+    }
+    // TikTok
+    if(/tiktok\.com\//i.test(s)){
+      m=s.match(/\/video\/(\d+)/i);
+      if(m) return {type:'embed',provider:'TikTok',url:s,embed:'https://www.tiktok.com/embed/v2/'+m[1]};
+      return {type:'link',provider:'TikTok',url:s};
+    }
+    // Rutube
+    m=s.match(/rutube\.ru\/video\/([a-f0-9]+)/i);
+    if(m) return {type:'embed',provider:'Rutube',url:s,embed:'https://rutube.ru/play/embed/'+m[1]};
+    // Dailymotion
+    m=s.match(/dailymotion\.com\/video\/([a-z0-9]+)/i);
+    if(m) return {type:'embed',provider:'Dailymotion',url:s,embed:'https://www.dailymotion.com/embed/video/'+m[1]};
+    if(isDirectVideoUrl(s)) return {type:'video',provider:'video',url:s};
+    if(isDirectImageUrl(s)) return {type:'image',provider:'image',url:s};
+    return null;
+  }catch(e){ return null; }
+}
+function buildMediaFromUrl(raw){
+  const s=safeHttpUrl(raw);
+  if(!s){ toast('Нужна ссылка, начинающаяся с http:// или https://'); return null; }
+  const em=parseEmbedUrl(s);
+  if(em && em.type==='image') return {type:'image',url:s,extUrl:1,name:'image',size:0};
+  if(em && em.type==='video') return {type:'video',url:s,extUrl:1,name:'video',size:0};
+  if(em && em.type==='embed') return {type:'embed',url:s,embedUrl:em.embed,provider:em.provider,extUrl:1,name:em.provider,size:0};
+  if(isDirectImageUrl(s)) return {type:'image',url:s,extUrl:1,name:'image',size:0};
+  if(isDirectVideoUrl(s)) return {type:'video',url:s,extUrl:1,name:'video',size:0};
+  // Не распознали как медиа — добавим как ссылку-вложение (покажем карточкой)
+  return {type:'embed',url:s,embedUrl:'',provider:'Ссылка',extUrl:1,name:'link',size:0};
+}
 function fileLineHtml(m,fn,key){
   return '<div class="dl-fileline"><div class="dl-name" title="'+esc(m.name||'')+'">'+fileIconLarge(m.name)+' '+
     esc(shortFileName(m.name))+'</div><div class="dl-size">'+fmtSize(m.size)+'</div></div>'+
@@ -3697,15 +3748,29 @@ function renderMediaContainer(target){
   q.forEach((it,idx)=>{
     // asFile — это «файл»: показываем иконку+имя, а не мини-картинку.
     // Исключение: видео-файл — вместо иконки маленькое превью (как у фото).
-    if(it.asFile&&it.type==='video'&&it.thumb)html+='<div class="mc-item"><img src="'+it.thumb+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    if(it.extUrl && it.type==='embed')html+='<div class="mc-file"><span class="mc-ficon">▶</span><span class="mc-fname">'+esc(it.provider||'Видео')+': '+esc((it.url||'').slice(0,40))+'</span><span class="mc-fsize">ссылка</span><button class="mc-remove" style="position:static" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    else if(it.extUrl && it.type==='image')html+='<div class="mc-item"><img src="'+esc(it.url||'')+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    else if(it.extUrl && it.type==='video')html+='<div class="mc-item"><div class="ph" style="height:100%;display:flex;align-items:center;justify-content:center">🎬</div><span class="mc-type">URL</span><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    else if(it.asFile&&it.type==='video'&&it.thumb)html+='<div class="mc-item"><img src="'+it.thumb+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
     else if(it.asFile)html+='<div class="mc-file"><span class="mc-ficon">'+fileIcon(it.name)+'</span><span class="mc-fname">'+esc(it.name)+'</span><span class="mc-fsize">'+fmtSize(it.size)+'</span><button class="mc-remove" style="position:static" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
-    else if(it.type==='image')html+='<div class="mc-item"><img src="'+(it.thumb||it.data)+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
+    else if(it.type==='image')html+='<div class="mc-item"><img src="'+(it.thumb||it.data||it.url||'')+'"><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
     else if(it.type==='video')html+='<div class="mc-item"><img src="'+(it.thumb||'')+'"><span class="mc-type">🎬</span><button class="mc-remove" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
     else html+='<div class="mc-file"><span class="mc-ficon">'+fileIcon(it.name)+'</span><span class="mc-fname">'+esc(it.name)+'</span><span class="mc-fsize">'+fmtSize(it.size)+'</span><button class="mc-remove" style="position:static" onclick="removeFromQueue(\''+target+'\','+idx+')">✕</button></div>';
   });
   html+='</div>';
   el.innerHTML=html;
 }
+function addMediaUrl(target){
+  const t=target||pendingMediaTarget||'chat';
+  const raw=prompt('Вставь ссылку на фото, видео или ролик (YouTube, VK, TikTok, Rutube и т.д.):');
+  if(raw==null)return;
+  const item=buildMediaFromUrl(raw);
+  if(!item)return;
+  pendingMediaTarget=t;
+  pushToQueue(t,item);
+  toast('🔗 Ссылка добавлена',true);
+}
+function chooseUrlMedia(){ closeChooser(); addMediaUrl(pendingMediaTarget||'chat'); }
 
 // ===== ЗАГРУЗКА/ОТПРАВКА =====
 function uploadChunked(key,data,meta){
@@ -4047,7 +4112,7 @@ function notifyIncoming(m){const prev=previewFor(m.type,m.name);
   const link=location.origin+location.pathname+'?open='+encodeURIComponent(currentChatId||'');
   notifyBrowser('💬 '+n,body,link,'chat-'+(currentChatId||''));}
 function ticksHtml(m){if(currentIsGroup||m.sender!==currentUser.uid)return '';if(m.read)return '<span class="ticks ticks-read">✓✓</span>';if(m.deliv)return '<span class="ticks">✓✓</span>';return '<span class="ticks">✓</span>';}
-function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
+function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='embed'?'▶ Видео/ссылка':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
 function commitMessage(chatId,key,payload,preview){
   db.ref('messages/'+chatId+'/'+key).set(payload);
   clearStaleNotif(chatId);   // ответил — напоминание больше не нужно
@@ -4095,6 +4160,16 @@ function sendQueuedItem(chatId,item,textWithFirst,idx){
   // и всё выглядело как «ничего не происходит».
   const payload={sender:currentUser.uid,ts:Date.now()+idx,type:item.type==='file'?'file':item.type};
   if(idx===0&&textWithFirst)payload.text=textWithFirst;
+  // Внешняя ссылка (URL): ничего не заливаем в хранилище
+  if(item.extUrl && item.url){
+    payload.name=nm;
+    payload.url=item.url; payload.extUrl=1;
+    if(item.embedUrl)payload.embedUrl=item.embedUrl;
+    if(item.provider)payload.provider=item.provider;
+    if(item.type==='embed') payload.type='embed';
+    commitMessage(chatId,key,payload,previewFor(payload.type,nm));
+    return;
+  }
   if(item.type==='image'||item.type==='video'){
     // mediaKey ОБЯЗАТЕЛЬНО: без него maybeLoad() не подхватит файл и фото/видео
     // отрисуется как обычный файл (иконка + имя), а не полароид.
@@ -4727,6 +4802,27 @@ function bubbleInner(m,key,senderInside){
       c+='<div style="font-size:40px;text-align:center;padding:12px">'+fileIconLarge(m.name)+'</div>';
       c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
     }
+  }
+  // Внешнее медиа по ссылке (без загрузки в хранилище)
+  else if(m.extUrl || (m.url && (m.type==='embed'||m.type==='image'||m.type==='video'))){
+    const mu=safeHttpUrl(m.url||m.embedUrl||'');
+    if(m.type==='image' || (!m.embedUrl && mu && isDirectImageUrl(mu))){
+      c+='<div class="polaroid"><img src="'+esc(mu)+'" onclick="openLightbox(this.src)" loading="lazy" referrerpolicy="no-referrer"></div>';
+      c+='<div><a class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть</a></div>';
+    } else if(m.embedUrl || m.type==='embed'){
+      if(m.embedUrl){
+        c+='<div class="polaroid" style="max-width:min(420px,100%);width:100%"><iframe src="'+esc(safeHttpUrl(m.embedUrl)||m.embedUrl)+'" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+      } else {
+        c+='<div class="polaroid" style="padding:14px;text-align:center">▶ '+esc(m.provider||'Видео по ссылке')+'</div>';
+      }
+      if(mu) c+='<div style="margin-top:4px"><a class="btn btn-outline btn-sm" style="width:auto;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть '+esc(m.provider||'ссылку')+'</a></div>';
+    } else if(m.type==='video' || (mu && isDirectVideoUrl(mu))){
+      c+='<div class="polaroid"><video controls playsinline preload="metadata" src="'+esc(mu)+'"></video></div>';
+      if(mu) c+='<div><a class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть / Скачать</a></div>';
+    } else if(mu){
+      c+='<div><a href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 '+esc(mu)+'</a></div>';
+    }
+    if(m.text) c+='<div style="margin-top:6px">'+mentionHtml(m.text)+'</div>';
   }
   // ВАЖНО: только «c+=» — иначе перезаписывается уже собранная шапка пересланного,
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
@@ -6521,16 +6617,29 @@ function mediaListHtml(list,small){
   // Нажатие на любое фото открывает фотоплеер со всеми кадрами этого поста.
   const imgs=[],vids=[],wait=[];
   list.forEach((m,idx)=>{
-    const src=m.data||mediaCache[m.key];
-    if(m.type==='video'){
-      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+src+'"></video></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');
-      else if(m.thumb)vids.push('<div class="polaroid"><img src="'+m.thumb+'" onclick="mediaClick(\''+m.key+'\',\'video\')" style="cursor:pointer"></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');
-      else{loadMediaSilent(m.key);vids.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');}
+    const extUrl=m.extUrl || (!!m.url && !m.key && !m.data);
+    const u=safeHttpUrl(m.url||'');
+    // Внешние эмбеды (YouTube/VK/TikTok/...)
+    if(m.type==='embed' || (extUrl && m.embedUrl)){
+      if(m.embedUrl){
+        vids.push('<div class="polaroid" style="max-width:min(520px,100%);width:100%"><iframe src="'+esc(safeHttpUrl(m.embedUrl)||m.embedUrl)+'" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+          (u?'<div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть '+esc(m.provider||'ссылку')+'</a></div>':''));
+      } else if(u){
+        vids.push('<div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 '+esc(m.provider||'Открыть ссылку')+'</a></div>');
+      }
       return;
     }
-    if(src)imgs.push({src:src,key:m.key||''});
-    else if(m.thumb)imgs.push({src:m.thumb,key:m.key||''});
-    else{loadMediaSilent(m.key);wait.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div>');}
+    const src=m.data|| (m.key?mediaCache[m.key]:null) || (extUrl?u:null);
+    if(m.type==='video' || (extUrl && isDirectVideoUrl(u))){
+      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+src+'"></video></div><div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(src)+'" target="_blank" rel="noopener" '+(extUrl?'':'download')+' onclick="event.stopPropagation()">⬇ '+(extUrl?'Открыть / Скачать':'Скачать')+'</a></div>');
+      else if(m.thumb)vids.push('<div class="polaroid"><img src="'+m.thumb+'" onclick="mediaClick(\''+m.key+'\',\'video\')" style="cursor:pointer"></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');
+      else{ if(m.key) loadMediaSilent(m.key); vids.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');}
+      return;
+    }
+    // image
+    const isrc = src || (m.thumb||null);
+    if(isrc) imgs.push({src:isrc,key:m.key||'',url:extUrl?u:''});
+    else { if(m.key) loadMediaSilent(m.key); wait.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div>'); }
   });
   let h=vids.join('')+wait.join('');
   if(imgs.length){
@@ -6538,14 +6647,14 @@ function mediaListHtml(list,small){
     // в комментариях фото маленькие, как в чатах — по полной ширине коллаж НЕ растягивается
     if(small){
       let cells='';
-      imgs.slice(0,9).forEach((im,i)=>{cells+='<div class="polaroid" style="display:inline-block;margin:4px 6px 0 0"><img src="'+im.src+'" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+im.src+'\')" style="max-width:200px;cursor:pointer"></div>';});
+      imgs.slice(0,9).forEach((im,i)=>{cells+='<div class="polaroid" style="display:inline-block;margin:4px 6px 0 0"><img src="'+im.src+'" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+im.src+'\')" style="max-width:200px;cursor:pointer" loading="lazy"></div>';});
       h+='<div style="margin-top:2px">'+cells+'</div>';
     }else{
       const show=Math.min(imgs.length,6);
       let cells='';
       for(let i=0;i<show;i++){
         const more=(i===5&&imgs.length>6)?'<span class="cg-more">+'+(imgs.length-6)+'</span>':'';
-        cells+='<div class="cg-i" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+imgs[i].src+'\')"><img src="'+imgs[i].src+'" alt="">'+more+'</div>';
+        cells+='<div class="cg-i" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+imgs[i].src+'\')"><img src="'+imgs[i].src+'" alt="" loading="lazy">'+more+'</div>';
       }
       h+='<div class="cg cg-'+Math.min(imgs.length,9)+'">'+cells+'</div>';
     }
@@ -6562,7 +6671,10 @@ function mediaListHtml(list,small){
   return h;
 }
 function uploadMediaList(prefix,list){
-  return Promise.all(list.map((it,i)=>{const key=prefix+'_m'+i;it.key=key;return uploadChunked(key,it.data,{name:it.name});}));
+  return Promise.all((list||[]).map((it,i)=>{
+    if(it && it.extUrl && it.url) return Promise.resolve(); // внешняя ссылка — заливать нечего
+    const key=prefix+'_m'+i; it.key=key; return uploadChunked(key,it.data,{name:it.name});
+  }));
 }
 function postNews(){
   if(!currentUser.isAdmin){toast('Только админ');return;}
@@ -6584,9 +6696,7 @@ function postNews(){
       up.title=title;                       // пустое имя = заголовок снят, а не «оставить старый»
       up.text=text;
       if(list.length){
-        up.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));
-        up.ext=1;up.mediaKey=list[0].key;up.mediaType=list[0].type;
-        up.mediaName=list[0].name;up.thumb=list[0].thumb||null;
+        applyPrimaryMedia(up,list);
       }
       up.editedAt=Date.now();
       return db.ref('news/'+key).update(up);
@@ -6621,10 +6731,36 @@ function postNews(){
   const restore=()=>{inp.value=backup.text;document.getElementById('newsTitle').value=backup.title;newsMediaQueue=backup.queue;renderMediaContainer('news');};
   const finish=()=>{
     const it={title:title||null,text:text||null,ts:Date.now(),authorUid:currentUser.uid,author:displayNameOf(currentUser),color:colorOf(currentUser)};
-    if(list.length){it.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));it.ext=1;it.mediaKey=list[0].key;it.mediaType=list[0].type;it.mediaName=list[0].name;it.thumb=list[0].thumb||null;}
+    if(list.length){ applyPrimaryMedia(it,list); }
     db.ref('news/'+key).set(it).then(()=>{postingBusy=false;toast('📣 Опубликовано!',true);}).catch(()=>{postingBusy=false;restore();toast('Ошибка публикации');});
   };
   if(list.length)uploadMediaList(key,list).then(finish).catch(()=>{postingBusy=false;restore();toast('Ошибка загрузки медиа');});else finish();
+}
+function serializeMediaItem(m){
+  if(!m) return null;
+  if(m.extUrl || m.url){
+    const o={type:m.type||'embed', extUrl:1, url:m.url||''};
+    if(m.embedUrl) o.embedUrl=m.embedUrl;
+    if(m.provider) o.provider=m.provider;
+    if(m.name) o.name=m.name;
+    if(m.thumb) o.thumb=m.thumb;
+    return o;
+  }
+  return {key:m.key,type:m.type,name:m.name,thumb:m.thumb||null};
+}
+function serializeMediaList(list){ return (list||[]).filter(Boolean).map(serializeMediaItem).filter(Boolean); }
+function applyPrimaryMedia(it,list){
+  if(!list||!list.length) return;
+  const m=list[0];
+  it.mediaList=serializeMediaList(list);
+  if(m.extUrl || m.url){
+    it.extUrl=1; it.url=m.url||''; it.type=m.type||it.type;
+    if(m.embedUrl) it.embedUrl=m.embedUrl;
+    if(m.provider) it.provider=m.provider;
+    if(m.type==='image') { it.mediaType='image'; }
+  } else {
+    it.ext=1; it.mediaKey=m.key; it.mediaType=m.type; it.mediaName=m.name; it.thumb=m.thumb||null;
+  }
 }
 function proposeNews(){
   if(postingBusy)return;
@@ -6634,7 +6770,7 @@ function proposeNews(){
   const key=db.ref('newsProposals').push().key;
   const list=propMediaQueue.slice(0,MAX_MEDIA_ITEMS);
   const finish=()=>{const it={title:title||null,text:text||null,ts:Date.now(),authorUid:currentUser.uid,author:displayNameOf(currentUser),color:colorOf(currentUser),status:'pending'};
-    if(list.length){it.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));it.ext=1;it.mediaKey=list[0].key;it.mediaType=list[0].type;it.mediaName=list[0].name;it.thumb=list[0].thumb||null;}
+    if(list.length){ applyPrimaryMedia(it,list); }
     db.ref('newsProposals/'+key).set(it).then(()=>{postingBusy=false;document.getElementById('propTitle').value='';document.getElementById('propText').value='';propMediaQueue=[];renderMediaContainer('propose');toast('📨 Предложено! Админ рассмотрит',true);}).catch(()=>{postingBusy=false;});};
   if(list.length)uploadMediaList(key,list).then(finish).catch(()=>{postingBusy=false;});else finish();
 }
@@ -6935,6 +7071,10 @@ function inlineMediaHtml(item,cls){
   const sm=cls==='cmedia';
   if(item.mediaList&&item.mediaList.length)return mediaListHtml(item.mediaList,sm);
   if(item.mediaData)return mediaListHtml([{data:item.mediaData,type:'image'}],sm);
+  // Внешнее медиа по ссылке (пост/новость целиком)
+  if(item.extUrl || (item.url && (item.type==='embed'||item.mediaType==='embed'))){
+    return mediaListHtml([{type:item.type||item.mediaType||'embed',url:item.url,extUrl:1,embedUrl:item.embedUrl,provider:item.provider}],sm);
+  }
   if(item.ext&&item.mediaKey){
     // одиночное фото — тоже коллаж (можно листать, если потом добавятся кадры)
     if(item.mediaType!=='video')return mediaListHtml([{key:item.mediaKey,type:'image',thumb:item.thumb}],sm);
@@ -6945,6 +7085,9 @@ function inlineMediaHtml(item,cls){
     loadMediaSilent(item.mediaKey);
     return '<div class="media-box '+(cls||'')+'"><div class="ph">⏳</div></div>'+
       '<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadByCacheKey(\''+esc(item.mediaKey)+'\',\'video_'+String(item.mediaKey||'').slice(-6)+'.mp4\')">⬇ Скачать</button></div>';}
+  if(item.url && (item.type==='image'||item.type==='video' || isDirectImageUrl(item.url) || isDirectVideoUrl(item.url))){
+    return mediaListHtml([{type:item.type||(isDirectVideoUrl(item.url)?'video':'image'),url:item.url,extUrl:1}],sm);
+  }
   return '';
 }
 function commentsHtml(base,n){
@@ -7074,7 +7217,7 @@ function postColumn(){
   const key=db.ref('userPosts').push().key;
   const list=colMediaQueue.slice(0,MAX_MEDIA_ITEMS);
   const finish=()=>{const p={authorUid:currentUser.uid,text,ts:Date.now()};
-    if(list.length){p.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));p.ext=1;p.mediaKey=list[0].key;p.mediaType=list[0].type;p.mediaName=list[0].name;p.thumb=list[0].thumb||null;}
+    if(list.length){ applyPrimaryMedia(p,list); }
     db.ref('userPosts/'+key).set(p).then(()=>{postingBusy=false;inp.value='';colMediaQueue=[];renderMediaContainer('column');toast('📝 В колонке',true);
       const sent=notifyAllFriends('post','Новая запись в колонке','📝 '+displayNameOf(currentUser)+(text?': '+text.slice(0,60):' — фото/видео'),{postId:key,from:currentUser.uid});
       toast(sent?'📨 Уведомлено друзей: '+sent:'📨 Пока некого уведомлять — нет друзей',true);}).catch(()=>{postingBusy=false;});};
@@ -7088,7 +7231,7 @@ function postToMyColumn(){
   const key=db.ref('userPosts').push().key;
   const list=myColMediaQueue.slice(0,MAX_MEDIA_ITEMS);
   const finish=()=>{const p={authorUid:currentUser.uid,text,ts:Date.now()};
-    if(list.length){p.mediaList=list.map(m=>({key:m.key,type:m.type,name:m.name,thumb:m.thumb||null}));p.ext=1;p.mediaKey=list[0].key;p.mediaType=list[0].type;p.mediaName=list[0].name;p.thumb=list[0].thumb||null;}
+    if(list.length){ applyPrimaryMedia(p,list); }
     db.ref('userPosts/'+key).set(p).then(()=>{postingBusy=false;inp.value='';myColMediaQueue=[];renderMediaContainer('myColumn');toast('📝 В колонке',true);
       const sent=notifyAllFriends('post','Новая запись в колонке','📝 '+displayNameOf(currentUser)+(text?': '+text.slice(0,60):' — фото/видео'),{postId:key,from:currentUser.uid});
       toast(sent?'📨 Уведомлено друзей: '+sent:'📨 Пока некого уведомлять — нет друзей',true);}).catch(()=>{postingBusy=false;});};
