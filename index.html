@@ -874,24 +874,61 @@ img,video,canvas{max-width:100%}
 .chat-friend-name{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600}
 .chat-friend-card .btn{width:100%;padding:6px 8px;font-size:12px}
 @media (min-width:900px){
-  /* Всё приложение — одна колонка одной ширины: верхний колонтитул (шапка),
-     контент и нижний колонтитул (навигация) выровнены по одним краям. */
-  :root{--app-w:980px}
-  body{background:#060606}
-  .screen{left:0;right:0;max-width:var(--app-w);margin:0 auto;background:var(--bg);
-    border-left:1px solid var(--surface2);border-right:1px solid var(--surface2);
-    box-shadow:0 0 46px rgba(0,0,0,.6);padding-bottom:68px}
+  /* Десктоп-основа: на всю ширину, без чёрных полей; читаемость — через max-width у контента */
+  :root{--app-w:1200px}
+  body{
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(108,92,231,.18), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(0,184,148,.10), transparent 55%),
+      var(--bg);
+  }
+  .screen{left:0;right:0;max-width:none;margin:0;background:transparent;
+    border:none;box-shadow:none;padding-bottom:68px}
   #loginScreen,#registerScreen{max-width:none;border:none;background:none;box-shadow:none;padding-bottom:0}
-  .bottom-nav{height:68px;width:min(100%,var(--app-w));max-width:none;left:50%;right:auto;transform:translateX(-50%);
-    border-radius:0;border:1px solid var(--surface2);border-bottom:none;box-shadow:0 -10px 34px rgba(0,0,0,.5)}
+  .bottom-nav{height:68px;left:0;right:0;width:100%;max-width:none;transform:none;
+    border-radius:0;border-top:1px solid var(--surface2);border-left:none;border-right:none;border-bottom:none;box-shadow:0 -10px 34px rgba(0,0,0,.35)}
   .nav-btn{font-size:11px}
   .nav-btn .nav-icon{font-size:24px}
   /* шапка чуть компактнее — контент начинается ближе к верху */
   .header{min-height:54px;padding:8px 14px}
   .header-btn{width:40px;height:40px;font-size:18px}
-  #newsScreen .scroll,#profileScreen .profile-wrap,#viewProfileScreen .profile-wrap,#profileEditScreen .profile-wrap,#myColumnScreen .scroll{display:flex;flex-direction:column;align-items:center}
-  /* единая ширина колонок на всех страницах */
-  #newsList,#newsComposer,#proposeComposer,#profileScreen .profile-card,#viewProfileScreen .profile-card,#profileEditScreen .profile-card,.cover-slot,#myColumnList,#myColumnScreen .card{width:100%;max-width:var(--app-w)}
+  #viewProfileScreen .profile-wrap,#profileEditScreen .profile-wrap,#myColumnScreen .scroll{display:flex;flex-direction:column;align-items:center}
+  /* базовая читаемая ширина (кроме чатов в split и переделанных экранов) */
+  #viewProfileScreen .profile-card,#profileEditScreen .profile-card,.cover-slot,#myColumnList,#myColumnScreen .card{width:100%;max-width:var(--app-w)}
+  /* Профиль — двухколоночный десктоп */
+  #profileScreen .profile-wrap{
+    display:grid;
+    grid-template-columns:minmax(280px,360px) minmax(0,1fr);
+    gap:16px;
+    align-items:start;
+    max-width:1280px;
+    margin:0 auto;
+    padding:16px 20px 24px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  #profileScreen .profile-identity-col,
+  #profileScreen .profile-cards-col{min-width:0}
+  #profileScreen .profile-identity-col{
+    background:var(--surface);
+    border:1px solid var(--surface2);
+    border-radius:16px;
+    padding:14px;
+    position:sticky;
+    top:12px;
+  }
+  #profileScreen .profile-identity-col .profile-name,
+  #profileScreen .profile-identity-col .profile-login,
+  #profileScreen .profile-identity-col .profile-status,
+  #profileScreen .profile-identity-col #profilePresence,
+  #profileScreen .profile-identity-col #profileRockBadge{text-align:center}
+  #profileScreen .profile-card{width:100%;max-width:none;margin-left:0;margin-right:0}
+  #profileScreen .cover-slot{max-width:none}
+  /* Новости — адаптивный десктоп */
+  #newsScreen .scroll{display:block;padding:16px 20px 24px;max-width:1400px;margin:0 auto;width:100%;box-sizing:border-box}
+  #newsComposer,#proposeComposer{max-width:860px;margin:0 auto 14px;width:100%}
+  #newsList{column-count:2;column-gap:14px;max-width:none;width:100%;padding-top:6px !important}
+  #newsList .news-card{break-inside:avoid;margin:0 0 14px;display:inline-block;width:100%;box-sizing:border-box}
   /* композер колонки — на всю ширину вьюпорта, а не по центру узкой колонкой */
   #myColComposer{max-width:none;width:100%}
   #myColComposer .card{margin-left:0;margin-right:0}
@@ -916,7 +953,7 @@ img,video,canvas{max-width:100%}
   body.desktop-split{background:var(--bg);overflow:hidden}
   body.desktop-split .screen{max-width:none;margin:0;left:auto;right:auto;border:none;box-shadow:none}
   body.desktop-split #mainScreen,
-  body.desktop-split #chatScreen{position:fixed;top:0;bottom:68px;height:auto}
+  body.desktop-split #chatScreen{position:fixed;top:0;bottom:68px;height:auto;background:var(--bg)}
   body.desktop-split #mainScreen{left:0;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
   body.desktop-split #chatScreen{left:360px;right:0;width:auto;z-index:2}
   body.desktop-split #chatScreen.active{display:flex !important}
@@ -1189,6 +1226,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     </div>
   </div>
   <div class="profile-wrap">
+    <div class="profile-identity-col">
     <div class="cover-slot">
       <div id="profileCoverBand"></div>
       <div class="cover-avatar">
@@ -1202,6 +1240,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-status" id="profileStatus"></div>
     <div id="profilePresence" style="font-size:13px;margin-bottom:12px"></div>
     <div id="profileRockBadge" style="margin-bottom:12px"></div>
+    </div>
+    <div class="profile-cards-col">
     <div class="profile-card">
       <div class="card-title">Статус (сохраняется сразу)</div>
       <div class="input-group" style="margin:0"><select id="statusSelect" onchange="statusSelectChanged()">
@@ -1249,6 +1289,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card" id="blockedCard" style="display:none">
       <div class="card-title">🚫 Заблокированные</div>
       <div id="blockedList"></div>
+    </div>
     </div>
   </div>
 </div>
@@ -1684,7 +1725,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 20:50';
+const BUILD='11.10.2026 21:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
