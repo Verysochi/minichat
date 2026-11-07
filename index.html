@@ -1751,7 +1751,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='07.11.2026 13:25';
+const BUILD='07.11.2026 13:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2925,17 +2925,25 @@ function parseEmbedUrl(u){
     return null;
   }catch(e){ return null; }
 }
-function buildMediaFromUrl(raw){
+function buildMediaFromUrl(raw, opts){
   const s=safeHttpUrl(raw);
   if(!s){ toast('Нужна ссылка, начинающаяся с http:// или https://'); return null; }
   const em=parseEmbedUrl(s);
   if(em && em.type==='image') return {type:'image',url:s,extUrl:1,name:'image',size:0};
   if(em && em.type==='video') return {type:'video',url:s,extUrl:1,name:'video',size:0};
   if(em && em.type==='embed') return {type:'embed',url:s,embedUrl:em.embed,provider:em.provider,extUrl:1,name:em.provider,linkTitle:'',size:0};
+  // Для явного "медиа по ссылке" не превращаем нераспознанное в голую ссылку —
+  // пробуем как картинку (часто это "скопировать адрес изображения" без расширения).
+  // При ошибке загрузки рендер покажет fallback-ссылку.
+  if(opts && opts.preferMedia && (!em || em.type==='link')){
+    // если похоже на видео-платформу без нашего embed — оставим ссылкой
+    if(em && em.type==='link') return {type:'link',url:s,extUrl:1,name:em.provider||'Ссылка',linkTitle:'',provider:em.provider||'Ссылка',size:0};
+    return {type:'image',url:s,extUrl:1,name:'image',linkTitle:'',guessMedia:1,size:0};
+  }
   if(em && em.type==='link') return {type:'link',url:s,extUrl:1,name:em.provider||'Ссылка',linkTitle:'',provider:em.provider||'Ссылка',size:0};
   if(isDirectImageUrl(s)) return {type:'image',url:s,extUrl:1,name:'image',linkTitle:'',size:0};
   if(isDirectVideoUrl(s)) return {type:'video',url:s,extUrl:1,name:'video',linkTitle:'',size:0};
-  // Не распознали как медиа — добавим как именованную/обычную ссылку
+  // Не распознали — обычная ссылка
   return {type:'link',url:s,extUrl:1,name:'Ссылка',linkTitle:'',provider:'Ссылка',size:0};
 }
 function fileLineHtml(m,fn,key){
@@ -3788,13 +3796,22 @@ function renderMediaContainer(target){
 let linkAddTarget=null;
 function addMediaUrl(target){
   const t=target||pendingMediaTarget||'chat';
-  const raw=prompt('Вставь ссылку на медиа (YouTube, фото, видео, VK, Rutube и т.д.):');
+  const raw=prompt('Вставь ссылку на медиа (фото, видео, YouTube, VK, Rutube и т.д.):');
   if(raw==null)return;
-  const item=buildMediaFromUrl(raw);
+  const item=buildMediaFromUrl(raw, {preferMedia:true});
   if(!item)return;
   pendingMediaTarget=t;
   pushToQueue(t,item);
   toast(item.type==='link'?'🔗 Ссылка добавлена':'▶ Медиа добавлено',true);
+}
+function mediaImgFallback(el, url, title){
+  try{
+    const box = el.closest('.polaroid') || el.parentElement;
+    if(!box) return;
+    const u = safeHttpUrl(url||el.getAttribute('data-fallback-url')||el.src||'') || (url||el.src||'');
+    const t = title || el.getAttribute('data-fallback-title') || 'Медиа';
+    box.outerHTML = '<div class="card" style="margin:4px 0 8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(t)+'</div><div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u)+'</div></div><a class="btn btn-primary btn-sm" style="width:auto;flex:0 0 auto;text-decoration:none" href="'+esc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Открыть</a></div>';
+  }catch(e){}
 }
 function chooseUrlMedia(){ closeChooser(); addMediaUrl(pendingMediaTarget||'chat'); }
 function openLinkAdd(target){
@@ -4867,7 +4884,7 @@ function bubbleInner(m,key,senderInside){
     if(m.type==='link' || (!m.embedUrl && mu && !isDirectImageUrl(mu) && !isDirectVideoUrl(mu) && m.type!=='image' && m.type!=='video' && m.type!=='embed')){
       c+='<div class="card" style="margin:2px 0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface2);border:1px solid var(--surface3)"><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(linkTitle||'Ссылка')+'</div><div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(mu)+'</div></div><a class="btn btn-primary btn-sm" style="width:auto;flex:0 0 auto;text-decoration:none;margin:0" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Открыть</a></div>';
     } else if(m.type==='image' || (!m.embedUrl && mu && isDirectImageUrl(mu))){
-      c+='<div class="polaroid"><img src="'+esc(mu)+'" onclick="openLightbox(this.src)" loading="lazy" referrerpolicy="no-referrer"></div>';
+      c+='<div class="polaroid"><img src="'+esc(mu)+'" data-fallback-url="'+esc(mu)+'" onclick="openLightbox(this.src)" onerror="mediaImgFallback(this,this.getAttribute(\'data-fallback-url\'),\'Фото\')" loading="lazy" referrerpolicy="no-referrer"></div>';
       c+='<div><a class="btn btn-outline btn-sm" style="width:auto;margin-top:4px;display:inline-flex;align-items:center;gap:4px;text-decoration:none" href="'+esc(mu)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Открыть</a></div>';
     } else if(m.embedUrl && m.type!=='link'){
       c+='<div class="polaroid" style="max-width:min(420px,100%);width:100%"><iframe src="'+esc(safeHttpUrl(m.embedUrl)||m.embedUrl)+'" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
@@ -6704,14 +6721,14 @@ function mediaListHtml(list,small){
     // в комментариях фото маленькие, как в чатах — по полной ширине коллаж НЕ растягивается
     if(small){
       let cells='';
-      imgs.slice(0,9).forEach((im,i)=>{cells+='<div class="polaroid" style="display:inline-block;margin:4px 6px 0 0"><img src="'+im.src+'" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+im.src+'\')" style="max-width:200px;cursor:pointer" loading="lazy"></div>';});
+      imgs.slice(0,9).forEach((im,i)=>{cells+='<div class="polaroid" style="display:inline-block;margin:4px 6px 0 0"><img src="'+im.src+'" data-fallback-url="'+esc(im.url||im.src||'')+'" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+im.src+'\')" onerror="mediaImgFallback(this,this.getAttribute(\'data-fallback-url\'),\'Фото\')" style="max-width:200px;cursor:pointer" loading="lazy"></div>';});
       h+='<div style="margin-top:2px">'+cells+'</div>';
     }else{
       const show=Math.min(imgs.length,6);
       let cells='';
       for(let i=0;i<show;i++){
         const more=(i===5&&imgs.length>6)?'<span class="cg-more">+'+(imgs.length-6)+'</span>':'';
-        cells+='<div class="cg-i" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+imgs[i].src+'\')"><img src="'+imgs[i].src+'" alt="" loading="lazy">'+more+'</div>';
+        cells+='<div class="cg-i" onclick="event.stopPropagation();ppOpenSetSafe(\''+gid+'\','+i+',\''+imgs[i].src+'\')"><img src="'+imgs[i].src+'" data-fallback-url="'+esc(imgs[i].url||imgs[i].src||'')+'" alt="" loading="lazy" onerror="mediaImgFallback(this,this.getAttribute(\'data-fallback-url\'),\'Фото\')">'+more+'</div>';
       }
       h+='<div class="cg cg-'+Math.min(imgs.length,9)+'">'+cells+'</div>';
     }
