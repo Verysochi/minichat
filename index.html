@@ -296,6 +296,8 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 .msg-foot .msg-time{margin-top:0}
 /* Раньше кнопки реакций были полупрозрачными и «загорались» только при наведении —
    на телефоне наведения нет, и они выглядели мёртвыми. Теперь всегда в полную силу. */
+/* Поставленные реакции — всегда видны (аватарки + эмодзи, кто отреагировал) */
+.msg-reactions-bar{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%;margin-top:4px}
 .msg-actions{display:none;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%}
 /* Значки действий показываем только после нажатия/выбора сообщения — и на телефоне, и на ПК */
 .msg.highlighted .msg-actions{display:inline-flex}
@@ -313,7 +315,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
   background:var(--accent-soft);border:1.5px solid var(--primary);font-size:13px;line-height:1;
   transition:transform .18s ease}
 .react-sum:hover{transform:translateY(-2px) scale(1.06)}
-.msg-react-btn.mine{border-color:var(--primary);background:var(--accent-soft);font-size:14px}
+.msg-react-btn.mine{border-color:var(--primary);background:var(--accent-soft);font-size:14px;width:auto;height:auto;border-radius:14px;padding:1px 6px 1px 1px;gap:2px}
 /* «Кто оценил» — мелкая подпись под кнопкой реакций в группах */
 .who-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:1px 4px;white-space:nowrap}
 .who-btn:hover{color:var(--primary)}
@@ -1658,7 +1660,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='11.10.2026 19:35';
+const BUILD='11.10.2026 19:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4383,16 +4385,17 @@ function msgSig(m){
   // заглушку с часиками вместо плеера. Поэтому дописываем признак загрузки.
   return sig+'|ml:'+(rest.mediaKey?(mediaCache[rest.mediaKey]?1:0):0);
 }
-// Перерисовать только ряд кнопок (реакции + пересылка + удаление), не трогая текст,
-// картинки и разметку сообщения — иначе лента дёргается при каждой реакции.
+// Перерисовать реакции и кнопки действий, не трогая текст/картинки.
+// Теперь реакции вынесены в .msg-reactions-bar (всегда видна) + .msg-actions (скрыта до выбора).
 function patchMsgActions(el,key,m){
-  const old=el.querySelector('.msg-actions');
   const tmp=document.createElement('div');
   tmp.innerHTML=msgActionsHtml(m,key);
-  const fresh=tmp.firstElementChild;
-  if(!fresh)return;
-  if(old)old.replaceWith(fresh);
-  else el.appendChild(fresh);
+  const oldBar=el.querySelector('.msg-reactions-bar');
+  const oldAct=el.querySelector('.msg-actions');
+  if(oldBar)oldBar.remove();
+  if(oldAct)oldAct.remove();
+  // вставляем новые элементы (бар реакций + блок действий) в конец сообщения
+  while(tmp.firstChild)el.appendChild(tmp.firstChild);
 }
 // Всполох золотого свечения после постановки реакции — ровно один раз, на пару секунд
 function rockFlash(button){
@@ -4619,57 +4622,62 @@ function senderLine(m,inside){
     '<span class="ms-name">'+esc(nm)+'</span>'+gAdminMark(currentChatId,m.sender)+'</div>';
 }
 function msgActionsHtml(m,key){
-  // Реакции видно ПО ЧЕЛОВЕКАМ:
-  //  — моя реакция живёт на кнопке справа;
-  //  — чужие идут слева: аватар + эмодзи (подсвечивает имя и рамку по цвету);
-  //  — если реакция одна и та же у нескольких — эмодзи на кнопке + счётчик.
-  // Улыбку-эмодзи на кнопке убрали: она не читалась как «реакции».
+  // Реакции видно ПО ЧЕЛОВЕКАМ: чужие — аватар+эмодзи, моя — на кнопке.
+  // Поставленные реакции ВСЕГДА видны (даже когда значки действий скрыты).
+  // Кнопки действий (ответить/переслать/удалить/выбрать реакцию) — только при выборе сообщения.
   const reacts=m.reactions||{};
   const myEmoji=reacts[currentUser.uid]||null;
   const others=Object.keys(reacts).filter(u=>u!==currentUser.uid&&ALL_USERS[u]);
-  let h='<div class="msg-actions">';
+  let out='';
 
-  // Слева: чужие реакции списком (в группах — кто именно)
-  if(others.length){
-    const sameAll=others.every(u=>reacts[u]===myEmoji);
-    if(myEmoji&&sameAll){
-      // Все поставили одно и то же — хватает эмодзи + числа
-      h+='<button class="react-sum" title="Все поставили '+esc(myEmoji)+'" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">'+
-         esc(myEmoji)+'<span class="react-count">'+others.length+'</span></button>';
-    }else{
-      others.slice(0,6).forEach(u=>{
-        const i=ALL_USERS[u]||{};
-        h+='<button class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+': '+esc(reacts[u])+'" '+
-           'onclick="event.stopPropagation();openUserProfile(\''+u+'\')">'+
-           avatarHtml(i,'xs',displayNameOf(i)||nameOf(u))+'<span class="rw-emoji">'+esc(reacts[u])+'</span></button>';
-      });
-      if(others.length>6)h+='<button class="react-who" title="И ещё '+(others.length-6)+'" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">+'+(others.length-6)+'</button>';
+  // --- Всегда видимая строка: поставленные реакции (кто и что) ---
+  const hasReacts=others.length>0||!!myEmoji;
+  if(hasReacts){
+    let rb='<div class="msg-reactions-bar">';
+    if(others.length){
+      const sameAll=myEmoji&&others.every(u=>reacts[u]===myEmoji);
+      if(sameAll){
+        rb+='<button class="react-sum" title="Все поставили '+esc(myEmoji)+'" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">'+
+           esc(myEmoji)+'<span class="react-count">'+others.length+'</span></button>';
+      }else{
+        others.slice(0,6).forEach(u=>{
+          const i=ALL_USERS[u]||{};
+          rb+='<button class="react-who" style="border-color:'+(i.color||'#555')+'" title="'+escA(displayNameOf(i)||nameOf(u))+': '+esc(reacts[u])+'" '+
+             'onclick="event.stopPropagation();openUserProfile(\''+u+'\')">'+
+             avatarHtml(i,'xs',displayNameOf(i)||nameOf(u))+'<span class="rw-emoji">'+esc(reacts[u])+'</span></button>';
+        });
+        if(others.length>6)rb+='<button class="react-who" title="И ещё '+(others.length-6)+'" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">+'+(others.length-6)+'</button>';
+      }
     }
+    if(myEmoji){
+      const me=(typeof currentUser!=='undefined'&&currentUser)?(ALL_USERS[currentUser.uid]||currentUser):{};
+      rb+='<button class="msg-react-btn mine" title="Твоя реакция: '+esc(myEmoji)+' (нажми, чтобы убрать)" '+
+         'onclick="event.stopPropagation();setMsgReaction(\'messages/'+currentChatId+'\',\''+key+'\',\'msg\',\''+myEmoji+'\')">'+
+         avatarHtml(me,'xs',displayNameOf(me)||'Я')+'<span class="rw-emoji">'+esc(myEmoji)+'</span></button>';
+    }
+    rb+='</div>';
+    out+=rb;
   }
 
-  // Справа: моя реакция или кнопка выбора
-  if(myEmoji){
-    h+='<button class="msg-react-btn mine" title="Твоя реакция: '+esc(myEmoji)+' (нажми, чтобы убрать)" '+
-       'onclick="event.stopPropagation();setMsgReaction(\'messages/'+currentChatId+'\',\''+key+'\',\'msg\',\''+myEmoji+'\')">'+esc(myEmoji)+'</button>';
-  }else{
+  // --- Скрытые до выбора: действия ---
+  let h='<div class="msg-actions">';
+  if(!myEmoji){
     h+='<button class="msg-react-btn" title="Поставить реакцию" onclick="event.stopPropagation();toggleReactionPanel(\''+key+'\',event)">☺</button>';
   }
   if(!m.deleted){
-    // Пересылка наружу может быть запрещена админом группы (настройка группы)
     const g=currentIsGroup?groupOf(currentChatId):null;
     const noFwd=!!(g&&g.settings&&g.settings.noFwdOut);
     h+='<button class="msg-reply-btn" title="Ответить" onclick="event.stopPropagation();startReply(\''+key+'\')">↩</button>';
     if(!noFwd)h+='<button class="msg-fwd-btn" title="Поделиться / переслать" onclick="event.stopPropagation();openFwdChooser(\''+key+'\')">🔗</button>';
     else h+='<button class="msg-fwd-btn" title="В группе запрещено пересылать наружу" onclick="event.stopPropagation();toast(\'⛔ Админ группы запретил пересылку наружу\')">🔗</button>';
-    // В группах — кто именно поставил реакцию
     if(currentIsGroup&&Object.keys(reacts).length)
       h+='<button class="who-btn" title="Кто оценил" onclick="event.stopPropagation();showWhoReacted(\''+key+'\')">👤 '+Object.keys(reacts).length+'</button>';
   }
   if(m.sender===currentUser.uid||currentUser.isAdmin)h+='<button class="msg-del-btn" title="Удалить" onclick="event.stopPropagation();deleteMessage(\''+key+'\')">🗑</button>';
-  // Панель выбора реакций обязана быть в разметке — без неё клик по кнопке
-  // нечего открывать (она рисуется в .msg.highlighted, а её элемента не было).
   h+=reactionBadgesHtml(reacts,reacts[currentUser.uid],'messages/'+currentChatId,key,'msg',currentIsGroup);
-  return h+'</div>';
+  h+='</div>';
+  out+=h;
+  return out;
 }
 // Открывает панель реакций по кнопке 😀 (то же, что тап по сообщению, но явно)
 function toggleReactionPanel(key,ev){
