@@ -308,7 +308,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* padding-bottom большой — чтобы панель реакций и подпись «переслал» влезали
    сразу, без подёргивания прокрутки в момент клика/отправки */
 .messages{flex:1;overflow-y:auto;overflow-anchor:none;padding:10px 12px 76px;display:flex;flex-direction:column;gap:5px}
-.msg{max-width:80%;padding:8px 12px;border-radius:18px;font-size:15px;line-height:1.4;word-wrap:break-word;position:relative;transition:all .2s;margin-top:2px}
+.msg{max-width:84%;padding:6px 10px;border-radius:14px;font-size:15px;line-height:1.35;word-wrap:break-word;position:relative;transition:all .2s;margin-top:1px}
 /* Кнопки действий стоят В ПОТОКЕ под текстом, отдельной строкой.
    Пробовали выносить их в углы пузыря через absolute — они наезжали
    на текст и на соседние сообщения, всё слеплось в кучу. */
@@ -318,7 +318,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
   transition:background .15s ease,border-color .15s ease,transform .18s ease}
 .msg-reply-btn:hover,.msg-fwd-btn:hover{background:var(--accent-soft);border-color:var(--primary);transform:scale(1.1)}
 .msg.sent{align-self:flex-end;background:var(--primary);color:var(--primary-text);border-bottom-right-radius:4px}
-.msg.received{align-self:flex-start;background:var(--surface2);border-bottom-left-radius:4px}
+.msg.received{align-self:flex-start;background:var(--surface2);border:1px solid var(--surface3);border-bottom-left-radius:4px}
 /* НЕ scale() и НЕ transform: рамка полароида с фото внутри сообщения
    от такого увеличивалась и «дёргалась» при открытии реакций */
 .msg.highlighted{z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.5)}
@@ -1828,7 +1828,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 13:40';
+const BUILD='08.11.2026 13:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4878,7 +4878,7 @@ function rockFaceHtml(uid,cls){
 function rockBadgeHtml(uid){
   const n=rockCountOf(uid);
   return '<span class="rock-badge" title="Рокнул(а) '+n+' раз(а)">'+
-    '<span class="rb-hand">🤘</span>'+(n>0?'<span class="rb-n">'+n+'</span>':'')+'</span>';
+    '<span class="rb-hand">🤘</span><span class="rb-n">'+n+'</span></span>';
 }
 // Анимация реакции: 🤘 — «дождь» рук в радиусе кнопки, остальные — быстрый взрыв.
 // Движок на CSS, без canvas: дёшево и не тормозит на телефоне.
