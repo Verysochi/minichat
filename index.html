@@ -1095,6 +1095,11 @@ img,video,canvas{max-width:100%}
 .msg-in-banner .mib-body{min-width:0;flex:1}
 .msg-in-banner .mib-title{font-size:12px;opacity:.85;margin-bottom:2px}
 .msg-in-banner .mib-text{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Стек аватарок "Кто рокнул" */
+.rock-ava-stack{display:inline-flex;align-items:center;margin-left:6px;vertical-align:middle}
+.rock-ava-stack .rava{width:22px;height:22px;border-radius:50%;object-fit:cover;border:2px solid var(--bg2,#1e222d);margin-left:-7px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;box-sizing:content-box}
+.rock-ava-stack .rava:first-child{margin-left:0}
+.rock-ava-stack .rmore{font-size:12px;color:var(--text2,#aab);margin-left:4px;white-space:nowrap}
 </style>
 </head>
 <body class="login-active booting">
@@ -1823,7 +1828,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 13:20';
+const BUILD='08.11.2026 13:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2860,6 +2865,20 @@ function startListeners(){
     updateFriendsNavCount();});
   groupsLRef=db.ref('groups');groupsLRef.on('value',s=>{ALL_GROUPS=s.val()||{};refreshDynamic();});
   newsLRef=db.ref('news');newsLRef.on('value',s=>{
+    const val=s.val()||{};
+    if(window._newsInit){
+      Object.keys(val).forEach(id=>{
+        if((window._prevNewsKeys||new Set()).has(id)) return;
+        const n=val[id]; if(!n) return;
+        if(!n.ts || (Date.now()-n.ts)>120000) return;
+        if(n.authorUid===currentUser.uid) return;
+        if(document.getElementById('newsScreen')?.classList.contains('active')) return;
+        const au=ALL_USERS[n.authorUid];
+        const prev=(n.title||'').trim() || ((n.text||'').trim().slice(0,60));
+        showIncomingMsgBanner({kind:'news', newsId:id, user:au, name:n.author||displayNameOf(au,'Админ'), title:'Новая новость', preview:prev||'Открыть новость'});
+      });
+    }
+    window._newsInit=true; window._prevNewsKeys=new Set(Object.keys(val));
     // Ветка комментариев открыта — не пересобираем карточку из-за нового
     // комментария, а просто обновляем саму ветку.
     const openC=!!(CP&&CP.base==='news'&&CP.id);
@@ -2871,6 +2890,20 @@ function startListeners(){
     if(openC)renderCommentsPanel();
   });
   postsLRef=db.ref('userPosts');postsLRef.on('value',s=>{
+    const val=s.val()||{};
+    if(window._postsInit){
+      Object.keys(val).forEach(id=>{
+        if((window._prevPostKeys||new Set()).has(id)) return;
+        const p=val[id]; if(!p) return;
+        if(!p.ts || (Date.now()-p.ts)>120000) return;
+        if(p.authorUid===currentUser.uid) return;
+        if(!lastFriends || !lastFriends[p.authorUid]) return; // только колонки друзей
+        const au=ALL_USERS[p.authorUid];
+        const prev=((p.text||'').trim().slice(0,60)) || (p.title||'').trim() || 'Новая запись';
+        showIncomingMsgBanner({kind:'post', postId:id, from:p.authorUid, user:au, name:displayNameOf(au,p.authorUid), title:'Новая запись в колонке', preview:prev});
+      });
+    }
+    window._postsInit=true; window._prevPostKeys=new Set(Object.keys(val));
     // реакция изменилась? — обновляем кнопки на месте, без перерисовки ленты
     const sig=stableSig(s.val());
     lastUserPosts=s.val();
@@ -2901,7 +2934,22 @@ function startListeners(){
     lastNotifs=val; renderNotifs();
   });
   frLRef=db.ref('friends/'+me);frLRef.on('value',s=>{lastFriends=s.val();renderPeople();renderFriends();renderFind();updateFriendsNavCount();});
-  frqLRef=db.ref('friendRequests/'+me);frqLRef.on('value',s=>{lastFriendReq=s.val();renderPeople();});
+  frqLRef=db.ref('friendRequests/'+me);frqLRef.on('value',s=>{
+    const val=s.val()||{};
+    if(window._frqInit){
+      const prev=lastFriendReq||{};
+      Object.keys(val).forEach(uid=>{
+        if(prev[uid] || uid===currentUser.uid) return;
+        const r=val[uid]||{};
+        if(r.ts && (Date.now()-r.ts)>120000) return;
+        if(document.getElementById('friendsScreen')?.classList.contains('active')) return; // уже тут
+        const u=ALL_USERS[uid];
+        showIncomingMsgBanner({kind:'friend', uid:uid, user:u, name:displayNameOf(u,uid), title:'Хочет добавить вас в друзья', preview:'Нажмите, чтобы открыть', onClick:()=>showScreen('friendsScreen')});
+      });
+    }
+    window._frqInit=true;
+    lastFriendReq=Object.keys(val).length?val:null; renderPeople();
+  });
   // Социальные связи: подтверждённые и входящие запросы.
   // Исходящие запросы лежат у другого человека, а читать весь узел relReqs
   // правила не дают (только свою ветку) — поэтому они помечены у нас локально.
@@ -4610,21 +4658,25 @@ let _msgBannerT=null, _msgBannerEl=null, _msgBannerLast='';
 function showIncomingMsgBanner(info){
   try{
     if(!info) return;
-    const sig=(info.chatWith||info.gid||'')+'|'+(info.name||'')+'|'+Math.floor(Date.now()/2500);
+    const sig=(info.kind||'msg')+'|'+(info.chatWith||info.gid||info.newsId||info.postId||info.uid||'')+'|'+(info.name||'')+'|'+Math.floor(Date.now()/2500);
     if(sig===_msgBannerLast) return;
     _msgBannerLast=sig;
     if(_msgBannerEl){ try{_msgBannerEl.remove();}catch(e){} _msgBannerEl=null; }
     clearTimeout(_msgBannerT);
     const b=document.createElement('div'); b.className='msg-in-banner';
     const i=info.user||{};
-    const ava = i.avatar ? ('<img class="mib-ava" src="'+esc(i.avatar)+'" alt="">') : ('<div class="mib-ava">'+esc(((displayNameOf(i,info.name||'?'))||'?')[0]||'?')+'</div>');
-    const title='Новое сообщение';
-    const who=esc(info.name||'кто-то');
+    const ava = i.avatar ? ('<img class="mib-ava" src="'+esc(i.avatar)+'" alt="">') : ('<div class="mib-ava">'+esc((((i&&displayNameOf(i,info.name))||info.name||'?')+'')[0]||'?')+'</div>');
+    const title=esc(info.title||'Новое сообщение');
+    const who=esc(info.name||'');
     const prev=esc(info.preview||'');
-    b.innerHTML=ava+'<div class="mib-body"><div class="mib-title">'+title+'</div><div class="mib-text"><b>'+who+'</b>'+(prev?' · '+prev:'')+'</div></div>';
+    b.innerHTML=ava+'<div class="mib-body"><div class="mib-title">'+title+'</div><div class="mib-text">'+(who?'<b>'+who+'</b>':'')+(who&&prev?' · ':'')+(prev||'')+'</div></div>';
     b.onclick=()=>{ try{b.classList.remove('show'); setTimeout(()=>b.remove(),280);}catch(e){}
+      if(typeof info.onClick==='function'){ try{info.onClick();}catch(e){} return; }
       if(info.gid) openChat(info.gid,null);
       else if(info.chatWith) openChat(getChatId(currentUser.uid,info.chatWith), info.chatWith);
+      else if(info.newsId){ showScreen('newsScreen'); renderNews(); setTimeout(()=>{const el=document.getElementById('news_'+info.newsId); if(el) el.scrollIntoView({behavior:'smooth',block:'center'});},300); }
+      else if(info.postId && info.from){ openUserProfile(info.from); renderViewColumn(); }
+      else if(info.uid){ openUserProfile(info.uid); }
     };
     document.body.appendChild(b); _msgBannerEl=b;
     requestAnimationFrame(()=>b.classList.add('show'));
@@ -5015,7 +5067,7 @@ function rockPick(basePath,id,context,emoji){
   setMsgReaction(basePath,id,context,emoji);
   if(context==='news'&&lastNews&&lastNews[id]&&lastNews[id].authorUid)notifyUser(lastNews[id].authorUid,'react','Реакция на новость',emoji+' '+displayNameOf(currentUser)+' оценил(а) твою новость',{newsId:id});
   else if(context==='post'&&lastUserPosts&&lastUserPosts[id]&&lastUserPosts[id].authorUid)notifyUser(lastUserPosts[id].authorUid,'react','Реакция на пост',emoji+' '+displayNameOf(currentUser)+' оценил(а) твой пост',{postId:id});}
-function rockRemove(basePath,id){db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid).remove();}
+function rockRemove(basePath,id){db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid).remove(); db.ref(basePath+'/'+id+'/rockTs/'+currentUser.uid).remove().catch(()=>{});}
 // Кто поставил — для новостей/постов
 function showWhoReactedNews(basePath,id){
   const src=basePath.indexOf('news')===0?lastNews:(lastUserPosts||{})[id];
@@ -5130,12 +5182,16 @@ function rockFlash(button){
 }
 function toggleRock(basePath,id,context){
   const ref=db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid);
+  const tsRef=db.ref(basePath+'/'+id+'/rockTs/'+currentUser.uid);
   ref.once('value').then(s=>{
-    if(s.val()==='🤘'){ref.remove();return;}
+    if(s.val()==='🤘'){ ref.remove(); tsRef.remove().catch(()=>{}); return; }
     // ловим кнопку до перерисовки — всполох успеет показаться
     const btn=(typeof event!=='undefined'&&event&&event.target)?event.target.closest('.rock-btn'):null;
     rockFlash(btn);
+    const had=!!s.val();
     ref.set('🤘');
+    if(!had) tsRef.set(Date.now()).catch(()=>{});
+    else tsRef.once('value').then(ts=>{ if(!ts.exists()) tsRef.set(Date.now()).catch(()=>{}); }).catch(()=>{});
   });
   if(context==='news'&&lastNews&&lastNews[id]&&lastNews[id].authorUid)notifyUser(lastNews[id].authorUid,'react','Реакция на новость','🤘 '+displayNameOf(currentUser)+' рокнул(а) твою новость',{newsId:id});
   else if(context==='post'&&lastUserPosts&&lastUserPosts[id]&&lastUserPosts[id].authorUid)notifyUser(lastUserPosts[id].authorUid,'react','Реакция на пост','🤘 '+displayNameOf(currentUser)+' рокнул(а) твой пост',{postId:id});
@@ -5212,6 +5268,7 @@ function replayMissedReactions(chatId){
 }
 function setMsgReaction(basePath,id,context,emoji){
   const ref=db.ref(basePath+'/'+id+'/reactions/'+currentUser.uid);
+  const tsRef=db.ref(basePath+'/'+id+'/rockTs/'+currentUser.uid);
   // Снимаем координаты СРАЗУ, до закрытия панели. Раньше мы сохраняли сам
   // элемент, потом панель скрывалась — и прямоугольник становился 0×0,
   // из-за чего анимация вылетала в левый верхний угол приложения.
@@ -5221,8 +5278,12 @@ function setMsgReaction(basePath,id,context,emoji){
     if(r.width&&r.height)at={x:r.left+r.width/2,y:r.top+r.height/2};}
   clearHighlight();
   ref.once('value').then(s=>{
-    if(s.val()===emoji){ref.remove();return;}
+    if(s.val()===emoji){ ref.remove(); tsRef.remove().catch(()=>{}); return; }
+    const had=!!s.val();
     ref.set(emoji);
+    // rockTs: фиксируем "первым рокнул" (не сбрасываем при смене эмодзи)
+    if(!had) tsRef.set(Date.now()).catch(()=>{});
+    else tsRef.once('value').then(ts=>{ if(!ts.exists()) tsRef.set(Date.now()).catch(()=>{}); }).catch(()=>{});
     // Анимацию запускаем ТОЛЬКО для чатов. Новости/колонки/комментарии
     // используют свою вспышку (rockFlash) — она там и была по вайбу.
     const chatCtx=(context==='msg');
@@ -7504,12 +7565,36 @@ function toggleWho(base,id){const k=base+':'+id;openWho[k]=!openWho[k];if(base==
 // Сам список «кто рокнул» — вынесен отдельно от кнопки, потому что его
 // приходится обновлять на месте: подпись данных реакции специально
 // отбрасывает, чтобы лента не перерисовывалась целиком на каждый рок.
-function whoLineHtml(base,id,n){
-  const reacts=n.reactions?Object.entries(n.reactions):[];const views=n.views?Object.entries(n.views):[];
-  // Раньше сюда попадали ТОЛЬКО те, кто поставил именно 🤘. Реакций стало
-  // несколько (❤️ 🔥 😂 😢), и все остальные молча пропадали из списка —
-  // человека не было видно, хотя он реакцию поставил. Теперь учитываем любую.
+function rockersOrdered(n){
+  const reacts=n&&n.reactions?Object.entries(n.reactions):[];
   const rockers=reacts.filter(([u,v])=>u&&v&&ALL_USERS[u]);
+  const ts=(n&&n.rockTs)||{};
+  rockers.sort((a,b)=>{
+    const ta=(ts[a[0]]!=null?+ts[a[0]]:1e15), tb=(ts[b[0]]!=null?+ts[b[0]]:1e15);
+    if(ta!==tb) return ta-tb;
+    return String(a[0]).localeCompare(String(b[0]));
+  });
+  return rockers;
+}
+function rockAvatarsStackHtml(n, limit){
+  limit=limit||3;
+  const rockers=rockersOrdered(n);
+  if(!rockers.length) return '';
+  const show=rockers.slice(0,limit);
+  const more=rockers.length-show.length;
+  let h='<span class="rock-ava-stack" title="'+escA(rockers.map(([u])=>nameOf(u)).join(', '))+'">';
+  show.forEach(([u],idx)=>{
+    const i=ALL_USERS[u], nm=nameOf(u,'?'), z=10-idx;
+    if(i&&i.avatar) h+='<img class="rava" style="z-index:'+z+'" src="'+esc(i.avatar)+'" alt="">';
+    else h+='<span class="rava" style="z-index:'+z+';background:'+esc((i&&i.color)||'#555')+'">'+esc((nm||'?')[0].toUpperCase())+'</span>';
+  });
+  if(more>0) h+='<span class="rmore">и ещё '+more+'</span>';
+  h+='</span>';
+  return h;
+}
+function whoLineHtml(base,id,n){
+  const views=n.views?Object.entries(n.views):[];
+  const rockers=rockersOrdered(n);
   const rocked=new Set(rockers.map(([u])=>u));
   const viewers=views.filter(([u])=>!rocked.has(u));
   let h='';
@@ -7518,7 +7603,9 @@ function whoLineHtml(base,id,n){
   return h;
 }
 function whoListHtml(base,id,n){
-  const k=base+':'+id;let html='<button class="c-reply-btn" onclick="toggleWho(\''+base+'\',\''+id+'\')">👥 Кто рокнул</button>';
+  const k=base+':'+id;
+  const stack=rockAvatarsStackHtml(n,3);
+  let html='<button class="c-reply-btn" onclick="toggleWho(\''+base+'\',\''+id+'\')" style="display:inline-flex;align-items:center;gap:2px">👥 Кто рокнул'+stack+'</button>';
   if(openWho[k]){
     html+='<div class="who-line" data-who-base="'+escA(base)+'" data-who-id="'+escA(id)+'">'+whoLineHtml(base,id,n)+'</div>';
   }
