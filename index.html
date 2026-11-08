@@ -1088,6 +1088,13 @@ img,video,canvas{max-width:100%}
 .ae-sticker img,.ae-sticker svg{max-width:40px;max-height:40px;display:block}
 .ae-hint{font-size:12px;color:var(--text3);margin-top:6px}
 @media(max-width:520px){.ae-card{padding:10px;border-radius:14px}.ae-canvas-wrap{width:100%}}
+/* Баннер входящего сообщения */
+.msg-in-banner{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(16px);width:min(520px,calc(100vw - 20px));display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:rgba(30,34,45,.72);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.28);color:#fff;z-index:1400;opacity:0;pointer-events:none;transition:opacity .28s ease, transform .28s ease}
+.msg-in-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.msg-in-banner .mib-ava{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-weight:700}
+.msg-in-banner .mib-body{min-width:0;flex:1}
+.msg-in-banner .mib-title{font-size:12px;opacity:.85;margin-bottom:2px}
+.msg-in-banner .mib-text{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body class="login-active booting">
@@ -1816,7 +1823,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 13:05';
+const BUILD='08.11.2026 13:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2317,7 +2324,8 @@ function checkWeatherNews(){
       res.forEach(({sp,c})=>{L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
         L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');L.push('');});
       L.push(tail);
-      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey}).catch(()=>{});
+      const weatherImg='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0984e3"/><stop offset="1" stop-color="#74b9ff"/></linearGradient></defs><rect width="640" height="180" rx="18" fill="url(#g)"/><text x="320" y="78" text-anchor="middle" font-size="44" font-family="Arial,sans-serif">🌤️☁️🌧️</text><text x="320" y="128" text-anchor="middle" font-size="34" fill="#fff" font-weight="700" font-family="Arial,sans-serif">Сводка погоды</text><text x="320" y="158" text-anchor="middle" font-size="18" fill="#eaf6ff" font-family="Arial,sans-serif">по МСК</text></svg>');
+      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey,extUrl:1,url:weatherImg,type:'image',mediaType:'image',name:'Сводка погоды'}).catch(()=>{});
     });
   }).catch(()=>{});
 }
@@ -2871,7 +2879,27 @@ function startListeners(){
     renderProfileColumn();renderViewColumn();renderMyColumn();
   });
   chatLRef=db.ref('userChats/'+me);chatLRef.on('value',s=>{lastChatData=s.val();renderChatList();checkStaleChats();});
-  notifLRef=db.ref('notifs/'+me);notifLRef.on('value',s=>{lastNotifs=s.val();renderNotifs();});
+  notifLRef=db.ref('notifs/'+me);notifLRef.on('value',s=>{
+    const val=s.val()||{};
+    const keys=Object.keys(val);
+    if(window._notifKeysInit){
+      const prev=window._prevNotifKeys||new Set();
+      keys.forEach(k=>{
+        if(prev.has(k)) return;
+        const n=val[k]; if(!n||n.read) return;
+        if(n.type!=='chat') return;
+        if(!n.ts || (Date.now()-n.ts)>90000) return;
+        // если уже открыт этот чат — не показываем
+        const cw=n.chatWith||n.from;
+        if(cw && !isGid(currentChatId||'') && cw===currentOtherUid && document.getElementById('chatScreen')?.classList.contains('active')) return;
+        const u=cw?ALL_USERS[cw]:null;
+        showIncomingMsgBanner({user:u,name:n.title||nameOf(cw,'кто-то'),preview:'💬 Новое сообщение',chatWith:cw,gid:n.gid||null});
+      });
+    }
+    window._notifKeysInit=true;
+    window._prevNotifKeys=new Set(keys);
+    lastNotifs=val; renderNotifs();
+  });
   frLRef=db.ref('friends/'+me);frLRef.on('value',s=>{lastFriends=s.val();renderPeople();renderFriends();renderFind();updateFriendsNavCount();});
   frqLRef=db.ref('friendRequests/'+me);frqLRef.on('value',s=>{lastFriendReq=s.val();renderPeople();});
   // Социальные связи: подтверждённые и входящие запросы.
@@ -4464,7 +4492,7 @@ function openChat(chatId,otherUid,spy){
       if(viewing&&!currentIsGroup)db.ref('messages/'+chatId+'/'+k).update({deliv:true,read:true});
       else if(!currentIsGroup)db.ref('messages/'+chatId+'/'+k).update({deliv:true});
       if(viewing&&currentIsGroup)db.ref('groups/'+chatId+'/unread/'+currentUser.uid).set(0);
-      if(!viewing&&Date.now()-m.ts<4000)notifyIncoming(m);}
+      if(!viewing&&Date.now()-m.ts<4000)notifyIncoming(m,chatId);}
     if(m.type==='text'&&m.text&&m.sender!==currentUser.uid)tryTranslate(k,m.text);
     // подтягиваем ленту вниз только если человек и так смотрит вниз (или это его сообщение) —
     // иначе чтение истории дёргалось вниз при каждом новом сообщении
@@ -4578,13 +4606,44 @@ function closeChatActions(){
   const h=document.getElementById('chatHeader');if(h)h.classList.remove('open');
   const b=document.getElementById('chatMoreBtn');if(b)b.classList.remove('active');
 }
-function notifyIncoming(m){const prev=previewFor(m.type,m.name);
-  const n=nameOf(m.sender,'кто-то');toast('💬 '+n+': '+prev);beep();vibrate();
-  // В уведомлении — сам текст сообщения, а не только «Файл/Голосовое»:
-  // так человек понимает, от кого и о чём речь, не открывая приложение.
-  const body=(m.type==='text'&&m.text)?String(m.text).slice(0,120):prev;
-  const link=location.origin+location.pathname+'?open='+encodeURIComponent(currentChatId||'');
-  notifyBrowser('💬 '+n,body,link,'chat-'+(currentChatId||''));}
+let _msgBannerT=null, _msgBannerEl=null, _msgBannerLast='';
+function showIncomingMsgBanner(info){
+  try{
+    if(!info) return;
+    const sig=(info.chatWith||info.gid||'')+'|'+(info.name||'')+'|'+Math.floor(Date.now()/2500);
+    if(sig===_msgBannerLast) return;
+    _msgBannerLast=sig;
+    if(_msgBannerEl){ try{_msgBannerEl.remove();}catch(e){} _msgBannerEl=null; }
+    clearTimeout(_msgBannerT);
+    const b=document.createElement('div'); b.className='msg-in-banner';
+    const i=info.user||{};
+    const ava = i.avatar ? ('<img class="mib-ava" src="'+esc(i.avatar)+'" alt="">') : ('<div class="mib-ava">'+esc(((displayNameOf(i,info.name||'?'))||'?')[0]||'?')+'</div>');
+    const title='Новое сообщение';
+    const who=esc(info.name||'кто-то');
+    const prev=esc(info.preview||'');
+    b.innerHTML=ava+'<div class="mib-body"><div class="mib-title">'+title+'</div><div class="mib-text"><b>'+who+'</b>'+(prev?' · '+prev:'')+'</div></div>';
+    b.onclick=()=>{ try{b.classList.remove('show'); setTimeout(()=>b.remove(),280);}catch(e){}
+      if(info.gid) openChat(info.gid,null);
+      else if(info.chatWith) openChat(getChatId(currentUser.uid,info.chatWith), info.chatWith);
+    };
+    document.body.appendChild(b); _msgBannerEl=b;
+    requestAnimationFrame(()=>b.classList.add('show'));
+    _msgBannerT=setTimeout(()=>{ try{b.classList.remove('show'); setTimeout(()=>{ if(b.parentNode)b.remove(); },320);}catch(e){} if(_msgBannerEl===b)_msgBannerEl=null; }, 3200);
+  }catch(e){}
+}
+function notifyIncoming(m, chatId){
+  const prev=(m&&m.type==='text')?'💬 Сообщение':previewFor(m&&m.type,m&&m.name);
+  const sender=m&&m.sender;
+  const n=nameOf(sender,'кто-то');
+  const u=ALL_USERS&&ALL_USERS[sender];
+  beep();vibrate();
+  // Полупрозрачный баннер (без текста сообщения)
+  const isG = chatId ? isGid(chatId) : false;
+  showIncomingMsgBanner({user:u,name:n,preview:prev,chatId:chatId||currentChatId||'',chatWith:isG?null:sender,gid:isG?(chatId||currentChatId):null});
+  // Браузерное уведомление — тоже без текста сообщения
+  const link=location.origin+location.pathname+'?open='+encodeURIComponent(chatId||currentChatId||'');
+  notifyBrowser('💬 '+n,prev,link,'chat-'+(chatId||currentChatId||''));
+}
 function ticksHtml(m){if(currentIsGroup||m.sender!==currentUser.uid)return '';if(m.read)return '<span class="ticks ticks-read">✓✓</span>';if(m.deliv)return '<span class="ticks">✓✓</span>';return '<span class="ticks">✓</span>';}
 function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='embed'?'▶ Видео/ссылка':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
 function commitMessage(chatId,key,payload,preview){
@@ -7895,7 +7954,8 @@ function renderNotifs(){
     const d=document.createElement('div');d.className='notif-item'+(n.read?'':' unread');
     const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':n.type==='post'?'📝':'';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
-    d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(n.text)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
+    const safeText = (n.type==='chat') ? '💬 Новое сообщение' : (n.text||'');
+    d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(safeText)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
     d.onclick=()=>{db.ref('notifs/'+currentUser.uid+'/'+key+'/read').set(true);
       if(n.newsId){showScreen('newsScreen');renderNews();setTimeout(()=>{toggleComments('news',n.newsId);const el=document.getElementById('news_'+n.newsId);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},300);}
       else if(n.postId){const p=lastUserPosts&&lastUserPosts[n.postId];
