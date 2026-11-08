@@ -1391,6 +1391,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="input-group"><label>Город</label><input type="text" id="ankCity"></div>
       <div class="input-group"><label>Улица (по желанию)</label><input type="text" id="ankStreet"></div>
       <div class="input-group"><label>💼 Профессия</label><input type="text" id="ankProfession" maxlength="120" placeholder="Кем работаешь / чем занимаешься (можно смайлы)"></div>
+      <div class="input-group"><label>🪄 Любимое заклинание / Дзюцу</label><input type="text" id="ankSpell" maxlength="120" placeholder="Напиши своё заклинание или дзюцу (можно смайлы)"></div>
       <div class="input-group"><label>Книги</label><textarea id="ankBooks" rows="2"></textarea></div>
       <div class="input-group"><label>Фильмы / сериалы</label><textarea id="ankMovies" rows="2"></textarea></div>
       <div class="input-group"><label>💭 Настроение</label><input type="text" id="ankMood" maxlength="60" placeholder="Как ты себя чувствуешь?"></div>
@@ -1795,7 +1796,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 12:05';
+const BUILD='08.11.2026 12:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7839,6 +7840,7 @@ function anketaHtml(i){const a=i&&i.anketa;const r=[];
     if(geo)r.push('<div>🌍 <b>Где:</b> '+esc(geo)+'</div>');
     if(a.street)r.push('<div>🏠 <b>Улица:</b> '+esc(a.street)+'</div>');
     if(a.profession)r.push('<div>💼 <b>Профессия:</b> '+esc(a.profession)+'</div>');
+    if(a.spell)r.push('<div>🪄 <b>Любимое заклинание / Дзюцу:</b> '+esc(a.spell)+'</div>');
     if(a.books)r.push('<div>📚 <b>Книги:</b> '+esc(a.books)+'</div>');
     if(a.movies)r.push('<div>🎬 <b>Фильмы:</b> '+esc(a.movies)+'</div>');
     if(a.mood)r.push('<div>💭 <b>Настроение:</b> '+esc(a.mood)+'</div>');}
@@ -7896,6 +7898,7 @@ function renderProfileEdit(){
   document.getElementById('ankCountry').value=a.country||'';document.getElementById('ankCity').value=a.city||'';
   document.getElementById('ankStreet').value=a.street||'';
   const _ap=document.getElementById('ankProfession'); if(_ap) _ap.value=a.profession||'';
+  const _as=document.getElementById('ankSpell'); if(_as) _as.value=a.spell||'';
   const _th=document.getElementById('editThoughtsInput'); if(_th) _th.value=i.thoughts||'';
   document.getElementById('ankBooks').value=a.books||'';document.getElementById('ankMovies').value=a.movies||'';
   document.getElementById('ankMood').value=a.mood||'';
@@ -7935,7 +7938,7 @@ function saveProfileAll(){
   } else if(cur.birth&&raw===''&&!isAdminUser()){
     birth=cur.birth;                                        // нельзя стереть не админу
   }
-  const a={fio:document.getElementById('ankFio').value.trim(),birth:birth,country:document.getElementById('ankCountry').value.trim(),city:document.getElementById('ankCity').value.trim(),street:document.getElementById('ankStreet').value.trim(),profession:((document.getElementById('ankProfession')||{}).value||'').trim(),totem:cur.totem||'',totemName:document.getElementById('totemNameInput').value.trim(),books:document.getElementById('ankBooks').value.trim(),movies:document.getElementById('ankMovies').value.trim(),mood:document.getElementById('ankMood').value.trim()};
+  const a={fio:document.getElementById('ankFio').value.trim(),birth:birth,country:document.getElementById('ankCountry').value.trim(),city:document.getElementById('ankCity').value.trim(),street:document.getElementById('ankStreet').value.trim(),profession:((document.getElementById('ankProfession')||{}).value||'').trim(),spell:((document.getElementById('ankSpell')||{}).value||'').trim(),totem:cur.totem||'',totemName:document.getElementById('totemNameInput').value.trim(),books:document.getElementById('ankBooks').value.trim(),movies:document.getElementById('ankMovies').value.trim(),mood:document.getElementById('ankMood').value.trim()};
   const thoughts=((document.getElementById('editThoughtsInput')||{}).value||'').trim();
   db.ref('users/'+currentUser.uid).update({name:name,thoughts:thoughts});
   db.ref('users/'+currentUser.uid+'/anketa').set(a).then(()=>{toast('💾 Сохранено',true);showScreen('profileScreen');});
