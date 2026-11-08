@@ -1470,7 +1470,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card">
       <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
       <button class="btn btn-primary" id="vpWriteBtn" style="min-height:40px" onclick="writeToUser()">💬 Написать</button>
-      <button class="btn btn-outline" id="vpSnowBtn" style="display:none;margin-top:8px" onclick="throwSnowball(viewProfileUid,event)">☃️ Запустить снежком</button>
+      <button class="btn btn-outline" id="vpGiftBtn" style="display:none;margin-top:8px" onclick="throwHolidayGift(viewProfileUid,event)">☃️ Запустить снежком</button>
       <button class="btn btn-outline" style="margin-top:8px" id="vpUnfriendBtn" onclick="removeFriend(viewProfileUid)">💔 Убрать из друзей</button>
       <button class="btn btn-danger" style="margin-top:8px" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
     </div>
@@ -1706,7 +1706,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div id="miniName" style="font-size:18px;font-weight:700;margin-top:10px"></div>
     <div id="miniStatus" style="margin:6px 0 12px"></div>
     <button class="btn btn-primary" id="miniWriteBtn" style="display:none" onclick="miniWrite()">💬 Написать</button>
-    <button class="btn btn-outline" id="miniSnowBtn" style="display:none;margin-top:6px" onclick="throwSnowball(miniUid,event)">☃️ Запустить снежком</button>
+    <button class="btn btn-outline" id="miniGiftBtn" style="display:none;margin-top:6px" onclick="throwHolidayGift(miniUid,event)">☃️ Запустить снежком</button>
     <button class="btn btn-outline" style="margin-top:6px" onclick="miniToFull()">👤 Открыть профиль</button>
     <button class="btn btn-outline" style="margin-top:6px" onclick="document.getElementById('miniProfile').classList.remove('active')">Закрыть</button>
   </div>
@@ -1795,7 +1795,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 11:20';
+const BUILD='08.11.2026 12:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2834,12 +2834,13 @@ function totemChip(i){const t=totemOf(i);if(!t)return '';const n=i.anketa&&i.ank
 function frameCls(i){return (i&&i.frame)?' frame-'+i.frame:'';}
 function uidOf(i){if(!i)return '';return Object.keys(ALL_USERS).find(u=>ALL_USERS[u]===i)||'';}
 let lastSnowballs={};
-function activeSnowball(uid){
+function activeAvatarEffect(uid){
   if(!uid) return null;
   const s=lastSnowballs&&lastSnowballs[uid];
   if(s && s.until && s.until>Date.now()) return s;
   return null;
 }
+function activeSnowball(uid){ return activeAvatarEffect(uid); } // совместимость
 function isNewYearPeriod(d){
   d=d||new Date();
   const m=d.getMonth()+1, day=d.getDate();
@@ -2854,22 +2855,43 @@ function isBirthdayToday(i,d){
     return md=== (mm+'-'+dd);
   }catch(e){return false;}
 }
-function holidayDecor(i){
-  const d=new Date(), m=d.getMonth()+1, day=d.getDate();
+function holidayDecor(i,d){
+  d=d||new Date(); const m=d.getMonth()+1, day=d.getDate();
   if(m===2 && day===14) return {e:'💖',cls:'hol top',t:'День святого Валентина'};
   if(m===2 && day===23) return {e:'🎖️',cls:'hol',t:'23 февраля'};
   if(m===3 && day===8) return {e:'🌷',cls:'hol',t:'8 марта'};
-  if(m===5 && day===1) return {e:'🌿',cls:'hol',t:'Праздник весны'};
-  if(m===5 && day===9) return {e:'🎗️',cls:'hol',t:'9 мая'};
+  if(m===5 && day===1) return {e:'🌿',cls:'hol',t:'Праздник весны и труда'};
+  if(m===5 && day===9) return {e:'🎗️',cls:'hol',t:'День Победы'};
+  if(m===6 && day===1) return {e:'🎈',cls:'hol top',t:'День защиты детей'};
   if(m===6 && day===12) return {e:'🇷🇺',cls:'hol',t:'День России'};
+  if(m===11 && day===4) return {e:'🤝',cls:'hol',t:'День народного единства'};
   if(isNewYearPeriod(d)) return {e:'🎄',cls:'ny top',t:'Новогодние праздники'};
   if(m===1 && day===7) return {e:'✨',cls:'hol top',t:'Рождество'};
   return null;
 }
+function currentHolidayAction(d){
+  d=d||new Date(); const m=d.getMonth()+1, day=d.getDate();
+  // Новогодний период — снежок (приоритет)
+  if(isNewYearPeriod(d)) return {id:'snowball', icon:'☃️', label:'☃️ Запустить снежком', notifTitle:'Снежок! ☃️', notifText:'В вас запустили снежком! ☃️', msgText:'☃️ В вас запустили снежком!', preview:'☃️ Снежок!', stayTitle:'В вас запустили снежком! ☃️', fly:'☃️'};
+  if(m===1 && day===7) return {id:'xmas', icon:'✨', label:'✨ Поздравить с Рождеством', notifTitle:'С Рождеством! ✨', notifText:'Вам отправили рождественское поздравление! ✨', msgText:'✨ Вам отправили рождественское поздравление!', preview:'✨ Поздравление', stayTitle:'Вам отправили рождественское поздравление! ✨', fly:'✨'};
+  if(m===2 && day===14) return {id:'valentine', icon:'💖', label:'💖 Отправить валентинку', notifTitle:'Валентинка! 💖', notifText:'Вам отправили валентинку! 💖', msgText:'💖 Вам отправили валентинку!', preview:'💖 Валентинка', stayTitle:'Вам отправили валентинку! 💖', fly:'💖'};
+  if(m===2 && day===23) return {id:'feb23', icon:'🎖️', label:'🎖️ Отправить поздравление', notifTitle:'С 23 февраля! 🎖️', notifText:'Вам отправили поздравление с 23 февраля! 🎖️', msgText:'🎖️ Вам отправили поздравление с 23 февраля!', preview:'🎖️ Поздравление', stayTitle:'Вам отправили поздравление с 23 февраля! 🎖️', fly:'🎖️'};
+  if(m===3 && day===8) return {id:'mar8', icon:'🌷', label:'🌷 Подарить цветы', notifTitle:'С 8 марта! 🌷', notifText:'Вам подарили цветы! 🌷', msgText:'🌷 Вам подарили цветы!', preview:'🌷 Цветы', stayTitle:'Вам подарили цветы! 🌷', fly:'🌷'};
+  if(m===5 && day===1) return {id:'may1', icon:'🌿', label:'🌿 Подарить веточку', notifTitle:'С праздником весны! 🌿', notifText:'Вам подарили весеннюю веточку! 🌿', msgText:'🌿 Вам подарили весеннюю веточку!', preview:'🌿 Веточка', stayTitle:'Вам подарили весеннюю веточку! 🌿', fly:'🌿'};
+  if(m===5 && day===9) return {id:'may9', icon:'🎗️', label:'🎗️ Повязать георгиевскую ленточку', notifTitle:'С Днём Победы! 🎗️', notifText:'Вам повязали георгиевскую ленточку! 🎗️', msgText:'🎗️ Вам повязали георгиевскую ленточку!', preview:'🎗️ Ленточка', stayTitle:'Вам повязали георгиевскую ленточку! 🎗️', fly:'🎗️'};
+  if(m===6 && day===1) return {id:'kids', icon:'🎈', label:'🎈 Подарить шарик', notifTitle:'С Днём защиты детей! 🎈', notifText:'Вам подарили воздушный шарик! 🎈', msgText:'🎈 Вам подарили воздушный шарик!', preview:'🎈 Шарик', stayTitle:'Вам подарили воздушный шарик! 🎈', fly:'🎈'};
+  if(m===6 && day===12) return {id:'rus', icon:'🇷🇺', label:'🇷🇺 Отправить поздравление', notifTitle:'С Днём России! 🇷🇺', notifText:'Вам отправили поздравление с Днём России! 🇷🇺', msgText:'🇷🇺 Вам отправили поздравление с Днём России!', preview:'🇷🇺 Поздравление', stayTitle:'Вам отправили поздравление с Днём России! 🇷🇺', fly:'🇷🇺'};
+  if(m===11 && day===4) return {id:'unity', icon:'🤝', label:'🤝 Отправить открытку', notifTitle:'С Днём народного единства! 🤝', notifText:'Вам отправили поздравление с Днём народного единства! 🤝', msgText:'🤝 Вам отправили поздравление с Днём народного единства!', preview:'🤝 Открытка', stayTitle:'Вам отправили поздравление с Днём народного единства! 🤝', fly:'🤝'};
+  return null;
+}
 function userDecorHtml(i,uid){
   uid=uid||uidOf(i);
-  const sb=activeSnowball(uid);
-  if(sb) return '<span class="ava-decor snow" title="В вас запустили снежком! ☃️">☃️</span>';
+  const fx=activeAvatarEffect(uid);
+  if(fx){
+    const icon=fx.icon||'☃️';
+    const title=fx.stayTitle||fx.notifText||'Праздничный сюрприз!';
+    return '<span class="ava-decor snow" title="'+esc(title)+'">'+esc(icon)+'</span>';
+  }
   if(isBirthdayToday(i)) return '<span class="ava-decor bday top" title="День рождения!">🎂</span>';
   const h=holidayDecor(i);
   if(h) return '<span class="ava-decor '+h.cls+'" title="'+esc(h.t)+'">'+h.e+'</span>';
@@ -6670,8 +6692,8 @@ function openMini(uid){
   const wb=document.getElementById('miniWriteBtn');
   const canWrite=uid!==currentUser.uid&&(currentUser.isAdmin||isFriend(uid))&&canDM(uid)===true;
   wb.style.display=canWrite?'block':'none';
-  const sb=document.getElementById('miniSnowBtn');
-  if(sb) sb.style.display=(isNewYearPeriod() && uid!==currentUser.uid)?'block':'none';
+  const sb=document.getElementById('miniGiftBtn');
+  if(sb){ const act=currentHolidayAction(); if(act && uid!==currentUser.uid){ sb.style.display='block'; sb.textContent=act.label; } else sb.style.display='none'; }
   document.getElementById('miniProfile').classList.add('active');
 }
 function miniWrite(){
@@ -6798,8 +6820,8 @@ function openUserProfile(uid){
   // Кнопка разрыва дружбы — только если он реально в друзьях
   const uf=document.getElementById('vpUnfriendBtn');
   if(uf)uf.style.display=(!isMe&&isFriend(uid))?'block':'none';
-  const vsb=document.getElementById('vpSnowBtn');
-  if(vsb) vsb.style.display=(isNewYearPeriod() && !isMe)?'block':'none';
+  const vsb=document.getElementById('vpGiftBtn');
+  if(vsb){ const act=currentHolidayAction(); if(act && !isMe){ vsb.style.display='block'; vsb.textContent=act.label; } else vsb.style.display='none'; }
   document.getElementById('vpVisRow').style.display=isMe?'flex':'none';
   paintVisibilitySwitches();
   renderVpRel();
@@ -6813,9 +6835,9 @@ function writeToUser(){const uid=viewProfileUid;if(!uid)return;
   if(!currentUser.isAdmin&&!isFriend(uid)){toast('Сначала добавьте друг друга в друзья');return;}
   const c=canDM(uid);if(c!==true){toast(c);return;}
   openChat(getChatId(currentUser.uid,uid),uid);}
-function snowballFly(fromEv){
+function holidayFly(fromEv, icon){
   try{
-    const el=document.createElement('div'); el.className='snowball-fly'; el.textContent='☃️';
+    const el=document.createElement('div'); el.className='snowball-fly'; el.textContent=icon||'☃️';
     let x=window.innerWidth/2, y=window.innerHeight/2;
     if(fromEv && (fromEv.clientX||fromEv.clientX===0)){ x=fromEv.clientX; y=fromEv.clientY; }
     else if(fromEv && fromEv.target){ const r=fromEv.target.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
@@ -6825,16 +6847,16 @@ function snowballFly(fromEv){
     setTimeout(()=>el.remove(),650);
   }catch(e){}
 }
-function sendSnowballDM(targetUid){
+function sendHolidayDM(targetUid, act){
   try{
-    if(!currentUser||!targetUid||targetUid===currentUser.uid) return;
+    if(!currentUser||!targetUid||targetUid===currentUser.uid||!act) return;
     if(!isFriend(targetUid) && !currentUser.isAdmin) return;
     const cid=getChatId(currentUser.uid,targetUid);
     const key=db.ref('messages/'+cid).push().key;
-    const text='☃️ В вас запустили снежком!';
-    const p={sender:currentUser.uid,text,ts:Date.now(),type:'text',snowball:1};
+    const text=act.msgText || (act.icon+' Праздничный привет!');
+    const p={sender:currentUser.uid,text,ts:Date.now(),type:'text',gift:act.id||'gift'};
     db.ref('messages/'+cid+'/'+key).set(p).catch(()=>{});
-    const me=currentUser.uid, preview='☃️ Снежок!';
+    const me=currentUser.uid, preview=act.preview||text;
     db.ref('userChats/'+me+'/'+cid).update({lastMsg:preview,lastTs:p.ts,unread:0,lastFrom:me,otherUid:targetUid,otherName:nameOf(targetUid)}).catch(()=>{});
     const path='userChats/'+targetUid+'/'+cid;
     db.ref(path).once('value').then(s=>{
@@ -6844,19 +6866,21 @@ function sendSnowballDM(targetUid){
     }).catch(()=>{ db.ref(path).update({lastMsg:preview,lastTs:p.ts,unread:1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me}).catch(()=>{}); });
   }catch(e){}
 }
-function throwSnowball(targetUid, ev){
+function throwHolidayGift(targetUid, ev){
   try{
     if(!currentUser||!targetUid) return;
-    if(targetUid===currentUser.uid){ toast('В себя не кидают снежки 😄'); return; }
-    if(!isNewYearPeriod()){ toast('Снежки доступны в новогодние праздники 🎄'); return; }
-    snowballFly(ev);
+    if(targetUid===currentUser.uid){ toast('Себе отправить нельзя 😄'); return; }
+    const act=currentHolidayAction();
+    if(!act){ toast('Сейчас нет активного праздника с сюрпризом'); return; }
+    holidayFly(ev, act.icon||act.fly);
     const now=Date.now();
-    const payload={from:currentUser.uid, ts:now, until:now + 2*60*60*1000, fromName:displayNameOf(currentUser)};
-    db.ref('snowballs/'+targetUid).set(payload).then(()=>{ toast('☃️ Снежок запущен!', true); }).catch(e=>{ console.warn('snowball',e); toast('Не удалось запустить снежок'); });
-    notifyUser(targetUid,'snowball','Снежок! ☃️','В вас запустили снежком! ☃️',{from:currentUser.uid, chatWith:currentUser.uid});
-    sendSnowballDM(targetUid);
+    const payload={from:currentUser.uid, ts:now, until:now + 2*60*60*1000, fromName:displayNameOf(currentUser), type:act.id, icon:act.icon, notifText:act.notifText, stayTitle:act.stayTitle};
+    db.ref('snowballs/'+targetUid).set(payload).then(()=>{ toast((act.icon||'🎁')+' Отправлено!', true); }).catch(e=>{ console.warn('gift',e); toast('Не удалось отправить сюрприз'); });
+    notifyUser(targetUid, act.id||'gift', act.notifTitle||'Сюрприз!', act.notifText||'Вам отправили сюрприз!', {from:currentUser.uid, chatWith:currentUser.uid});
+    sendHolidayDM(targetUid, act);
   }catch(e){ console.warn(e); }
 }
+function throwSnowball(targetUid, ev){ return throwHolidayGift(targetUid, ev); } // совместимость
 function initNewYearSnow(){
   try{
     if(!isNewYearPeriod()) return;
