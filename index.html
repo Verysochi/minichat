@@ -1100,6 +1100,13 @@ img,video,canvas{max-width:100%}
 .rock-ava-stack .rava{width:22px;height:22px;border-radius:50%;object-fit:cover;border:2px solid var(--bg2,#1e222d);margin-left:-7px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;box-sizing:content-box}
 .rock-ava-stack .rava:first-child{margin-left:0}
 .rock-ava-stack .rmore{font-size:12px;color:var(--text2,#aab);margin-left:4px;white-space:nowrap}
+/* Редактор обложки */
+.ce-preview-wrap{position:relative;width:min(430px,100%);margin:0 auto}
+.ce-cover-frame{width:100%;height:180px;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,var(--surface2),var(--surface3));border:1px solid var(--surface3);position:relative;cursor:grab;touch-action:none}
+.ce-cover-frame:active{cursor:grabbing}
+.ce-cover-frame img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:100%;min-height:100%;width:auto;height:auto;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.ce-ava-hint{position:absolute;left:50%;bottom:-28px;transform:translateX(-50%);width:72px;height:72px;border-radius:50%;border:3px solid var(--bg2);background:rgba(255,255,255,.08);box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none}
+@media(min-width:900px){.ce-cover-frame{height:190px}}
 </style>
 </head>
 <body class="login-active booting">
@@ -1828,7 +1835,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 13:55';
+const BUILD='08.11.2026 14:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3102,11 +3109,16 @@ function profilePhotoHtml(i,fb){const n=i?displayNameOf(i,fb):(fb||'?');
   else inner='<div class="profile-photo '+c+'">'+((n||'?')[0].toUpperCase())+'</div>';
   return wrapAvatar(inner,i,uid,'profile-photo-wrap');
 }
+function coverPosStyle(info){
+  const p=info&&info.coverPos;
+  return p ? (' style="object-position:'+escA(String(p))+'"') : '';
+}
 function coverHtmlFor(info,cls){
   if(!info)return '<div class="'+cls+'"></div>';
-  if(info.cover)return '<img class="'+cls+'" src="'+info.cover+'" onclick="openLightbox(this.src)">';
+  const ps=coverPosStyle(info);
+  if(info.cover)return '<img class="'+cls+'"'+ps+' src="'+info.cover+'" onclick="openLightbox(this.src)">';
   if(info.coverKey){const k=info.coverKey;
-    if(mediaCache[k])return '<img class="'+cls+'" src="'+mediaCache[k]+'" onclick="openLightbox(this.src)">';
+    if(mediaCache[k])return '<img class="'+cls+'"'+ps+' src="'+mediaCache[k]+'" onclick="openLightbox(this.src)">';
     loadMediaSilent(k);
     return '<div class="'+cls+'" style="display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px">⏳</div>';}
   return '<div class="'+cls+'"></div>';}
@@ -8190,12 +8202,70 @@ function saveStatusCustom(){
   const v=document.getElementById('statusCustomInput').value.trim();
   db.ref('users/'+currentUser.uid+'/status').set(v).then(()=>toast('✅ Статус сохранён',true));
 }
+let _ce={img:null,src:'',file:null,dx:0,dy:0,drag:null,fw:0,fh:0,rw:0,rh:0};
+function _ceApply(){
+  const img=document.getElementById('ceImg'); const fr=document.getElementById('ceFrame');
+  if(!img||!fr||!_ce.img) return;
+  _ce.fw=fr.clientWidth; _ce.fh=fr.clientHeight;
+  const nw=_ce.img.naturalWidth||_ce.img.width, nh=_ce.img.naturalHeight||_ce.img.height;
+  const s=Math.max(_ce.fw/nw, _ce.fh/nh);
+  _ce.rw=nw*s; _ce.rh=nh*s;
+  img.style.width=_ce.rw+'px'; img.style.height=_ce.rh+'px';
+  const ox=Math.max(0,_ce.rw-_ce.fw), oy=Math.max(0,_ce.rh-_ce.fh);
+  _ce.dx=Math.max(-ox/2, Math.min(ox/2, _ce.dx));
+  _ce.dy=Math.max(-oy/2, Math.min(oy/2, _ce.dy));
+  // translate(-50%,-50%) центрирует; добавляем смещение
+  img.style.transform='translate(calc(-50% + '+_ce.dx+'px), calc(-50% + '+_ce.dy+'px))';
+}
+function _cePosFromDrag(){
+  const ox=Math.max(0,_ce.rw-_ce.fw), oy=Math.max(0,_ce.rh-_ce.fh);
+  const px= ox>0 ? (50 - (_ce.dx/ox)*50) : 50;
+  const py= oy>0 ? (50 - (_ce.dy/oy)*50) : 50;
+  const clamp=v=>Math.max(0,Math.min(100,Math.round(v*10)/10));
+  return clamp(px)+'% '+clamp(py)+'%';
+}
+function openCoverEditor(src,file){
+  _ce={img:null,src:src,file:file,dx:0,dy:0,drag:null,fw:0,fh:0,rw:0,rh:0};
+  const im=new Image();
+  im.onload=()=>{
+    _ce.img=im;
+    const img=document.getElementById('ceImg'); img.src=src;
+    const ov=document.getElementById('coverEditor'); ov.classList.add('active');
+    // после показа замеряем рамку
+    ceBind();
+    requestAnimationFrame(()=>{ _ceApply(); setTimeout(_ceApply,60); });
+  };
+  im.onerror=()=>toast('Не удалось открыть изображение');
+  im.src=src;
+}
+function closeCoverEditor(){ const ov=document.getElementById('coverEditor'); if(ov) ov.classList.remove('active'); _ce.img=null; }
+function ceSave(){
+  if(!_ce.src||!currentUser){ closeCoverEditor(); return; }
+  const pos=_cePosFromDrag();
+  const uid=currentUser.uid, key='cov_'+uid;
+  const btn=event&&event.target; if(btn){btn.disabled=true; btn.textContent='⏳ Сохраняю…';}
+  toast('⬆ Загружаю обложку...');
+  uploadChunked(key,_ce.src,{name:(_ce.file&&_ce.file.name)||'cover.jpg'}).then(()=>{
+    return db.ref('users/'+uid).update({coverKey:key,cover:null,coverPos:pos});
+  }).then(()=>{
+    toast('🌄 Обложка обновлена',true);
+    closeCoverEditor(); renderCovers();
+  }).catch(e=>{ console.warn('cover save',e); toast('❌ Не удалось сохранить обложку'); if(btn){btn.disabled=false;btn.textContent='ОК, сохранить';} });
+}
+let _ceBound=false;
+function ceBind(){
+  if(_ceBound) return;
+  const fr=document.getElementById('ceFrame'); if(!fr) return;
+  _ceBound=true;
+  const down=(ev)=>{ if(!_ce.img) return; ev.preventDefault(); const p=(ev.touches&&ev.touches[0])||ev; _ce.drag={x:p.clientX,y:p.clientY,dx:_ce.dx,dy:_ce.dy}; try{fr.setPointerCapture&&ev.pointerId!=null&&fr.setPointerCapture(ev.pointerId);}catch(e){} };
+  const move=(ev)=>{ if(!_ce.drag||!_ce.img) return; ev.preventDefault(); const p=(ev.touches&&ev.touches[0])||ev; _ce.dx=_ce.drag.dx+(p.clientX-_ce.drag.x); _ce.dy=_ce.drag.dy+(p.clientY-_ce.drag.y); _ceApply(); };
+  const up=()=>{ _ce.drag=null; };
+  fr.addEventListener('pointerdown',down); window.addEventListener('pointermove',move,{passive:false}); window.addEventListener('pointerup',up);
+}
 function coverFile(f){
-  const uid=currentUser.uid,key='cov_'+uid;
   const r=new FileReader();
-  r.onload=()=>{toast('⬆ Загружаю обложку...');
-    uploadChunked(key,r.result,{name:f.name}).then(()=>{
-      db.ref('users/'+uid).update({coverKey:key,cover:null}).then(()=>{toast('🌄 Обложка обновлена',true);renderCovers();});});};
+  r.onload=()=>{ openCoverEditor(r.result,f); };
+  r.onerror=()=>toast('Ошибка чтения файла');
   r.readAsDataURL(f);
 }
 function removeCover(){db.ref('users/'+currentUser.uid).update({cover:'',coverKey:null}).then(()=>{toast('Обложка убрана');renderCovers();});}
@@ -8316,7 +8386,7 @@ function aeRenderStickerGrid(){
 }
 function aeAddSticker(src){
   const im=new Image(); im.crossOrigin='anonymous';
-  im.onload=()=>{ ae.layers.push({type:'sticker',src,x:256,y:256,w:140,h:140,scale:1,rot:0,img:im}); ae.sel=ae.layers.length-1; aeSyncProps(); aeRender(); aeStatus('Стикер добавлен — перетаскивай его'); };
+  im.onload=()=>{ ae.layers.push({type:'sticker',src,x:256,y:256,w:180,h:180,scale:1,rot:0,img:im}); ae.sel=ae.layers.length-1; aeSyncProps(); aeRender(); aeStatus('Стикер добавлен — перетаскивай, растягивай/поворачивай двумя пальцами'); };
   im.onerror=()=>toast('Не удалось загрузить стикер');
   im.src=src;
 }
@@ -8358,7 +8428,7 @@ function aeSyncProps(){
     document.getElementById('aeFont').value=L.font||'Arial, sans-serif';
   }
 }
-function aeUpdateScale(v){ const L=ae.layers[ae.sel]; if(L){ L.scale=Math.max(.2,Math.min(2.2,(+v||100)/100)); aeRender(); } }
+function aeUpdateScale(v){ const L=ae.layers[ae.sel]; if(L){ L.scale=Math.max(.15,Math.min(3.5,(+v||100)/100)); aeRender(); } }
 function aeUpdateRotate(v){ const L=ae.layers[ae.sel]; if(L){ L.rot=(+v||0); aeRender(); } }
 function aeStatus(t){ const el=document.getElementById('aeStatus'); if(el) el.textContent=t||''; }
 function aeCanvasPos(ev){
@@ -8376,13 +8446,48 @@ function aeHit(p){
   }
   return -1;
 }
+function _aeTouchInfo(t1,t2){
+  const dx=t2.clientX-t1.clientX, dy=t2.clientY-t1.clientY;
+  return {dist:Math.hypot(dx,dy)||1, ang:Math.atan2(dy,dx)*180/Math.PI, cx:(t1.clientX+t2.clientX)/2, cy:(t1.clientY+t2.clientY)/2};
+}
 function aeBindCanvas(){
   const c=document.getElementById('aeCanvas'); if(!c||c.dataset.bound) return; c.dataset.bound='1';
-  const down=(ev)=>{ ev.preventDefault(); const p=aeCanvasPos(ev); const hit=aeHit(p); ae.sel=hit; if(hit>=0){ ae.drag={i:hit,ox:p.x-ae.layers[hit].x,oy:p.y-ae.layers[hit].y}; } aeSyncProps(); aeRender(); };
-  const move=(ev)=>{ if(!ae.drag) return; ev.preventDefault(); const p=aeCanvasPos(ev); const L=ae.layers[ae.drag.i]; if(L){ L.x=Math.max(0,Math.min(ae.w,p.x-ae.drag.ox)); L.y=Math.max(0,Math.min(ae.h,p.y-ae.drag.oy)); aeRender(); } };
+  const down=(ev)=>{ if(ev.touches && ev.touches.length>=2) return; ev.preventDefault(); const p=aeCanvasPos(ev); const hit=aeHit(p); ae.sel=hit; if(hit>=0){ ae.drag={i:hit,ox:p.x-ae.layers[hit].x,oy:p.y-ae.layers[hit].y}; } aeSyncProps(); aeRender(); };
+  const move=(ev)=>{ if(!ae.drag) return; if(ev.touches && ev.touches.length>=2) return; ev.preventDefault(); const p=aeCanvasPos(ev); const L=ae.layers[ae.drag.i]; if(L){ L.x=Math.max(0,Math.min(ae.w,p.x-ae.drag.ox)); L.y=Math.max(0,Math.min(ae.h,p.y-ae.drag.oy)); aeRender(); } };
   const up=()=>{ ae.drag=null; };
   c.addEventListener('pointerdown',down); c.addEventListener('pointermove',move); window.addEventListener('pointerup',up);
-  c.addEventListener('wheel',(ev)=>{ if(ae.sel<0) return; ev.preventDefault(); const L=ae.layers[ae.sel]; L.scale=Math.max(.2,Math.min(2.5,(L.scale||1)+(ev.deltaY<0?0.06:-0.06))); aeSyncProps(); aeRender(); },{passive:false});
+  c.addEventListener('wheel',(ev)=>{ if(ae.sel<0) return; ev.preventDefault(); const L=ae.layers[ae.sel]; L.scale=Math.max(.15,Math.min(3.5,(L.scale||1)+(ev.deltaY<0?0.06:-0.06))); aeSyncProps(); aeRender(); },{passive:false});
+  // Двумя пальцами: растянуть (pinch) + наклон/поворот (rotate)
+  let gest=null;
+  c.addEventListener('touchstart',(ev)=>{
+    if(ev.touches.length===2){
+      ev.preventDefault();
+      const L=ae.layers[ae.sel];
+      if(!L){ // попробуем выбрать под центром жеста
+        const r=c.getBoundingClientRect();
+        const cx=(ev.touches[0].clientX+ev.touches[1].clientX)/2, cy=(ev.touches[0].clientY+ev.touches[1].clientY)/2;
+        const p={x:(cx-r.left)*(ae.w/r.width), y:(cy-r.top)*(ae.h/r.height)};
+        const hit=aeHit(p); if(hit>=0){ ae.sel=hit; aeSyncProps(); aeRender(); }
+      }
+      const L2=ae.layers[ae.sel]; if(!L2) return;
+      ae.drag=null;
+      const info=_aeTouchInfo(ev.touches[0],ev.touches[1]);
+      gest={i:ae.sel, dist:info.dist, ang:info.ang, scale:L2.scale||1, rot:L2.rot||0};
+    }
+  },{passive:false});
+  c.addEventListener('touchmove',(ev)=>{
+    if(ev.touches.length===2 && gest){
+      ev.preventDefault();
+      const L=ae.layers[gest.i]; if(!L){ gest=null; return; }
+      const info=_aeTouchInfo(ev.touches[0],ev.touches[1]);
+      const ratio=info.dist/(gest.dist||1);
+      L.scale=Math.max(.15,Math.min(3.5, gest.scale * ratio));
+      L.rot=gest.rot + (info.ang - gest.ang);
+      aeSyncProps(); aeRender();
+    }
+  },{passive:false});
+  c.addEventListener('touchend',(ev)=>{ if(ev.touches.length<2) gest=null; },{passive:true});
+  c.addEventListener('touchcancel',()=>{ gest=null; },{passive:true});
 }
 function openAvatarEditor(dataUrl, target){
   ae.target=target||'avatar'; ae.layers=[]; ae.sel=-1; ae.drag=null;
@@ -9162,11 +9267,30 @@ boot();
     </div>
     <div class="ae-panel" id="aePanelProps" style="display:none">
       <label>Размер выбранного элемента</label>
-      <input type="range" id="aeScale" min="20" max="220" value="100" oninput="aeUpdateScale(this.value)">
+      <input type="range" id="aeScale" min="20" max="350" value="100" oninput="aeUpdateScale(this.value)">
       <label>Поворот</label>
       <input type="range" id="aeRotate" min="-180" max="180" value="0" oninput="aeUpdateRotate(this.value)">
+      <div class="ae-hint">На телефоне: двумя пальцами растягивай и поворачивай выбранный элемент.</div>
     </div>
     <div class="ae-hint" id="aeStatus" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Редактор обложки (позиция/превью в профиле) -->
+<div class="ae-overlay" id="coverEditor" onclick="if(event.target===this)closeCoverEditor()">
+  <div class="ae-card" onclick="event.stopPropagation()">
+    <div class="ae-title"><span>🌄 Обложка профиля — позиция</span><button class="btn btn-ghost btn-sm" style="width:auto;min-height:34px;padding:6px 10px" onclick="closeCoverEditor()">✕</button></div>
+    <div class="ce-preview-wrap" id="cePreviewWrap">
+      <div class="ce-cover-frame" id="ceFrame">
+        <img id="ceImg" alt="" draggable="false">
+      </div>
+      <div class="ce-ava-hint" aria-hidden="true"></div>
+    </div>
+    <div class="ae-hint" style="margin-top:8px;text-align:center">Перетащи изображение, чтобы выбрать, как оно будет видно в профиле. Круг — примерное место аватарки.</div>
+    <div class="ae-toolbar" style="justify-content:center">
+      <button class="btn btn-outline" onclick="closeCoverEditor()">Отмена</button>
+      <button class="btn btn-primary" onclick="ceSave()">ОК, сохранить</button>
+    </div>
   </div>
 </div>
 
