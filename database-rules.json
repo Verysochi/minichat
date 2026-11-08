@@ -217,6 +217,13 @@
     "deleteLogs": {
       ".read": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
       ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+    },
+    "snowballs": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$targetUid": {
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()",
+        ".validate": "newData.hasChildren(['from','ts','until']) && newData.child('from').val() === auth.uid && newData.child('ts').isNumber() && newData.child('until').isNumber() && newData.child('until').val() > newData.child('ts').val()"
+      }
     }
   }
 }

@@ -191,6 +191,25 @@ img.avatar{object-fit:cover}
 img.avatar.sq{border-radius:8px}
 .avatar.online-frame{box-shadow:0 0 0 3px var(--green),0 0 14px rgba(0,184,148,.5)}
 .avatar.offline-frame{box-shadow:0 0 0 3px transparent}
+/* Праздничные украшения аватарок + снежок */
+.ava-wrap{position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle;line-height:0}
+.ava-wrap.profile-photo-wrap{display:inline-flex}
+.ava-decor{position:absolute;right:-4px;bottom:-4px;font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none;z-index:2;transform-origin:center}
+.ava-decor.top{top:-6px;right:-4px;bottom:auto}
+.ava-decor.bday{font-size:17px}
+.ava-decor.ny{font-size:16px}
+.ava-decor.hol{font-size:15px}
+.ava-decor.snow{font-size:18px;right:-5px;bottom:-5px;animation:snowWobble 2.2s ease-in-out infinite}
+.avatar.sm ~ .ava-decor,.ava-wrap:has(.avatar.sm) .ava-decor{font-size:13px;right:-3px;bottom:-3px}
+.ava-wrap:has(.avatar.sm) .ava-decor.snow{font-size:14px}
+.ava-wrap:has(.profile-photo) .ava-decor{font-size:28px;right:-2px;bottom:-2px}
+.ava-wrap:has(.profile-photo) .ava-decor.top{font-size:26px;top:-8px;right:0}
+@keyframes snowWobble{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.08)}}
+/* падающий снег (Новый год, ненавязчиво) */
+.ny-snow-layer{position:fixed;inset:0;pointer-events:none;z-index:850;overflow:hidden}
+.ny-flake{position:absolute;top:-12px;color:#fff;opacity:.75;text-shadow:0 0 2px rgba(255,255,255,.4);animation:nyFall linear infinite;user-select:none}
+@keyframes nyFall{to{transform:translateY(110vh) translateX(var(--dx,0px)) rotate(180deg)}}
+.snowball-fly{position:fixed;z-index:9999;pointer-events:none;font-size:26px;transition:transform .55s cubic-bezier(.2,.8,.2,1),opacity .55s ease;will-change:transform,opacity}
 .clickable{cursor:pointer}
 .totem-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--text2);margin-left:6px;vertical-align:middle}
 .frame-gold{box-shadow:0 0 0 3px #ffd700,0 0 12px rgba(255,215,0,.55)}
@@ -1270,6 +1289,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-name" id="profileName"></div>
     <div class="profile-login" id="profileLogin"></div>
     <div class="profile-status" id="profileStatus"></div>
+    <div id="profileThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35"></div>
     <div id="profilePresence" style="font-size:13px;margin-bottom:12px"></div>
     <div id="profileRockBadge" style="margin-bottom:12px"></div>
     </div>
@@ -1347,6 +1367,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card">
       <div class="card-title">Личное</div>
       <div class="input-group"><label>Имя</label><input type="text" id="editNameInput"></div>
+      <div class="input-group"><label>☁️ Мои мысли (под аватаркой)</label><input type="text" id="editThoughtsInput" maxlength="100" placeholder="Напиши мысль... (видно в профиле)"></div>
       <div class="input-group"><label>Тотемное животное</label>
         <button class="btn btn-outline" id="totemBtn" onclick="openTotemChooser()">🐾 Выбрать тотемное животное</button></div>
       <div class="input-group"><label>Имя тотемного животного</label><input type="text" id="totemNameInput" placeholder="Напр. Барсик"></div>
@@ -1369,6 +1390,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="input-group"><label>Страна</label><input type="text" id="ankCountry"></div>
       <div class="input-group"><label>Город</label><input type="text" id="ankCity"></div>
       <div class="input-group"><label>Улица (по желанию)</label><input type="text" id="ankStreet"></div>
+      <div class="input-group"><label>💼 Профессия</label><input type="text" id="ankProfession" maxlength="120" placeholder="Кем работаешь / чем занимаешься (можно смайлы)"></div>
       <div class="input-group"><label>Книги</label><textarea id="ankBooks" rows="2"></textarea></div>
       <div class="input-group"><label>Фильмы / сериалы</label><textarea id="ankMovies" rows="2"></textarea></div>
       <div class="input-group"><label>💭 Настроение</label><input type="text" id="ankMood" maxlength="60" placeholder="Как ты себя чувствуешь?"></div>
@@ -1425,6 +1447,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-name" id="vpName"></div>
     <div class="profile-login" id="vpLogin"></div>
     <div class="profile-status" id="vpStatus"></div>
+    <div id="vpThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35;text-align:center"></div>
     <div id="vpPresence" style="font-size:13px;margin-bottom:8px"></div>
     <!-- Переключатель видимости: сразу под шапкой профиля, чтобы не искать внизу -->
     <div class="sw-row" id="vpVisRow" style="display:none;max-width:520px;margin:10px auto 4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:14px;padding:10px 14px">
@@ -1447,6 +1470,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card">
       <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
       <button class="btn btn-primary" id="vpWriteBtn" style="min-height:40px" onclick="writeToUser()">💬 Написать</button>
+      <button class="btn btn-outline" id="vpSnowBtn" style="display:none;margin-top:8px" onclick="throwSnowball(viewProfileUid,event)">☃️ Запустить снежком</button>
       <button class="btn btn-outline" style="margin-top:8px" id="vpUnfriendBtn" onclick="removeFriend(viewProfileUid)">💔 Убрать из друзей</button>
       <button class="btn btn-danger" style="margin-top:8px" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
     </div>
@@ -1682,6 +1706,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div id="miniName" style="font-size:18px;font-weight:700;margin-top:10px"></div>
     <div id="miniStatus" style="margin:6px 0 12px"></div>
     <button class="btn btn-primary" id="miniWriteBtn" style="display:none" onclick="miniWrite()">💬 Написать</button>
+    <button class="btn btn-outline" id="miniSnowBtn" style="display:none;margin-top:6px" onclick="throwSnowball(miniUid,event)">☃️ Запустить снежком</button>
     <button class="btn btn-outline" style="margin-top:6px" onclick="miniToFull()">👤 Открыть профиль</button>
     <button class="btn btn-outline" style="margin-top:6px" onclick="document.getElementById('miniProfile').classList.remove('active')">Закрыть</button>
   </div>
@@ -1770,7 +1795,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 09:35';
+const BUILD='08.11.2026 11:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1780,7 +1805,7 @@ let currentUser=null,ALL_USERS={},ALL_GROUPS={},lastNews=null,lastPending=null,l
 let lastFriends=null,lastFriendReq=null,lastGroupInv=null,lastBlocks=null,lastRels=null,lastRelReqs=null,lastUserPosts=null,lastPassResets=null,lastProposals=null,lastDeleteLogs=null,lastSessionLogs=null,lastLoginAttempts=null;
 let sessionsView='admin';   // какая колонка сессий открыта на телефоне
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
-let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null;
+let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null,snowLRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
 let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='',recGen=0,recFailStreak=0,currentScreenId=null;
 // Поколение записи. Пока flushRecorder ждёт последний кусок, запись могут
@@ -2083,6 +2108,7 @@ function enterApp(uid,info){
   currentUser=Object.assign({uid},info,{email:authEmail||info.login||''});
   currentUser.isAdmin=adminHere;                 // источник правды — почта, не запись в базе
   pullNativeToken();                             // токен Push мог прийти, пока страница не слушала
+  try{ initNewYearSnow(); }catch(e){}
   // Одобрение админа чинится само: запись могла не появиться (старые uid, база чистилась),
   // а без неё правила базы не пустят даже сообщения. Ключ — uid Firebase.
   if(adminHere){const fu=(firebase.auth&&firebase.auth().currentUser||{}).uid||uid;
@@ -2775,6 +2801,7 @@ function startListeners(){
   // правила не дают (только свою ветку) — поэтому они помечены у нас локально.
   relLRef=db.ref('rels/'+me);relLRef.on('value',s=>{lastRels=s.val()||{};pruneRelSent();refreshRelUi();});
   relqLRef=db.ref('relReqs/'+me);relqLRef.on('value',s=>{lastRelReqs=s.val()||{};renderPeople();refreshRelUi();});
+  try{ snowLRef=db.ref('snowballs'); snowLRef.on('value',s=>{lastSnowballs=s.val()||{};refreshDynamic();}); }catch(e){}
   ginLRef=db.ref('groupInvites/'+me);ginLRef.on('value',s=>{lastGroupInv=s.val();renderPeople();});
   blkLRef=db.ref('blocks/'+me);blkLRef.on('value',s=>{lastBlocks=s.val();renderProfile();});
   if(currentUser.isAdmin){
@@ -2806,6 +2833,53 @@ function totemOf(i){const a=i&&i.anketa;if(!a||!a.totem)return null;return TOTEM
 function totemChip(i){const t=totemOf(i);if(!t)return '';const n=i.anketa&&i.anketa.totemName;return '<span class="totem-chip">'+t.emoji+' '+esc(n||t.name)+'</span>';}
 function frameCls(i){return (i&&i.frame)?' frame-'+i.frame:'';}
 function uidOf(i){if(!i)return '';return Object.keys(ALL_USERS).find(u=>ALL_USERS[u]===i)||'';}
+let lastSnowballs={};
+function activeSnowball(uid){
+  if(!uid) return null;
+  const s=lastSnowballs&&lastSnowballs[uid];
+  if(s && s.until && s.until>Date.now()) return s;
+  return null;
+}
+function isNewYearPeriod(d){
+  d=d||new Date();
+  const m=d.getMonth()+1, day=d.getDate();
+  return (m===12 && day>=20) || (m===1 && day<=10);
+}
+function isBirthdayToday(i,d){
+  try{
+    const b=i&&i.anketa&&i.anketa.birth; if(!b) return false;
+    d=d||new Date();
+    const mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+    const md=b.slice(5,7)+'-'+b.slice(8,10);
+    return md=== (mm+'-'+dd);
+  }catch(e){return false;}
+}
+function holidayDecor(i){
+  const d=new Date(), m=d.getMonth()+1, day=d.getDate();
+  if(m===2 && day===14) return {e:'💖',cls:'hol top',t:'День святого Валентина'};
+  if(m===2 && day===23) return {e:'🎖️',cls:'hol',t:'23 февраля'};
+  if(m===3 && day===8) return {e:'🌷',cls:'hol',t:'8 марта'};
+  if(m===5 && day===1) return {e:'🌿',cls:'hol',t:'Праздник весны'};
+  if(m===5 && day===9) return {e:'🎗️',cls:'hol',t:'9 мая'};
+  if(m===6 && day===12) return {e:'🇷🇺',cls:'hol',t:'День России'};
+  if(isNewYearPeriod(d)) return {e:'🎄',cls:'ny top',t:'Новогодние праздники'};
+  if(m===1 && day===7) return {e:'✨',cls:'hol top',t:'Рождество'};
+  return null;
+}
+function userDecorHtml(i,uid){
+  uid=uid||uidOf(i);
+  const sb=activeSnowball(uid);
+  if(sb) return '<span class="ava-decor snow" title="В вас запустили снежком! ☃️">☃️</span>';
+  if(isBirthdayToday(i)) return '<span class="ava-decor bday top" title="День рождения!">🎂</span>';
+  const h=holidayDecor(i);
+  if(h) return '<span class="ava-decor '+h.cls+'" title="'+esc(h.t)+'">'+h.e+'</span>';
+  return '';
+}
+function wrapAvatar(inner,i,uid,extraCls){
+  const decor=userDecorHtml(i,uid);
+  if(!decor && !extraCls) return inner;
+  return '<span class="ava-wrap'+(extraCls?' '+extraCls:'')+'">'+inner+decor+'</span>';
+}
 function detectDeviceType(){
   try{
     const ua=navigator.userAgent||'';
@@ -2837,15 +2911,21 @@ function presenceText(i){
 function avatarHtml(i,cls,fb){const n=i?displayNameOf(i,fb):(fb||'?');const c=(cls||'')+frameCls(i)+(isOnline(i)?' online-frame':' offline-frame');
   const uid=i?uidOf(i):'';
   const oc=uid?' onclick="event.stopPropagation();openUserProfile(\''+uid+'\')"':'';
-  if(i&&i.avatar)return '<img class="avatar '+c+'" src="'+i.avatar+'"'+oc+'>';
-  return '<div class="avatar '+c+'"'+oc+'>'+((n||'?')[0].toUpperCase())+'</div>';}
+  let inner;
+  if(i&&i.avatar) inner='<img class="avatar '+c+'" src="'+i.avatar+'"'+oc+'>';
+  else inner='<div class="avatar '+c+'"'+oc+'>'+((n||'?')[0].toUpperCase())+'</div>';
+  return wrapAvatar(inner,i,uid);
+}
 function profilePhotoHtml(i,fb){const n=i?displayNameOf(i,fb):(fb||'?');
   const c=frameCls(i)+(i&&i.online?' online-frame':'');
   const uid=i?uidOf(i):'';
   // Подпись «Аватар: имя» убрали: она только занимала место под фото и выглядела
-// лишней. Обложки и раньше открывались без подписи — теперь так же и аватар.
-if(i&&i.avatar)return '<img class="profile-photo '+c+'" src="'+i.avatar+'" onclick="openLightbox(this.src)">';
-  return '<div class="profile-photo '+c+'">'+((n||'?')[0].toUpperCase())+'</div>';}
+  // лишней. Обложки и раньше открывались без подписи — теперь так же и аватар.
+  let inner;
+  if(i&&i.avatar) inner='<img class="profile-photo '+c+'" src="'+i.avatar+'" onclick="openLightbox(this.src)">';
+  else inner='<div class="profile-photo '+c+'">'+((n||'?')[0].toUpperCase())+'</div>';
+  return wrapAvatar(inner,i,uid,'profile-photo-wrap');
+}
 function coverHtmlFor(info,cls){
   if(!info)return '<div class="'+cls+'"></div>';
   if(info.cover)return '<img class="'+cls+'" src="'+info.cover+'" onclick="openLightbox(this.src)">';
@@ -2869,6 +2949,12 @@ function renderCovers(){
 }
 function groupAvatarHtml(g,cls){return (g&&g.avatar)?'<img class="avatar '+(cls||'')+'" src="'+g.avatar+'">':'<div class="avatar '+(cls||'')+'" style="background:var(--green)">👥</div>';}
 function statusHtml(i){const s=i&&i.status;return s?'<div class="status-line">'+esc(s)+'</div>':'<div class="status-line muted">без статуса</div>';}
+function thoughtsHtml(i,compact){
+  if(!i||!i.thoughts) return '';
+  const t=String(i.thoughts);
+  if(compact) return '<div class="status-line muted" style="font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">☁️ '+esc(t)+'</div>';
+  return '<div style="font-style:italic;color:var(--text2)">☁️ '+esc(t)+'</div>';
+}
 function presenceHtml(i){if(!i)return '';return isOnline(i)?'<span class="status-line">🟢 онлайн'+(deviceIconOf(i)?' · '+esc(deviceIconOf(i)):'')+'</span>':'<span class="status-line muted">был(а): '+fmtFull(i.lastSeen||0)+(deviceLabelOf(i)?' · '+esc(deviceLabelOf(i)):'')+'</span>';}
 function esc(s){if(!s)return '';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function escA(s){return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -6580,10 +6666,12 @@ function openMini(uid){
   miniUid=uid;const i=ALL_USERS[uid];if(!i)return;const fr=canSeeFull(uid);
   document.getElementById('miniAvatar').innerHTML=avatarHtml(i,'',i.name);
   document.getElementById('miniName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
-  document.getElementById('miniStatus').innerHTML=fr?(statusHtml(i)+presenceHtml(i)):'<div class="status-line muted">🔒 Полная информация — после добавления в друзья</div>';
+  document.getElementById('miniStatus').innerHTML=fr?(statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)):'<div class="status-line muted">🔒 Полная информация — после добавления в друзья</div>';
   const wb=document.getElementById('miniWriteBtn');
   const canWrite=uid!==currentUser.uid&&(currentUser.isAdmin||isFriend(uid))&&canDM(uid)===true;
   wb.style.display=canWrite?'block':'none';
+  const sb=document.getElementById('miniSnowBtn');
+  if(sb) sb.style.display=(isNewYearPeriod() && uid!==currentUser.uid)?'block':'none';
   document.getElementById('miniProfile').classList.add('active');
 }
 function miniWrite(){
@@ -6617,7 +6705,7 @@ function renderFriends(){
     const d=document.createElement('div');d.className='user-item';
     d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+
       (rel?' <span style="font-size:11px;background:var(--accent-soft);color:var(--primary);border-radius:8px;padding:1px 6px">'+esc(rel)+'</span>':'')+
-      (outgoing?' <span style="font-size:11px;color:var(--text3);border-radius:8px;padding:1px 6px">⏳ '+esc(outgoing)+'</span>':'')+'</div>'+statusHtml(i)+presenceHtml(i)+'</div>'+
+      (outgoing?' <span style="font-size:11px;color:var(--text3);border-radius:8px;padding:1px 6px">⏳ '+esc(outgoing)+'</span>':'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div>'+
       // Выбор связи больше не ставится молча — уходит запросом, второй человек подтверждает.
       '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
     d.onclick=e=>{if(e.target.tagName==='SELECT'||e.target.tagName==='OPTION')return;openUserProfile(uid);};
@@ -6667,13 +6755,13 @@ function renderPeople(){
   const newbies=Object.entries(ALL_USERS).filter(([uid,i])=>uid!==currentUser.uid&&i.createdAt&&i.createdAt>=cut&&!isFriend(uid)&&!isHiddenUser(i));
   if(newbies.length){nw.style.display='block';nl.innerHTML='';
     newbies.forEach(([uid,i])=>{const d=document.createElement('div');d.className='user-item';
-      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto" onclick="sendFriendRequest(\''+uid+'\')">➕</button>';
+      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto" onclick="sendFriendRequest(\''+uid+'\')">➕</button>';
       nl.appendChild(d);});
   } else nw.style.display='none';
 }
 function renderMeCard(){const b=document.getElementById('meCard');if(!b||!currentUser)return;const i=ALL_USERS[currentUser.uid]||currentUser;
   b.innerHTML='<div style="display:flex;align-items:center;gap:12px">'+avatarHtml(i,'',i.name)+
-    '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:16px"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+'</div>'+statusHtml(i)+presenceHtml(i)+
+    '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:16px"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+
     '<div style="color:var(--text3);font-size:12px">твой код: <span class="my-code">'+esc(i.userCode||'—')+'</span> (давай лично)</div></div>'+
     '<button class="header-btn" onclick="event.stopPropagation();copyMyCode()"><span class="hicon">📋</span></button></div>';}
 function copyMyCode(){const c=(ALL_USERS[currentUser.uid]||{}).userCode;if(!c)return;if(navigator.clipboard)navigator.clipboard.writeText(c).then(()=>toast('📋 Скопирован',true));else toast('Код: '+c);}
@@ -6691,6 +6779,7 @@ function openUserProfile(uid){
   document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+rockBadgeHtml(uid);
   document.getElementById('vpLogin').textContent=currentUser.isAdmin?('логин: '+(i.login||'')):'';
   document.getElementById('vpStatus').textContent=fr?(i.status||'без статуса'):'🔒 информация для друзей';
+  const _vth=document.getElementById('vpThoughts'); if(_vth) _vth.innerHTML=(fr&&i.thoughts)?('☁️ '+esc(i.thoughts)):'';
   document.getElementById('vpPresence').innerHTML=fr?presenceHtml(i):'';
   document.getElementById('vpGeo').innerHTML=(currentUser.isAdmin&&i.geo)?geoLinkHtml(uid,i):'';
   document.getElementById('vpAnketaCard').style.display=fr?'block':'none';
@@ -6709,6 +6798,8 @@ function openUserProfile(uid){
   // Кнопка разрыва дружбы — только если он реально в друзьях
   const uf=document.getElementById('vpUnfriendBtn');
   if(uf)uf.style.display=(!isMe&&isFriend(uid))?'block':'none';
+  const vsb=document.getElementById('vpSnowBtn');
+  if(vsb) vsb.style.display=(isNewYearPeriod() && !isMe)?'block':'none';
   document.getElementById('vpVisRow').style.display=isMe?'flex':'none';
   paintVisibilitySwitches();
   renderVpRel();
@@ -6722,6 +6813,69 @@ function writeToUser(){const uid=viewProfileUid;if(!uid)return;
   if(!currentUser.isAdmin&&!isFriend(uid)){toast('Сначала добавьте друг друга в друзья');return;}
   const c=canDM(uid);if(c!==true){toast(c);return;}
   openChat(getChatId(currentUser.uid,uid),uid);}
+function snowballFly(fromEv){
+  try{
+    const el=document.createElement('div'); el.className='snowball-fly'; el.textContent='☃️';
+    let x=window.innerWidth/2, y=window.innerHeight/2;
+    if(fromEv && (fromEv.clientX||fromEv.clientX===0)){ x=fromEv.clientX; y=fromEv.clientY; }
+    else if(fromEv && fromEv.target){ const r=fromEv.target.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
+    el.style.left=(x-13)+'px'; el.style.top=(y-13)+'px'; el.style.opacity='1';
+    document.body.appendChild(el);
+    requestAnimationFrame(()=>{ el.style.transform='translate('+(Math.random()*120-60)+'px,-180px) scale(.6) rotate(220deg)'; el.style.opacity='0'; });
+    setTimeout(()=>el.remove(),650);
+  }catch(e){}
+}
+function sendSnowballDM(targetUid){
+  try{
+    if(!currentUser||!targetUid||targetUid===currentUser.uid) return;
+    if(!isFriend(targetUid) && !currentUser.isAdmin) return;
+    const cid=getChatId(currentUser.uid,targetUid);
+    const key=db.ref('messages/'+cid).push().key;
+    const text='☃️ В вас запустили снежком!';
+    const p={sender:currentUser.uid,text,ts:Date.now(),type:'text',snowball:1};
+    db.ref('messages/'+cid+'/'+key).set(p).catch(()=>{});
+    const me=currentUser.uid, preview='☃️ Снежок!';
+    db.ref('userChats/'+me+'/'+cid).update({lastMsg:preview,lastTs:p.ts,unread:0,lastFrom:me,otherUid:targetUid,otherName:nameOf(targetUid)}).catch(()=>{});
+    const path='userChats/'+targetUid+'/'+cid;
+    db.ref(path).once('value').then(s=>{
+      const i=s.val();
+      const upd={lastMsg:preview,lastTs:p.ts,unread:(i?i.unread:0)+1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me};
+      return i?db.ref(path).update(upd):db.ref(path).set(upd);
+    }).catch(()=>{ db.ref(path).update({lastMsg:preview,lastTs:p.ts,unread:1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me}).catch(()=>{}); });
+  }catch(e){}
+}
+function throwSnowball(targetUid, ev){
+  try{
+    if(!currentUser||!targetUid) return;
+    if(targetUid===currentUser.uid){ toast('В себя не кидают снежки 😄'); return; }
+    if(!isNewYearPeriod()){ toast('Снежки доступны в новогодние праздники 🎄'); return; }
+    snowballFly(ev);
+    const now=Date.now();
+    const payload={from:currentUser.uid, ts:now, until:now + 2*60*60*1000, fromName:displayNameOf(currentUser)};
+    db.ref('snowballs/'+targetUid).set(payload).then(()=>{ toast('☃️ Снежок запущен!', true); }).catch(e=>{ console.warn('snowball',e); toast('Не удалось запустить снежок'); });
+    notifyUser(targetUid,'snowball','Снежок! ☃️','В вас запустили снежком! ☃️',{from:currentUser.uid, chatWith:currentUser.uid});
+    sendSnowballDM(targetUid);
+  }catch(e){ console.warn(e); }
+}
+function initNewYearSnow(){
+  try{
+    if(!isNewYearPeriod()) return;
+    if(document.querySelector('.ny-snow-layer')) return;
+    const layer=document.createElement('div'); layer.className='ny-snow-layer'; layer.setAttribute('aria-hidden','true');
+    const n = Math.min(28, Math.max(14, Math.floor(window.innerWidth/40)));
+    for(let i=0;i<n;i++){
+      const f=document.createElement('div'); f.className='ny-flake'; f.textContent = Math.random()>.5?'❄':'•';
+      f.style.left=(Math.random()*100)+'%';
+      f.style.fontSize=(8+Math.random()*10)+'px';
+      f.style.opacity=(0.35+Math.random()*0.45).toFixed(2);
+      const dur=8+Math.random()*10, delay=Math.random()*-dur;
+      f.style.animationDuration=dur+'s'; f.style.animationDelay=delay+'s';
+      f.style.setProperty('--dx',(Math.random()*60-30)+'px');
+      layer.appendChild(f);
+    }
+    document.body.appendChild(layer);
+  }catch(e){}
+}
 function openChatProfile(){if(currentIsGroup){showScreen('groupInfoScreen');return;}if(currentOtherUid)openUserProfile(currentOtherUid);}
 function openTotemChooser(){
   const cur=((ALL_USERS[currentUser.uid]||{}).anketa||{}).totem||'';
@@ -7521,7 +7675,7 @@ function renderMyColumn(){
     if(!friends.length){fl.innerHTML='<div class="status-line muted" style="font-size:12px;padding:12px">Друзей пока нет</div>';return;}
     friends.sort((a,b)=>nameOf(a).localeCompare(nameOf(b),'ru')).forEach(uid=>{
       const i=ALL_USERS[uid];const d=document.createElement('div');d.className='user-item';
-      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto" onclick="openChat(getChatId(currentUser.uid,\''+uid+'\'),\''+uid+'\')">📝</button>';
+      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto" onclick="openChat(getChatId(currentUser.uid,\''+uid+'\'),\''+uid+'\')">📝</button>';
       d.onclick=e=>{if(e.target.tagName==='BUTTON')return;openUserProfile(uid);};
       fl.appendChild(d);});
     return;
@@ -7660,6 +7814,7 @@ function anketaHtml(i){const a=i&&i.anketa;const r=[];
     const geo=[a.country,a.city].filter(Boolean).join(', ');
     if(geo)r.push('<div>🌍 <b>Где:</b> '+esc(geo)+'</div>');
     if(a.street)r.push('<div>🏠 <b>Улица:</b> '+esc(a.street)+'</div>');
+    if(a.profession)r.push('<div>💼 <b>Профессия:</b> '+esc(a.profession)+'</div>');
     if(a.books)r.push('<div>📚 <b>Книги:</b> '+esc(a.books)+'</div>');
     if(a.movies)r.push('<div>🎬 <b>Фильмы:</b> '+esc(a.movies)+'</div>');
     if(a.mood)r.push('<div>💭 <b>Настроение:</b> '+esc(a.mood)+'</div>');}
@@ -7675,6 +7830,7 @@ function renderProfile(){
   document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
+  const _pth=document.getElementById('profileThoughts'); if(_pth) _pth.innerHTML=i.thoughts?('☁️ '+esc(i.thoughts)):'';
   renderMyRels();
   document.getElementById('profilePresence').innerHTML=presenceHtml(i);
   // Счётчик 🤘 показываем и в своём профиле — раньше был только в чужом.
@@ -7715,6 +7871,8 @@ function renderProfileEdit(){
   renderBirthAge(a.birth?fmtBirth(a.birth):'',a.birth||'');
   document.getElementById('ankCountry').value=a.country||'';document.getElementById('ankCity').value=a.city||'';
   document.getElementById('ankStreet').value=a.street||'';
+  const _ap=document.getElementById('ankProfession'); if(_ap) _ap.value=a.profession||'';
+  const _th=document.getElementById('editThoughtsInput'); if(_th) _th.value=i.thoughts||'';
   document.getElementById('ankBooks').value=a.books||'';document.getElementById('ankMovies').value=a.movies||'';
   document.getElementById('ankMood').value=a.mood||'';
   document.getElementById('hideFromListChk').checked=!!i.hideFromList;
@@ -7753,8 +7911,9 @@ function saveProfileAll(){
   } else if(cur.birth&&raw===''&&!isAdminUser()){
     birth=cur.birth;                                        // нельзя стереть не админу
   }
-  const a={fio:document.getElementById('ankFio').value.trim(),birth:birth,country:document.getElementById('ankCountry').value.trim(),city:document.getElementById('ankCity').value.trim(),street:document.getElementById('ankStreet').value.trim(),totem:cur.totem||'',totemName:document.getElementById('totemNameInput').value.trim(),books:document.getElementById('ankBooks').value.trim(),movies:document.getElementById('ankMovies').value.trim(),mood:document.getElementById('ankMood').value.trim()};
-  db.ref('users/'+currentUser.uid).update({name:name});
+  const a={fio:document.getElementById('ankFio').value.trim(),birth:birth,country:document.getElementById('ankCountry').value.trim(),city:document.getElementById('ankCity').value.trim(),street:document.getElementById('ankStreet').value.trim(),profession:((document.getElementById('ankProfession')||{}).value||'').trim(),totem:cur.totem||'',totemName:document.getElementById('totemNameInput').value.trim(),books:document.getElementById('ankBooks').value.trim(),movies:document.getElementById('ankMovies').value.trim(),mood:document.getElementById('ankMood').value.trim()};
+  const thoughts=((document.getElementById('editThoughtsInput')||{}).value||'').trim();
+  db.ref('users/'+currentUser.uid).update({name:name,thoughts:thoughts});
   db.ref('users/'+currentUser.uid+'/anketa').set(a).then(()=>{toast('💾 Сохранено',true);showScreen('profileScreen');});
 }
 function statusSelectChanged(){
