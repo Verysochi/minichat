@@ -1068,6 +1068,26 @@ img,video,canvas{max-width:100%}
 .np-label{position:absolute;left:0;right:0;bottom:0;padding:5px 6px;font-size:11px;font-weight:700;text-align:center;color:#fff;
   background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,.5) 65%,transparent);z-index:2}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+/* === РЕДАКТОР АВАТАРКИ === */
+.ae-overlay{display:none;position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:10px}
+.ae-overlay.active{display:flex}
+.ae-card{width:min(560px,100%);max-height:96vh;overflow:auto;background:var(--bg2);border:1px solid var(--surface3);border-radius:18px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.ae-title{font-weight:700;font-size:16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ae-canvas-wrap{position:relative;width:min(420px,100%);aspect-ratio:1/1;margin:0 auto;background:#111;border-radius:14px;overflow:hidden;touch-action:none;border:1px solid var(--surface3)}
+.ae-canvas-wrap canvas{width:100%;height:100%;display:block}
+.ae-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ae-toolbar .btn{width:auto;min-height:38px;padding:8px 10px;font-size:13px}
+.ae-panel{margin-top:10px;background:var(--surface);border:1px solid var(--surface3);border-radius:12px;padding:10px}
+.ae-panel label{display:block;font-size:12px;color:var(--text2);margin:6px 0 4px}
+.ae-panel input[type=text],.ae-panel select,.ae-panel input[type=number]{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--surface3);background:var(--bg3);color:var(--text);font:inherit}
+.ae-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ae-row>*{flex:1;min-width:80px}
+.ae-stickers{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:8px;max-height:220px;overflow:auto;padding-right:2px}
+.ae-sticker{background:var(--bg3);border:1px solid var(--surface3);border-radius:10px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:52px}
+.ae-sticker:hover{border-color:var(--primary);background:var(--accent-soft)}
+.ae-sticker img,.ae-sticker svg{max-width:40px;max-height:40px;display:block}
+.ae-hint{font-size:12px;color:var(--text3);margin-top:6px}
+@media(max-width:520px){.ae-card{padding:10px;border-radius:14px}.ae-canvas-wrap{width:100%}}
 </style>
 </head>
 <body class="login-active booting">
@@ -1796,7 +1816,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 12:15';
+const BUILD='08.11.2026 12:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7962,13 +7982,217 @@ function coverFile(f){
   r.readAsDataURL(f);
 }
 function removeCover(){db.ref('users/'+currentUser.uid).update({cover:'',coverKey:null}).then(()=>{toast('Обложка убрана');renderCovers();});}
-function avatarFile(f){
-  const done=d=>db.ref('users/'+currentUser.uid).update({avatar:d,avatarTs:Date.now()}).then(()=>toast('✅ Аватар обновлён',true));
-  if(f.type==='image/gif'){const r=new FileReader();r.onload=()=>{if(r.result.length>MAX_AVATAR){toast('GIF до ~1.3 МБ');return;}done(r.result);};r.readAsDataURL(f);return;}
-  compressImage(f,900,0.92).then(d=>{if(d.length<=MAX_AVATAR)return done(d);
-    return compressImage(f,900,0.75).then(d2=>{if(d2.length<=MAX_AVATAR)return done(d2);
-      return compressImage(f,700,0.6).then(d3=>{if(d3.length<=MAX_AVATAR)done(d3);else toast('Большое');});});}).catch(()=>toast('Ошибка'));
+function saveAvatarFromDataUrl(dataUrl, opts){
+  opts=opts||{};
+  const done=d=>db.ref('users/'+currentUser.uid).update({avatar:d,avatarTs:Date.now()}).then(()=>{toast('✅ Аватар обновлён',true); closeAvatarEditor();});
+  if(dataUrl.length<=MAX_AVATAR) return done(dataUrl);
+  // если великовато — сжимаем через canvas
+  const img=new Image();
+  img.onload=()=>{
+    const tryQ=(dim,q)=>new Promise(res=>{
+      const c=document.createElement('canvas'); c.width=dim; c.height=dim;
+      const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,dim,dim);
+      res(c.toDataURL('image/jpeg',q));
+    });
+    (async()=>{ try{
+      let d=await tryQ(512,0.88); if(d.length<=MAX_AVATAR) return done(d);
+      d=await tryQ(512,0.72); if(d.length<=MAX_AVATAR) return done(d);
+      d=await tryQ(420,0.68); if(d.length<=MAX_AVATAR) return done(d);
+      toast('Большое — попробуй упростить (меньше стикеров/текста)');
+    }catch(e){ toast('Ошибка сохранения'); }})();
+  };
+  img.onerror=()=>toast('Ошибка изображения');
+  img.src=dataUrl;
 }
+function avatarFile(f){
+  if(f.type==='image/gif'){
+    // GIF с анимацией нельзя редактировать на canvas без потери анимации — сохраняем как есть
+    const r=new FileReader();
+    r.onload=()=>{if(r.result.length>MAX_AVATAR){toast('GIF до ~1.3 МБ');return;}
+      db.ref('users/'+currentUser.uid).update({avatar:r.result,avatarTs:Date.now()}).then(()=>toast('✅ GIF-аватар обновлён (анимация сохранена)',true));
+    };
+    r.readAsDataURL(f); return;
+  }
+  const r=new FileReader();
+  r.onload=()=>{ openAvatarEditor(r.result,'avatar'); };
+  r.onerror=()=>toast('Ошибка чтения файла');
+  r.readAsDataURL(f);
+}
+
+// ===== РЕДАКТОР АВАТАРКИ =====
+let ae={img:null,layers:[],sel:-1,drag:null,target:'avatar',w:512,h:512};
+function aeSvgData(svg){ try{return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));}catch(e){return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);} }
+function aeStickerPack(){
+  const colors=['#ff4757','#ff7f50','#ffa502','#2ed573','#1e90ff','#3742fa','#a55eea','#ffffff','#111111','#00cec9','#fd79a8','#f1c40f'];
+  const items=[];
+  const cap=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M10 38c0-14 10-24 22-24s22 10 22 24" fill="${c}"/><rect x="6" y="36" width="52" height="8" rx="4" fill="${c}" opacity=".9"/><rect x="26" y="38" width="32" height="6" rx="3" fill="#111" opacity=".25"/></svg>`;
+  const beanie=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M12 40c0-15 9-26 20-26s20 11 20 26z" fill="${c}"/><rect x="10" y="38" width="44" height="8" rx="4" fill="${c}" opacity=".85"/><circle cx="32" cy="14" r="4" fill="${c}"/></svg>`;
+  const crown=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M10 44l6-22 10 10 6-16 6 16 10-10 6 22z" fill="${c}" stroke="#b8860b" stroke-width="2"/><rect x="10" y="42" width="44" height="8" rx="2" fill="${c}"/></svg>`;
+  colors.slice(0,8).forEach((c,i)=>{ items.push({name:'Кепка '+(i+1),src:aeSvgData(cap(c))}); });
+  colors.slice(0,6).forEach((c,i)=>{ items.push({name:'Шапка '+(i+1),src:aeSvgData(beanie(c))}); });
+  ['#ffd700','#c0c0c0','#ff6b81','#74b9ff'].forEach((c,i)=>items.push({name:'Корона '+(i+1),src:aeSvgData(crown(c))}));
+  const shades=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="6" y="24" width="20" height="14" rx="4" fill="${c}"/><rect x="38" y="24" width="20" height="14" rx="4" fill="${c}"/><rect x="26" y="29" width="12" height="4" fill="#333"/><rect x="2" y="29" width="6" height="3" fill="#333"/><rect x="56" y="29" width="6" height="3" fill="#333"/></svg>`;
+  const roundG=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="20" cy="32" r="10" fill="none" stroke="${c}" stroke-width="3"/><circle cx="44" cy="32" r="10" fill="none" stroke="${c}" stroke-width="3"/><path d="M30 32h4M2 32h8M54 32h8" stroke="${c}" stroke-width="3" fill="none"/></svg>`;
+  const pixelG=()=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="8" y="24" width="18" height="14" fill="#111"/><rect x="38" y="24" width="18" height="14" fill="#111"/><rect x="26" y="29" width="12" height="4" fill="#111"/><rect x="12" y="28" width="4" height="4" fill="#fff"/><rect x="42" y="28" width="4" height="4" fill="#fff"/></svg>`;
+  const heartG=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M20 24c-5 0-8 6-2 12l8 8 8-8c6-6 3-12-2-12-3 0-5 2-6 4-1-2-3-4-6-4z" fill="${c}" opacity=".85"/><path d="M44 24c-5 0-8 6-2 12l8 8 8-8c6-6 3-12-2-12-3 0-5 2-6 4-1-2-3-4-6-4z" fill="${c}" opacity=".85"/><rect x="32" y="31" width="2" height="3" fill="#333"/></svg>`;
+  ['#111','#e74c3c','#0984e3','#00b894','#fdcb6e','#e84393','#fff'].forEach((c,i)=>items.push({name:'Очки '+(i+1),src:aeSvgData(shades(c))}));
+  ['#111','#e17055','#0984e3','#6c5ce7'].forEach((c,i)=>items.push({name:'Круглые очки '+(i+1),src:aeSvgData(roundG(c))}));
+  items.push({name:'Пиксельные очки',src:aeSvgData(pixelG())});
+  ['#ff7675','#fd79a8','#a29bfe'].forEach((c,i)=>items.push({name:'Сердечки '+(i+1),src:aeSvgData(heartG(c))}));
+  items.push({name:'Солнышко',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#f9ca24"/><g stroke="#f9ca24" stroke-width="3" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${32+Math.cos(r)*18}" y1="${32+Math.sin(r)*18}" x2="${32+Math.cos(r)*26}" y2="${32+Math.sin(r)*26}"/>`;}).join('')}</g></svg>`)});
+  items.push({name:'Луна',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M40 10a22 22 0 1 0 0 44a18 18 0 1 1 0-44z" fill="#ffeaa7"/></svg>`)});
+  const cloud=(c,op)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="${c}" opacity="${op||1}"><circle cx="22" cy="36" r="10"/><circle cx="34" cy="30" r="13"/><circle cx="46" cy="36" r="9"/><rect x="14" y="34" width="38" height="12" rx="6"/></g></svg>`;
+  items.push({name:'Облачко',src:aeSvgData(cloud('#dfe6e9',1))});
+  items.push({name:'Облачко 2',src:aeSvgData(cloud('#ffffff',.95))});
+  items.push({name:'Тучка',src:aeSvgData(cloud('#636e72',1)+`<path d="M24 48l-3 8M34 48l-3 8M44 48l-3 8" stroke="#74b9ff" stroke-width="3" stroke-linecap="round"/>`)});
+  items.push({name:'Звезда',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="32,6 39,25 59,25 43,37 49,56 32,44 15,56 21,37 5,25 25,25" fill="#fdcb6e"/></svg>`)});
+  items.push({name:'Маска анонима',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 20c4-8 28-8 36 0 4 6 2 22-4 28-6 6-22 6-28 0-6-6-8-22-4-28z" fill="#f5f6fa" stroke="#2d3436" stroke-width="2"/><path d="M18 18c6 4 22 4 28 0" fill="#2d3436"/><path d="M20 30c4-2 8-2 10 0M34 30c4-2 8-2 10 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M22 41c6 4 14 4 20 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M24 40h4v4h-4zM36 40h4v4h-4z" fill="#2d3436"/></svg>`)});
+  items.push({name:'Наушники',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 34a18 18 0 0 1 36 0" fill="none" stroke="#2d3436" stroke-width="4"/><rect x="8" y="32" width="10" height="16" rx="4" fill="#0984e3"/><rect x="46" y="32" width="10" height="16" rx="4" fill="#0984e3"/></svg>`)});
+  return items;
+}
+function aeRender(){
+  const c=document.getElementById('aeCanvas'); if(!c||!ae.img) return;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,ae.w,ae.h);
+  // фон-изображение (cover)
+  const iw=ae.img.width, ih=ae.img.height, s=Math.max(ae.w/iw, ae.h/ih);
+  const dw=iw*s, dh=ih*s, dx=(ae.w-dw)/2, dy=(ae.h-dh)/2;
+  ctx.drawImage(ae.img,dx,dy,dw,dh);
+  ae.layers.forEach((L,i)=>{
+    ctx.save();
+    ctx.translate(L.x,L.y); ctx.rotate((L.rot||0)*Math.PI/180); ctx.scale(L.scale||1,L.scale||1);
+    if(L.type==='text'){
+      ctx.font=(L.bold?'700 ':'')+(L.size||42)+'px '+(L.font||'Arial, sans-serif');
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,(L.size||42)/10);
+      ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.strokeText(L.text||'',0,0);
+      ctx.fillStyle=L.color||'#fff'; ctx.fillText(L.text||'',0,0);
+    } else if(L.img && L.img.complete){
+      const sw=L.w||120, sh=L.h||120;
+      ctx.drawImage(L.img,-sw/2,-sh/2,sw,sh);
+    }
+    ctx.restore();
+    if(i===ae.sel){
+      ctx.save(); ctx.translate(L.x,L.y); ctx.rotate((L.rot||0)*Math.PI/180); ctx.scale(L.scale||1,L.scale||1);
+      const bw=(L.type==='text'?Math.min(260, Math.max(60,(L.text||'').length*(L.size||42)*0.32)):(L.w||120));
+      const bh=(L.type==='text'?(L.size||42)*1.3:(L.h||120));
+      ctx.strokeStyle='#4ea1ff'; ctx.lineWidth=2/ (L.scale||1); ctx.setLineDash([6,4]);
+      ctx.strokeRect(-bw/2-6,-bh/2-6,bw+12,bh+12);
+      ctx.restore();
+    }
+  });
+}
+function aeShowPanel(name){
+  ['Stickers','Text'].forEach(n=>{const el=document.getElementById('aePanel'+n); if(el) el.style.display=(n.toLowerCase()===name)?'block':'none';});
+  if(name==='stickers') aeRenderStickerGrid();
+}
+function aeRenderStickerGrid(){
+  const g=document.getElementById('aeStickerGrid'); if(!g||g.dataset.ready) return;
+  const pack=aeStickerPack();
+  g.innerHTML='';
+  pack.forEach(it=>{
+    const d=document.createElement('div'); d.className='ae-sticker'; d.title=it.name;
+    const im=document.createElement('img'); im.src=it.src; im.alt=it.name; d.appendChild(im);
+    d.onclick=()=>aeAddSticker(it.src);
+    g.appendChild(d);
+  });
+  g.dataset.ready='1';
+}
+function aeAddSticker(src){
+  const im=new Image(); im.crossOrigin='anonymous';
+  im.onload=()=>{ ae.layers.push({type:'sticker',src,x:256,y:256,w:140,h:140,scale:1,rot:0,img:im}); ae.sel=ae.layers.length-1; aeSyncProps(); aeRender(); aeStatus('Стикер добавлен — перетаскивай его'); };
+  im.onerror=()=>toast('Не удалось загрузить стикер');
+  im.src=src;
+}
+function aePickStickerFile(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{const f=inp.files&&inp.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>aeAddSticker(r.result); r.readAsDataURL(f);};
+  inp.click();
+}
+function aePickStickerUrl(){
+  const u=prompt('Вставь прямую ссылку на изображение-стикер (PNG/JPG/SVG/WebP):');
+  if(!u) return; aeAddSticker(u.trim());
+}
+function aeAddText(){
+  const t=(document.getElementById('aeTextInput').value||'').trim() || 'Текст';
+  const L={type:'text',text:t,x:256,y:420,size:parseInt(document.getElementById('aeFontSize').value||42,10),font:document.getElementById('aeFont').value,color:document.getElementById('aeColor').value,scale:1,rot:0,bold:true};
+  ae.layers.push(L); ae.sel=ae.layers.length-1; aeSyncProps(); aeRender(); aeStatus('Текст добавлен — перетаскивай');
+}
+function aeUpdateSelectedText(){
+  const L=ae.layers[ae.sel]; if(!L||L.type!=='text') return;
+  L.text=document.getElementById('aeTextInput').value||'';
+  L.font=document.getElementById('aeFont').value;
+  L.size=parseInt(document.getElementById('aeFontSize').value||42,10);
+  L.color=document.getElementById('aeColor').value;
+  aeRender();
+}
+function aeDeleteSelected(){ if(ae.sel>=0){ ae.layers.splice(ae.sel,1); ae.sel=-1; aeSyncProps(); aeRender(); } }
+function aeBringForward(){ if(ae.sel>=0 && ae.sel<ae.layers.length-1){ const [it]=ae.layers.splice(ae.sel,1); ae.layers.push(it); ae.sel=ae.layers.length-1; aeRender(); } }
+function aeSyncProps(){
+  const p=document.getElementById('aePanelProps'); const L=ae.layers[ae.sel];
+  if(!p) return;
+  if(!L){ p.style.display='none'; return; }
+  p.style.display='block';
+  document.getElementById('aeScale').value=Math.round((L.scale||1)*100);
+  document.getElementById('aeRotate').value=Math.round(L.rot||0);
+  if(L.type==='text'){
+    document.getElementById('aeTextInput').value=L.text||'';
+    document.getElementById('aeFontSize').value=L.size||42;
+    document.getElementById('aeColor').value=L.color||'#ffffff';
+    document.getElementById('aeFont').value=L.font||'Arial, sans-serif';
+  }
+}
+function aeUpdateScale(v){ const L=ae.layers[ae.sel]; if(L){ L.scale=Math.max(.2,Math.min(2.2,(+v||100)/100)); aeRender(); } }
+function aeUpdateRotate(v){ const L=ae.layers[ae.sel]; if(L){ L.rot=(+v||0); aeRender(); } }
+function aeStatus(t){ const el=document.getElementById('aeStatus'); if(el) el.textContent=t||''; }
+function aeCanvasPos(ev){
+  const c=document.getElementById('aeCanvas'); const r=c.getBoundingClientRect();
+  const pt=(ev.touches&&ev.touches[0])||ev;
+  return {x:(pt.clientX-r.left)*(ae.w/r.width), y:(pt.clientY-r.top)*(ae.h/r.height)};
+}
+function aeHit(p){
+  for(let i=ae.layers.length-1;i>=0;i--){
+    const L=ae.layers[i];
+    const bw=(L.type==='text'?Math.min(280, Math.max(50,(L.text||'').length*(L.size||42)*0.33)):(L.w||120))*(L.scale||1);
+    const bh=(L.type==='text'?(L.size||42)*1.35:(L.h||120))*(L.scale||1);
+    // простая проверка без учёта поворота (достаточно для MVP)
+    if(Math.abs(p.x-L.x)<=bw/2+8 && Math.abs(p.y-L.y)<=bh/2+8) return i;
+  }
+  return -1;
+}
+function aeBindCanvas(){
+  const c=document.getElementById('aeCanvas'); if(!c||c.dataset.bound) return; c.dataset.bound='1';
+  const down=(ev)=>{ ev.preventDefault(); const p=aeCanvasPos(ev); const hit=aeHit(p); ae.sel=hit; if(hit>=0){ ae.drag={i:hit,ox:p.x-ae.layers[hit].x,oy:p.y-ae.layers[hit].y}; } aeSyncProps(); aeRender(); };
+  const move=(ev)=>{ if(!ae.drag) return; ev.preventDefault(); const p=aeCanvasPos(ev); const L=ae.layers[ae.drag.i]; if(L){ L.x=Math.max(0,Math.min(ae.w,p.x-ae.drag.ox)); L.y=Math.max(0,Math.min(ae.h,p.y-ae.drag.oy)); aeRender(); } };
+  const up=()=>{ ae.drag=null; };
+  c.addEventListener('pointerdown',down); c.addEventListener('pointermove',move); window.addEventListener('pointerup',up);
+  c.addEventListener('wheel',(ev)=>{ if(ae.sel<0) return; ev.preventDefault(); const L=ae.layers[ae.sel]; L.scale=Math.max(.2,Math.min(2.5,(L.scale||1)+(ev.deltaY<0?0.06:-0.06))); aeSyncProps(); aeRender(); },{passive:false});
+}
+function openAvatarEditor(dataUrl, target){
+  ae.target=target||'avatar'; ae.layers=[]; ae.sel=-1; ae.drag=null;
+  const img=new Image();
+  img.onload=()=>{
+    ae.img=img; aeBindCanvas();
+    document.getElementById('avatarEditor').classList.add('active');
+    aeShowPanel('stickers'); aeRender(); aeStatus('Добавь стикеры/текст и нажми «Сохранить»');
+  };
+  img.onerror=()=>toast('Не удалось открыть изображение');
+  img.src=dataUrl;
+}
+function closeAvatarEditor(){ const el=document.getElementById('avatarEditor'); if(el) el.classList.remove('active'); ae.img=null; ae.layers=[]; ae.sel=-1; }
+function aeExportDataUrl(){
+  // рендерим без выделения
+  const prev=ae.sel; ae.sel=-1; aeRender(); ae.sel=prev;
+  const c=document.getElementById('aeCanvas');
+  return c.toDataURL('image/jpeg',0.9);
+}
+function aeSave(){
+  if(!ae.img){ toast('Нет изображения'); return; }
+  aeStatus('Сохраняю...');
+  const data=aeExportDataUrl();
+  if(ae.target==='avatar') saveAvatarFromDataUrl(data);
+  else { closeAvatarEditor(); toast('Сохранение для этого типа пока не подключено'); }
+}
+
 function pickMedia(target,allowVideo){
   if(target==='avatar'||target==='cover'||target==='gavatar'||target==='gcover'){
     pendingMediaTarget=target;
@@ -8679,5 +8903,55 @@ function cleanupOfflineUsers(){
 function clearAppCache(){if(!confirm('Очистить весь кэш приложения?\n\nБудут удалены:\n- Сессия входа\n- Настройки темы\n- Кэш медиа\n- Все локальные данные\n\nСтраница перезагрузится.'))return;localStorage.clear();sessionStorage.clear();if('caches' in window){caches.keys().then(names=>names.forEach(n=>caches.delete(n)))}toast('🧹 Кэш очищен! Перезагрузка...');setTimeout(()=>location.reload(),1500);}
 boot();
 </script>
+<!-- Редактор аватарки -->
+<div class="ae-overlay" id="avatarEditor" onclick="if(event.target===this)closeAvatarEditor()">
+  <div class="ae-card" onclick="event.stopPropagation()">
+    <div class="ae-title"><span>🎨 Редактор аватарки</span><button class="btn btn-ghost btn-sm" style="width:auto;min-height:34px;padding:6px 10px" onclick="closeAvatarEditor()">✕</button></div>
+    <div class="ae-canvas-wrap"><canvas id="aeCanvas" width="512" height="512"></canvas></div>
+    <div class="ae-toolbar">
+      <button class="btn btn-outline" onclick="aeShowPanel('stickers')">🧩 Стикеры</button>
+      <button class="btn btn-outline" onclick="aeShowPanel('text')">🔤 Текст</button>
+      <button class="btn btn-outline" onclick="aeDeleteSelected()">🗑 Удалить</button>
+      <button class="btn btn-outline" onclick="aeBringForward()">⬆️ Поверх</button>
+      <button class="btn btn-primary" onclick="aeSave()">💾 Сохранить</button>
+    </div>
+    <div class="ae-panel" id="aePanelStickers" style="display:none">
+      <div class="ae-row" style="margin-bottom:8px">
+        <button class="btn btn-outline btn-sm" style="width:auto" onclick="aePickStickerFile()">📷 Стикер из файла</button>
+        <button class="btn btn-outline btn-sm" style="width:auto" onclick="aePickStickerUrl()">🔗 Стикер по ссылке</button>
+      </div>
+      <div class="ae-stickers" id="aeStickerGrid"></div>
+      <div class="ae-hint">Нажми на стикер, чтобы добавить. Потом перетаскивай на аватарке. Размер: колесо/щипок/ползунок ниже после выбора.</div>
+    </div>
+    <div class="ae-panel" id="aePanelText" style="display:none">
+      <label>Текст</label>
+      <input type="text" id="aeTextInput" maxlength="80" placeholder="Введи текст..." oninput="aeUpdateSelectedText()">
+      <div class="ae-row">
+        <div><label>Шрифт</label><select id="aeFont" onchange="aeUpdateSelectedText()">
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="'Segoe UI', sans-serif">Segoe UI</option>
+          <option value="Impact, sans-serif">Impact</option>
+          <option value="'Comic Sans MS', cursive">Comic Sans</option>
+          <option value="'Times New Roman', serif">Times</option>
+          <option value="'Courier New', monospace">Mono</option>
+        </select></div>
+        <div><label>Размер</label><input type="number" id="aeFontSize" value="42" min="10" max="140" onchange="aeUpdateSelectedText()"></div>
+        <div><label>Цвет</label><input type="color" id="aeColor" value="#ffffff" onchange="aeUpdateSelectedText()" style="height:40px;padding:4px"></div>
+      </div>
+      <div class="ae-row" style="margin-top:8px">
+        <button class="btn btn-outline btn-sm" style="width:auto" onclick="aeAddText()">➕ Добавить текст</button>
+      </div>
+      <div class="ae-hint">Добавь текст, затем перетаскивай его на аватарке. Чтобы изменить — выбери текст и правь поля.</div>
+    </div>
+    <div class="ae-panel" id="aePanelProps" style="display:none">
+      <label>Размер выбранного элемента</label>
+      <input type="range" id="aeScale" min="20" max="220" value="100" oninput="aeUpdateScale(this.value)">
+      <label>Поворот</label>
+      <input type="range" id="aeRotate" min="-180" max="180" value="0" oninput="aeUpdateRotate(this.value)">
+    </div>
+    <div class="ae-hint" id="aeStatus" style="margin-top:8px"></div>
+  </div>
+</div>
+
 </body>
 </html></longcat_think>
