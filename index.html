@@ -1816,7 +1816,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 12:30';
+const BUILD='08.11.2026 12:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2299,15 +2299,26 @@ function windDir(d){return ['С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'][Mat
 function cleanupOldNews(){const cut=Date.now()-7*86400000;db.ref('news').once('value').then(s=>{const up={};s.forEach(c=>{if((c.val().ts||0)<cut)up[c.key]=null;});if(Object.keys(up).length)db.ref('news').update(up).catch(()=>{});});}
 function checkWeatherNews(){
   if(!currentUser||!currentUser.isAdmin)return;
-  const now=mskNow(),h=now.getHours();if(h<8||h>11)return;
+  const now=mskNow(), h=now.getHours();
+  // 3 раза в день по МСК: утро, обед, вечер (с дедупликацией по слоту)
+  let slot=null, title='🌤 Сводка погоды (МСК):', tail='Хорошего дня! ☕';
+  if(h>=7 && h<=9){ slot='morning'; title='🌤 Утренняя сводка погоды (МСК):'; tail='Доброе утро! ☕'; }
+  else if(h>=12 && h<=14){ slot='noon'; title='🌤 Дневная сводка погоды (МСК):'; tail='Хорошего дня!'; }
+  else if(h>=18 && h<=20){ slot='evening'; title='🌤 Вечерняя сводка погоды (МСК):'; tail='Доброго вечера! 🌙'; }
+  else return;
   const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  if(lastNews&&Object.values(lastNews).some(n=>n.weatherDate===today))return;
-  Promise.all(WEATHER_SPOTS.map(sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code').then(r=>r.json()).then(j=>({sp,c:j.current||{}})))).then(res=>{
-    const L=['🌤 Утренняя сводка погоды (МСК):',''];
-    res.forEach(({sp,c})=>{L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
-      L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');L.push('');});
-    L.push('Хорошего дня! ☕');
-    db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today});
+  const slotKey=today+'-'+slot;
+  // Не постим повторно этот слот (и не спамим, если lastNews ещё не загружен — проверим в базе)
+  if(lastNews && Object.values(lastNews).some(n=>n && (n.weatherSlot===slotKey || (slot==='morning' && n.weatherDate===today && !n.weatherSlot)))) return;
+  db.ref('news').orderByChild('weatherSlot').equalTo(slotKey).limitToFirst(1).once('value').then(s=>{
+    if(s.exists()) return;
+    return Promise.all(WEATHER_SPOTS.map(sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code').then(r=>r.json()).then(j=>({sp,c:j.current||{}})))).then(res=>{
+      const L=[title,''];
+      res.forEach(({sp,c})=>{L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
+        L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');L.push('');});
+      L.push(tail);
+      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey}).catch(()=>{});
+    });
   }).catch(()=>{});
 }
 // Анонсов «теперь с нами» больше нет — новички просто молча появляются в списке людей.
@@ -4399,7 +4410,7 @@ function openChat(chatId,otherUid,spy){
     ref.once('value').then(sn=>{const n=nameOf(otherUid);
       if(!sn.val())ref.set({otherUid,otherName:n,lastMsg:'',lastTs:Date.now(),unread:0});else ref.update({otherUid,otherName:n});});
     markRead(chatId);}
-  msgRef=db.ref('messages/'+chatId).orderByChild('ts').limitToLast(100);
+  msgRef=db.ref('messages/'+chatId).orderByChild('ts').limitToLast(80);
   msgRef.on('child_added',sn=>{const m=sn.val(),k=sn.key;MSGS[k]=m;appendMessage(m,k);
     maybeLoad(m);
     if(m.sender!==currentUser.uid&&!currentIncognito){
@@ -4436,7 +4447,14 @@ function scheduleChatBottom(){
     if(Date.now()-chatOpenAt<4000)stickChatBottom();
   },t));
 }
-function markRead(cid){db.ref('messages/'+cid).once('value').then(s=>{const up={};s.forEach(c=>{const m=c.val();if(m.sender!==currentUser.uid&&!m.read){up[c.key+'/read']=true;up[c.key+'/deliv']=true;}});if(Object.keys(up).length)db.ref('messages/'+cid).update(up);});}
+function markRead(cid){
+  // Только последние сообщения — не читаем всю историю чата (иначе большие чаты открываются долго).
+  db.ref('messages/'+cid).orderByChild('ts').limitToLast(120).once('value').then(s=>{
+    const up={};
+    s.forEach(c=>{const m=c.val();if(m.sender!==currentUser.uid&&!m.read){up[c.key+'/read']=true;up[c.key+'/deliv']=true;}});
+    if(Object.keys(up).length) db.ref('messages/'+cid).update(up);
+  }).catch(()=>{});
+}
 function deleteChat(){
   if(!currentChatId||currentIsGroup)return;
   // Переписку у обоих удаляет ТОЛЬКО админ. Обычный человек чистит только
@@ -4545,11 +4563,9 @@ function commitMessage(chatId,key,payload,preview){
         db.ref(path).update({lastMsg:preview,lastTs:payload.ts,unread:1,otherUid:me,otherName:displayNameOf(currentUser),lastFrom:me}).catch(()=>{});
       });
     }}
-  // Уведомление о сообщении. Раньше его здесь НЕ БЫЛО: получатель узнавал о новом
-  // сообщении только если этот чат уже был открыт — потому что слушатель сообщений
-  // вешается на открытый чат. Закрытый чат молчал, и Push тоже не уходил: слать
-  // его было некому. Теперь уведомление получает и открытое приложение, и телефон.
-  const brief=(payload.type==='text'&&payload.text)?String(payload.text).slice(0,120):(preview||'');
+  // Уведомление о сообщении (без текста сообщения — приватность).
+  // Раньше его здесь НЕ БЫЛО: получатель узнавал о новом сообщении только если чат открыт.
+  const brief = (payload && payload.type==='text') ? '💬 Новое сообщение' : (preview || 'Новое сообщение');
   const who=displayNameOf(currentUser);
   if(isGid(chatId)){
     db.ref('groups/'+chatId).once('value').then(s3=>{
@@ -5912,7 +5928,15 @@ function tryTranslate(key,text){if(translations[key])return;if(/[а-яА-ЯёЁ]
     if(tr.toLowerCase()!==text.toLowerCase()){translations[key]=tr;updateMsgEl(key,MSGS[key]);}
   }).catch(()=>{});
 }
-function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+function autoResize(el){
+  if(!el) return;
+  const prev=el.style.height;
+  el.style.height='auto';
+  const h=Math.min(el.scrollHeight,100);
+  const next=h+'px';
+  if(prev!==next) el.style.height=next;
+  el.style.overflowY=el.scrollHeight>100?'auto':'hidden';
+}
 function sendTyping(){if(!currentChatId||isTyping||currentIsGroup)return;isTyping=true;db.ref('typing/'+currentChatId+'/'+currentUser.uid).set({ts:Date.now()});clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>{isTyping=false;db.ref('typing/'+currentChatId+'/'+currentUser.uid).remove();},2000);}
 
 // ===== ЗАПИСЬ ГОЛОСА/ВИДЕО =====
