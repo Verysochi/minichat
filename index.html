@@ -1816,7 +1816,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 12:55';
+const BUILD='08.11.2026 13:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2158,7 +2158,7 @@ function enterApp(uid,info){
   if(window.isSecureContext&&navigator.geolocation&&!localStorage.getItem('mc_geo_asked')){
     localStorage.setItem('mc_geo_asked','1');
     navigator.geolocation.getCurrentPosition(p=>{db.ref('users/'+uid+'/geo').set(p.coords.latitude.toFixed(2)+', '+p.coords.longitude.toFixed(2));},()=>{},{timeout:8000});}
-  cleanupOldNews();checkWeatherNews();clearInterval(weatherTimer);weatherTimer=setInterval(checkWeatherNews,3600000);
+  cleanupOldNews();checkWeatherNews();checkHolidayNews();clearInterval(weatherTimer);weatherTimer=setInterval(()=>{checkWeatherNews();checkHolidayNews();},3600000);
   cleanupOfflineUsers();setInterval(cleanupOfflineUsers,60000);
   startListeners();startIncomingListener();
   // Клик по системному уведомлению приходит с параметром ?open=<id чата>.
@@ -2320,6 +2320,52 @@ function checkWeatherNews(){
       db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey}).catch(()=>{});
     });
   }).catch(()=>{});
+}
+function checkHolidayNews(){
+  if(!currentUser||!currentUser.isAdmin) return;
+  const now=mskNow();
+  const today=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const y=today.getFullYear();
+  const holidays=[
+    {m:1,d:1,id:'ny',icon:'🎄',name:'Новый год'},
+    {m:1,d:7,id:'xmas',icon:'✨',name:'Рождество Христово'},
+    {m:2,d:14,id:'valentine',icon:'💖',name:'День святого Валентина'},
+    {m:2,d:23,id:'feb23',icon:'🎖️',name:'День защитника Отечества'},
+    {m:3,d:8,id:'mar8',icon:'🌷',name:'Международный женский день'},
+    {m:5,d:1,id:'may1',icon:'🌿',name:'Праздник весны и труда'},
+    {m:5,d:9,id:'may9',icon:'🎗️',name:'День Победы'},
+    {m:6,d:1,id:'kids',icon:'🎈',name:'День защиты детей'},
+    {m:6,d:12,id:'rus',icon:'🇷🇺',name:'День России'},
+    {m:11,d:4,id:'unity',icon:'🤝',name:'День народного единства'}
+  ];
+  const pad=n=>String(n).padStart(2,'0');
+  const dateKey=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const posts=[];
+  holidays.forEach(h=>{
+    // ближайшее наступление (этот или следующий год)
+    let target=new Date(y, h.m-1, h.d);
+    if(target < today) target=new Date(y+1, h.m-1, h.d);
+    const diff=Math.round((target - today)/86400000);
+    const dk=dateKey(target);
+    let kind=null, prefix=null;
+    if(diff===0){ kind='today'; prefix='Сегодня праздник: '; }
+    else if(diff===1){ kind='d1'; prefix='Завтра: '; }
+    else if(diff===3){ kind='d3'; prefix='Через 3 дня: '; }
+    if(!kind) return;
+    const slotKey='hol-'+h.id+'-'+dk+'-'+kind;
+    const text=prefix + h.icon+' '+h.name + (kind==='today' ? '! Поздравляем!' : '.');
+    posts.push({slotKey,text,icon:h.icon,name:h.name});
+  });
+  if(!posts.length) return;
+  // дедуп по lastNews и по базе (holidaySlot)
+  posts.forEach(p=>{
+    if(lastNews && Object.values(lastNews).some(n=>n && n.holidaySlot===p.slotKey)) return;
+    db.ref('news').orderByChild('holidaySlot').equalTo(p.slotKey).limitToFirst(1).once('value').then(s=>{
+      if(s.exists()) return;
+      const todayStr=dateKey(today);
+      db.ref('news').push({text:p.text,ts:Date.now(),author:'🎉 Праздники',authorUid:'holidaybot',color:'#e84393',holidaySlot:p.slotKey,holidayDate:todayStr}).catch(()=>{});
+    }).catch(()=>{});
+  });
 }
 // Анонсов «теперь с нами» больше нет — новички просто молча появляются в списке людей.
 // Восстановление пароля — Firebase отправляет письмо со ссылкой. Свой пароль мы не знаем.
