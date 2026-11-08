@@ -1,7 +1,7 @@
 {
   "name": "MiniChat",
   "short_name": "MiniChat",
-  "description": "Мессенджер MiniChat",
+  "description": "MiniChat — мессенджер для общения с друзьями: чаты, звонки, новости и колонки.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
