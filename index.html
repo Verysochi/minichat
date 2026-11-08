@@ -1816,7 +1816,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 12:45';
+const BUILD='08.11.2026 12:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1899,7 +1899,7 @@ const RELS=['','🤝 Друг','🎮 Кент','💼 Коллега','👫 На�
 const REL_LEGACY={'💛 Лучший друг':'🤝 Друг','❤️ Любовь':'💑 Вторая половинка','👪 Семья':'👪 Родственник','💼 Коллега':'💼 Коллега','🎮 Кореш':'🎮 Кент','🤝 Друг':'🤝 Друг'};
 function normalizeRel(v){if(!v)return'';return REL_LEGACY[v]||v;}
 const THEMES=[{id:'dark',name:'Классика',bg:'#0a0a0a',p:'#6c5ce7'},{id:'ocean',name:'Океан',bg:'#0a1929',p:'#0984e3'},{id:'forest',name:'Лес',bg:'#0a1a0f',p:'#27ae60'},{id:'sunset',name:'Закат',bg:'#1a0a0a',p:'#e84393'},{id:'light',name:'Светлая',bg:'#f5f5f5',p:'#6c5ce7'},{id:'orange',name:'Оранжевая',bg:'#1a0e02',p:'#e67e22'},{id:'yellow',name:'Жёлтая',bg:'#171202',p:'#f1c40f'},{id:'red',name:'Красная',bg:'#170202',p:'#e74c3c'},{id:'gold',name:'Золотая',bg:'#141002',p:'#ffd700'}];
-const WEATHER_SPOTS=[{name:'Азов (Рост. обл.)',lat:47.10,lon:39.42},{name:'Новосибирск',lat:55.03,lon:82.92}];
+const WEATHER_SPOTS=[{name:'Азов (Рост. обл.)',lat:47.10,lon:39.42},{name:'Новосибирск',lat:55.03,lon:82.92},{name:'Сочи',lat:43.5855,lon:39.7231},{name:'Красная Поляна',lat:43.6797,lon:40.2054}];
 const REACTIONS=['🤘','❤️','🔥','😂','😢'];
 const FILE_ICONS={txt:'📝',doc:'📘',docx:'📘',pdf:'📕',xls:'📗',xlsx:'📗',ppt:'📙',pptx:'📙',zip:'🗜️',rar:'🗜️','7z':'🗜️',mp3:'🎵',wav:'🎵',ogg:'🎵',flac:'🎵',mp4:'🎬',avi:'🎬',mov:'🎬',mkv:'🎬',webm:'🎬',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',gif:'🖼️',webp:'🖼️',svg:'🖼️',js:'⚙️',html:'🌐',css:'🎨',json:'🧾'};
 // Глаз вместо обезьяны: пароль скрыт → закрытый глаз, пароль виден → открытый
