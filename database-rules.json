@@ -89,7 +89,7 @@
     },
     "news": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
-      ".write": "auth != null && auth.token.email == 'sochinewlife@gmail.com'",
+      ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || newData.child('authorUid').val() == 'weatherbot' || newData.child('authorUid').val() == 'holidaybot')",
       ".indexOn": ["ts", "weatherSlot", "weatherDate", "holidaySlot"],
       "$newsId": {
         "comments": {

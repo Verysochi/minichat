@@ -1253,7 +1253,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn desk-nav-btn" onclick="showScreen('myColumnScreen')" title="Колонка"><span class="hicon">📝</span></button>
     <div class="header-col"><h2>🤝 Друзья</h2></div>
-    <button class="header-btn desk-nav-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1312,7 +1311,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="header-more" id="profMore">
       <button class="header-btn" onclick="showScreen('notifScreen')" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
       <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
-      <button class="header-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
       <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
     </div>
   </div>
@@ -1837,7 +1835,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.11.2026 00:15';
+const BUILD='09.11.2026 00:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4535,6 +4533,7 @@ function openChat(chatId,otherUid,spy){
   // обрывались. Убираем: трек играет, пока его не остановят вручную.
   MSGS={};mediaCache={};translations={};chatMediaQueue=[];renderMediaContainer('chat');
   chatOpenAt=Date.now();
+  chatUserScrolledUp=false;
   document.getElementById('messagesContainer').innerHTML='';
   document.getElementById('msgInput').value='';document.getElementById('typingIndicator').textContent='';
   const dm=!currentIsGroup&&!currentIncognito&&otherUid;
@@ -4577,16 +4576,28 @@ function openChat(chatId,otherUid,spy){
 // Чат открывается — прижимаем ленту к низу. Раньше был ОДИН прокрут вниз, и он
 // срабатывал раньше, чем догрузились картинки и видео: высота ленты менялась,
 // и чат оставался посередине. Теперь держим низ, пока открытие не завершилось.
-let chatOpenAt=0;
-function stickChatBottom(){
+let chatOpenAt=0, chatUserScrolledUp=false, _chatScrollBound=false;
+function _bindChatScroll(){
+  if(_chatScrollBound) return;
+  const c=document.getElementById('messagesContainer'); if(!c) return;
+  _chatScrollBound=true;
+  c.addEventListener('scroll',()=>{
+    try{ chatUserScrolledUp = !nearMessagesBottom(c, 120); }catch(e){}
+  },{passive:true});
+}
+function stickChatBottom(force){
   const c=document.getElementById('messagesContainer');
   if(!c||!c.scrollHeight)return;
+  if(!force && chatUserScrolledUp) return;
   c.scrollTop=c.scrollHeight;
 }
 function scheduleChatBottom(){
-  stickChatBottom();
-  [90,220,450,800,1400,2400].forEach(t=>setTimeout(()=>{
-    if(Date.now()-chatOpenAt<4000)stickChatBottom();
+  chatUserScrolledUp=false;
+  _bindChatScroll();
+  stickChatBottom(true);
+  [120,280,520,900,1600].forEach(t=>setTimeout(()=>{
+    if(Date.now()-chatOpenAt>4500) return;
+    if(!chatUserScrolledUp) stickChatBottom(false);
   },t));
 }
 function markRead(cid){
