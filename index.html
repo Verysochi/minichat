@@ -194,13 +194,10 @@ img.avatar.sq{border-radius:8px}
 /* Праздничные украшения аватарок + снежок */
 .ava-wrap{position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle;line-height:0;isolation:isolate}
 .ava-wrap.profile-photo-wrap{display:inline-flex}
-/* Рамка/аура вокруг аватарок: лёгкая тень + свечение (без тяжёлой анимации/артефактов при скролле) */
-.ava-ring{display:block;position:absolute;inset:-3px;border-radius:50%;pointer-events:none;z-index:0;
-  box-shadow:0 0 0 1.5px color-mix(in srgb, var(--primary) 30%, transparent), 0 0 10px color-mix(in srgb, var(--primary) 18%, transparent), 0 2px 6px rgba(0,0,0,.18);
-  opacity:.85}
-.ava-wrap.profile-photo-wrap .ava-ring{inset:-4px;box-shadow:0 0 0 2px color-mix(in srgb, var(--primary) 32%, transparent), 0 0 14px color-mix(in srgb, var(--primary) 22%, transparent), 0 3px 10px rgba(0,0,0,.2)}
-.ava-wrap:has(.avatar.sm) .ava-ring{inset:-2px;opacity:.75}
-.ava-wrap>.avatar,.ava-wrap>.profile-photo,.ava-wrap>img.avatar,.ava-wrap>div.avatar{position:relative;z-index:1}
+/* Лёгкая тень + свечение у аватарок (без отдельного overlay-элемента, чтобы не было артефактов) */
+.ava-ring{display:none !important}
+.ava-wrap>.avatar,.ava-wrap>.profile-photo,.ava-wrap>img.avatar,.ava-wrap>div.avatar{position:relative;z-index:1;box-shadow:0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent), 0 0 10px color-mix(in srgb, var(--primary) 14%, transparent), 0 2px 8px rgba(0,0,0,.18)}
+.ava-wrap:has(.avatar.sm)>.avatar,.ava-wrap:has(.avatar.sm)>img.avatar,.ava-wrap:has(.avatar.sm)>div.avatar{box-shadow:0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent), 0 0 6px color-mix(in srgb, var(--primary) 10%, transparent), 0 1px 4px rgba(0,0,0,.16)}
 /* Бегущая строка настроения (в профиле друга) — исчезает по краям, цвет темы юзера */
 .mood-marquee{width:100%;max-width:520px;margin:2px auto 8px;overflow:hidden;position:relative;border-radius:999px;padding:6px 0;
   background:linear-gradient(90deg,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent),transparent 18%,transparent 82%,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent));
@@ -967,6 +964,7 @@ img,video,canvas{max-width:100%}
     padding:14px;
     position:sticky;
     top:12px;
+    isolation:isolate;
   }
   #profileScreen .profile-identity-col .profile-name,
   #profileScreen .profile-identity-col .profile-login,
@@ -1857,7 +1855,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.11.2026 02:55';
+const BUILD='09.11.2026 03:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3108,7 +3106,7 @@ function userDecorHtml(i,uid){
 }
 function wrapAvatar(inner,i,uid,extraCls){
   const decor=userDecorHtml(i,uid);
-  return '<span class="ava-wrap'+(extraCls?' '+extraCls:'')+'"><span class="ava-ring" aria-hidden="true"></span>'+inner+decor+'</span>';
+  return '<span class="ava-wrap'+(extraCls?' '+extraCls:'')+'">'+inner+decor+'</span>';
 }
 function detectDeviceType(){
   try{
