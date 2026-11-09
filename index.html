@@ -318,7 +318,7 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
   transition:background .15s ease,border-color .15s ease,transform .18s ease}
 .msg-reply-btn:hover,.msg-fwd-btn:hover{background:var(--accent-soft);border-color:var(--primary);transform:scale(1.1)}
 .msg.sent{align-self:flex-end;background:var(--primary);color:var(--primary-text);border-bottom-right-radius:4px}
-.msg.received{align-self:flex-start;background:var(--surface2);border:1px solid var(--surface3);border-bottom-left-radius:4px}
+.msg.received{align-self:flex-start;background:var(--surface2);border:1px solid rgba(255,255,255,.06);border-bottom-left-radius:4px}
 /* НЕ scale() и НЕ transform: рамка полароида с фото внутри сообщения
    от такого увеличивалась и «дёргалась» при открытии реакций */
 .msg.highlighted{z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.5)}
@@ -335,8 +335,8 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
    на телефоне наведения нет, и они выглядели мёртвыми. Теперь всегда в полную силу. */
 /* Поставленные реакции — всегда видны (аватарки + эмодзи, кто отреагировал) */
 .msg-reactions-bar{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%;margin-top:4px}
-.msg-actions{display:none;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%}
-/* Значки действий показываем только после нажатия/выбора сообщения — и на телефоне, и на ПК */
+/* Кнопки действий — всегда видны под сообщением (не нужно попадать тапом по тексту) */
+.msg-actions{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%;margin-top:3px}
 .msg.highlighted .msg-actions{display:inline-flex}
 .avatar.xs{width:20px;height:20px;font-size:9px;min-width:20px}
 .avatar.sm{width:28px;height:28px;font-size:12px;min-width:28px}
@@ -798,8 +798,9 @@ img,video,canvas{max-width:100%}
 .who-row{display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer}
 .gi-code{text-align:center;font-family:monospace;font-size:14px;color:var(--green);word-break:break-all;margin:8px 0;padding:10px;background:var(--surface2);border-radius:10px}
 .my-code{font-family:monospace;font-size:18px;color:var(--green);font-weight:700;letter-spacing:2px}
-.notif-item{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--surface);cursor:pointer}
+.notif-item{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--surface);cursor:pointer;transition:background .3s ease,box-shadow .3s ease}
 .notif-item.unread{background:var(--accent-soft)}
+.notif-item.notif-fresh{animation:freshGlow 5s ease-out}
 .notif-title{font-size:13px;font-weight:600;color:var(--primary);margin-bottom:2px}
 .mini-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);z-index:350;align-items:center;justify-content:center;padding:20px}
 .mini-overlay.active{display:flex}
@@ -1399,6 +1400,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="card-title">Медиа</div>
       <div class="row">
         <button class="btn btn-primary btn-sm" onclick="pickMedia('avatar',false)">📷 Аватар/GIF</button>
+        <button class="btn btn-outline btn-sm" onclick="editCurrentAvatar()">✏️ Редакт. текущую</button>
         <button class="btn btn-outline btn-sm" onclick="pickMedia('cover',false)">🌄 Обложка</button>
         <button class="btn btn-outline btn-sm" onclick="removeCover()">✂️ Убрать обложку</button>
       </div>
@@ -1703,7 +1705,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <input type="file" id="mediaCamUser" accept="image/*" capture="user" style="display:none" onchange="onMediaPicked(this)">
 <input type="file" id="mediaCamEnv" accept="image/*" capture="environment" style="display:none" onchange="onMediaPicked(this)">
 <input type="file" id="chatFileInput" style="display:none" onchange="onChatFilePicked(this)" multiple>
-<div class="lightbox" id="lightbox"><div class="pp-wrap" onclick="event.stopPropagation()"><div class="pp-count" id="ppCount"></div><div class="pp-frame"><img id="lightboxImg" alt=""><div class="lb-caption" id="lightboxCaption"></div></div><button class="pp-nav pp-prev" onclick="ppMove(-1)">❮</button><button class="pp-nav pp-next" onclick="ppMove(1)">❯</button></div></div>
+<div class="lightbox" id="lightbox"><div class="pp-wrap"><div class="pp-count" id="ppCount" onclick="event.stopPropagation()"></div><div class="pp-frame"><img id="lightboxImg" alt=""><div class="lb-caption" id="lightboxCaption"></div></div><button class="pp-nav pp-prev" onclick="event.stopPropagation();ppMove(-1)">❮</button><button class="pp-nav pp-next" onclick="event.stopPropagation();ppMove(1)">❯</button></div></div>
 <!-- комментарии выезжают справа, кнопки «Поделиться / Комменты» остаются на месте -->
 <div class="mini-overlay" id="linkAddOverlay" onclick="if(event.target===this)closeLinkAdd()">
   <div class="mini-card" style="max-width:420px;text-align:left">
@@ -1835,7 +1837,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='08.11.2026 14:25';
+const BUILD='09.11.2026 00:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -1847,7 +1849,7 @@ let sessionsView='admin';   // какая колонка сессий откры
 let currentChatId=null,currentOtherUid=null,currentIsGroup=false,currentIncognito=false,viewProfileUid=null,profileReturn='friendsScreen',miniUid=null,chatTab='dm',newsSortDesc=true;
 let msgRef=null,typRef=null,usersLRef=null,chatLRef=null,groupsLRef=null,newsLRef=null,pendLRef=null,notifLRef=null,frLRef=null,frqLRef=null,ginLRef=null,blkLRef=null,postsLRef=null,incomingRef=null,prLRef=null,propLRef=null,delLogRef=null,sessLogRef=null,attLogRef=null,relLRef=null,relqLRef=null,snowLRef=null;
 let typingTimeout=null,isTyping=false,hbTimer=null,weatherTimer=null,sessionTimer=null;
-let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='',recGen=0,recFailStreak=0,currentScreenId=null;
+let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer=null,recStart=0,recElapsed=0,recPausedAt=0,recordedDataUrl=null,recordedType=null,recordedSending=false,recAutoSend=false,recStream=null,recMode='audio',recSegs=[],recBadList=null,recLastWant='',recGen=0,recFailStreak=0,currentScreenId=null,recTranscriptText='';
 // Поколение записи. Пока flushRecorder ждёт последний кусок, запись могут
 // отменить (🗑) — тогда результат должен молча выброситься, а не отправиться.
 // Форматы, которые на этом устройстве молча пишут пустоту. Запоминаем между
@@ -2293,6 +2295,7 @@ function showScreen(id,fromBack){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
   // подсветка «нового» гаснет сразу при уходе со страницы — ничего не висит
   if(id!=='newsScreen'&&typeof clearFreshGlow==='function')clearFreshGlow();
+  if(id!=='notifScreen'){ try{clearTimeout(_notifFreshTimer);}catch(e){} _notifFreshTimer=null; }
   if(id==='registerScreen')renderCaptcha();
   // Запись голосового не должна продолжаться, если ушёл на другой экран —
   // иначе плеер висит поверх чата и время тикает само по себе.
@@ -2308,7 +2311,7 @@ function showScreen(id,fromBack){
   if(id==='newsScreen'){freshSeenBefore=parseInt(localStorage.getItem('mc_news_seen')||'0',10);localStorage.setItem('mc_news_seen',Date.now());document.getElementById('newsClearBtn').style.display=currentUser.isAdmin?'flex':'none';renderNews();const sc=document.getElementById('newsScroll');if(sc)sc.scrollTop=0;}
   if(id==='groupInfoScreen'){renderGroupInfo();if(watchGroupJoinReqs)watchGroupJoinReqs(currentIsGroup?currentChatId:null);}
   else if(watchGroupJoinReqs)watchGroupJoinReqs(null);
-  if(id==='notifScreen')renderNotifs();
+  if(id==='notifScreen')openNotifScreen();
   if(id==='viewProfileScreen'){renderViewColumn();const w=document.querySelector('#viewProfileScreen .profile-wrap');if(w)w.scrollTop=0;}
 }
 
@@ -2331,15 +2334,16 @@ function checkWeatherNews(){
   if(lastNews && Object.values(lastNews).some(n=>n && (n.weatherSlot===slotKey || (slot==='morning' && n.weatherDate===today && !n.weatherSlot)))) return;
   db.ref('news').orderByChild('weatherSlot').equalTo(slotKey).limitToFirst(1).once('value').then(s=>{
     if(s.exists()) return;
-    return Promise.all(WEATHER_SPOTS.map(sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code').then(r=>r.json()).then(j=>({sp,c:j.current||{}})))).then(res=>{
+    return Promise.all(WEATHER_SPOTS.map(sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>({sp,c:j.current||{}})).catch(()=>({sp,c:{},err:1})))).then(res=>{
       const L=[title,''];
-      res.forEach(({sp,c})=>{L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
+      res.forEach(({sp,c,err})=>{ if(err||c.temperature_2m==null){ L.push(sp.name+': нет данных'); L.push(''); return; }
+        L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
         L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');L.push('');});
       L.push(tail);
       const weatherImg='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0984e3"/><stop offset="1" stop-color="#74b9ff"/></linearGradient></defs><rect width="640" height="180" rx="18" fill="url(#g)"/><text x="320" y="78" text-anchor="middle" font-size="44" font-family="Arial,sans-serif">🌤️☁️🌧️</text><text x="320" y="128" text-anchor="middle" font-size="34" fill="#fff" font-weight="700" font-family="Arial,sans-serif">Сводка погоды</text><text x="320" y="158" text-anchor="middle" font-size="18" fill="#eaf6ff" font-family="Arial,sans-serif">по МСК</text></svg>');
-      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey,extUrl:1,url:weatherImg,type:'image',mediaType:'image',name:'Сводка погоды'}).catch(()=>{});
+      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey,extUrl:1,url:weatherImg,type:'image',mediaType:'image',name:'Сводка погоды'}).then(()=>{try{if(currentUser&&currentUser.isAdmin)toast('🌤 Погода опубликована ('+slotKey+')',true);}catch(e){}}).catch(e=>{console.warn('weather push',e);});
     });
-  }).catch(()=>{});
+  }).catch(e=>{console.warn('weather check',e);});
 }
 function checkHolidayNews(){
   if(!currentUser||!currentUser.isAdmin) return;
@@ -3302,18 +3306,18 @@ function songMiniHtml(key,m){
   const cur=(songKey===key)?(songAudio&&songAudio.currentTime?songAudio.currentTime:0):0;
   const dur=(songKey===key&&songAudio&&songAudio.duration&&isFinite(songAudio.duration))?songAudio.duration:0;
   const pct=dur?Math.min(100,(cur/dur)*100):0;
-  return '<div class="song-mini'+(songKey===key?' active':'')+'" id="songm_'+CSS_ID(key)+'" data-key="'+CSS_ID(key)+'">'+
+  var tr=(m&&m.transcript)?String(m.transcript).trim():'';
+  var isVoice=(m&&m.type==='audio'&&!isSongFile(m&&m.name));
+  return '<div class="song-mini'+(songKey===key?' active':'')+'" id="songm_'+CSS_ID(key)+'" data-key="'+CSS_ID(key)+'" style="'+(tr?'flex-wrap:wrap;':'')+'">'+
     '<button class="song-play" onclick="event.stopPropagation();toggleSong(\''+key+'\')">'+(playing?'⏸':'▶')+'</button>'+
     '<div class="song-body">'+
-      '<div class="song-name" title="'+esc(m.name||'Голосовое')+'">'+esc((m.type==='audio'&&!isSongFile(m&&m.name))?'🎤 Голосовое':shortFileName(m.name||'🎵 песня'))+'</div>'+
+      '<div class="song-name" title="'+esc(m.name||'Голосовое')+'">'+esc(isVoice?'🎤 Голосовое':shortFileName(m.name||'🎵 песня'))+'</div>'+
       '<div class="song-seek" data-key="'+CSS_ID(key)+'" title="Перемотать"><div class="song-track"><div class="song-prog" id="songp_'+CSS_ID(key)+'" style="width:'+pct+'%"></div></div></div>'+
-      // Регулятор прямо в мини-плеере. Верхняя панель с громкостью прячется,
-      // когда открыт чат, и на телефоне до неё было не добраться — песня играла
-      // молча, а починить было нечем.
       '<input type="range" class="song-vol song-vol-inline" min="0" max="100" value="'+volPct()+'" oninput="setSongVol(this.value)" title="Громкость">'+
     '</div>'+
     '<div class="song-time" id="songt_'+CSS_ID(key)+'">'+(dur?fmtDur(cur)+' / '+fmtDur(dur):(src?'0:00':'…'))+'</div>'+
     '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇</button>'+
+    (tr?'<div style="flex-basis:100%;width:100%;margin-top:6px;padding-top:6px;border-top:1px solid var(--surface3);font-size:13px;line-height:1.35;opacity:.92;white-space:pre-wrap">'+esc(tr)+'</div>':'')+
   '</div>';
 }
 // ===== статичный плеер под верхней рамкой чата + управление песнями =====
@@ -3949,8 +3953,12 @@ function ppRefreshKey(key){if(!key)return;
     if(Math.abs(dx)>45){ppMove(dx<0?1:-1);lb.dataset.swiped='1';setTimeout(()=>{delete lb.dataset.swiped;},350);}
     moved=false;
   },{passive:true});
-  // клик по фону закрывает, но не после свайпа
-  lb.addEventListener('click',e=>{if(lb.dataset.swiped){delete lb.dataset.swiped;return;}if(e.target===lb)closeLightbox();});
+  // клик по картинке/области закрывает (назад) — удобно на мобиле; навигация через кнопки/свайп
+  lb.addEventListener('click',e=>{
+    if(lb.dataset.swiped){delete lb.dataset.swiped;return;}
+    if(e.target && e.target.closest && e.target.closest('.pp-nav')) return;
+    closeLightbox();
+  });
   // стрелки клавиатуры
   document.addEventListener('keydown',e=>{
     if(PP_LIST.length<1)return;
@@ -5402,7 +5410,7 @@ function bubbleInner(m,key,senderInside){
     const loaded=mediaCache[mk];
     if(isSongFile(m.name)){
       // песня (mp3/wav/…) — всегда мини-плеер, привязанный к сообщению
-      c+=songMiniHtml(key,m)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇ Скачать</button></div>';
+      c+=songMiniHtml(key,m)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать">⬇</button></div>';
     } else if(m.asFile){
       // обычный файл (📎) — иконка, имя, размер, кнопка скачивания, без мини-картинки.
       // Для видео-файла вместо иконки — маленькое превью кадра (размером как у фото).
@@ -5417,16 +5425,16 @@ function bubbleInner(m,key,senderInside){
         c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
       }
     } else if(m.type==='image'){
-      if(loaded)c+='<div class="polaroid"><img src="'+loaded+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
-      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';}
-      else c+=mediaWaitHtml(mk)+'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';
+      if(loaded)c+='<div class="polaroid"><img src="'+loaded+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';}
+      else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='video'){
-      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
-      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';}
-      else c+=mediaWaitHtml(mk)+'<button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button>';
+      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+      else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';}
+      else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='audio'){
-      if(loaded)c+=songMiniHtml(key,m)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇ Скачать</button></div>';
-      else c+=mediaWaitHtml(mk)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadFile(\''+key+'\')">⬇ Скачать</button></div>';
+      if(loaded)c+=songMiniHtml(key,m)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать">⬇</button></div>';
+      else c+=mediaWaitHtml(mk)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button></div>';
     } else {
       c+='<div style="font-size:40px;text-align:center;padding:12px">'+fileIconLarge(m.name)+'</div>';
       c+=fileLineHtml(m,loaded?'saveFile':'downloadFile',key);
@@ -5454,9 +5462,9 @@ function bubbleInner(m,key,senderInside){
   }
   // ВАЖНО: только «c+=» — иначе перезаписывается уже собранная шапка пересланного,
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
-  else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
-  else if(m.type==='audio'&&d)c+=songMiniHtml(key,m)+'<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇ Скачать</button></div>';
-  else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px" onclick="event.stopPropagation();saveFile(\''+key+'\')">⬇ Скачать</button>';
+  else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+  else if(m.type==='audio'&&d)c+=songMiniHtml(key,m)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать">⬇</button></div>';
+  else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
   if(m.share)c+=shareCardHtml(m);
@@ -6171,6 +6179,7 @@ function toggleRecord(mode){
     if(pb){pb.style.display='flex';pb.textContent='⏸';pb.title='Пауза';pb.classList.remove('paused');}
     const mb=document.getElementById('recBtn');
     if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
+    try{startRecSpeech();}catch(e){}
     startSegment();
     recTimer=setInterval(()=>{
       const ms=recElapsed+(recPaused?0:(Date.now()-recStart));
@@ -6208,6 +6217,38 @@ function pickRecType(mode){
   if(typeof MediaRecorder==='undefined')return '';
   for(const t of list){try{if(MediaRecorder.isTypeSupported(t))return t;}catch(e){}}
   return '';
+}
+function startRecSpeech(){
+  recTranscriptText='';
+  try{ if(recMode!=='audio') return; }catch(e){}
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return;
+  try{
+    stopRecSpeech();
+    var r=new SR();
+    r.lang='ru-RU'; r.continuous=true; r.interimResults=true;
+    r.onresult=function(ev){
+      try{
+        var fin=''; var interim='';
+        for(var i=0;i<ev.results.length;i++){
+          var t=ev.results[i][0]&&ev.results[i][0].transcript||'';
+          if(ev.results[i].isFinal) fin+=t+' '; else interim+=t;
+        }
+        var txt=(fin+' '+interim).trim();
+        if(txt) recTranscriptText=txt;
+      }catch(e){}
+    };
+    r.onerror=function(){};
+    r.onend=function(){ try{ if(isRecording && !recPaused && recMode==='audio' && window._recSpeech===r){ try{r.start();}catch(e){} } }catch(e){} };
+    window._recSpeech=r; r.start();
+  }catch(e){ window._recSpeech=null; }
+}
+function stopRecSpeech(finalize){
+  try{
+    var r=window._recSpeech;
+    if(r){ r.onend=null; try{r.stop();}catch(e){} }
+  }catch(e){}
+  window._recSpeech=null;
 }
 function startSegment(){
   if(!recStream)return;
@@ -6322,6 +6363,7 @@ function stopRecording(autoSend){
 }
 function finishStopNow(autoSend){
   recPaused=false;clearInterval(recTimer);recTimer=null;
+  try{stopRecSpeech();}catch(e){}
   if(autoSend===true)recAutoSend=true;
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   document.getElementById('msgInput').placeholder='Сообщение...';
@@ -6340,14 +6382,17 @@ function sendRecorded(){
   const old=document.getElementById('msgInput').placeholder;
   document.getElementById('msgInput').placeholder='⏳ Отправляю голосовое…';
   uploadChunked(fk,data,{name:(type==='video'?'video':'audio')+'.webm',size:data.length})
-    .then(()=>commitMessage(currentChatId,key,
-      {sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:type,name:(type==='video'?'Голосовое видео':'Голосовое')},
-      previewFor(type)))
+    .then(()=>{
+      const payload={sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:type,name:(type==='video'?'Голосовое видео':'Голосовое')};
+      if(recTranscriptText && String(recTranscriptText).trim()) payload.transcript=String(recTranscriptText).trim().slice(0,4000);
+      return commitMessage(currentChatId,key,payload,previewFor(type));
+    })
     .then(()=>{recordedSending=false;cancelRecorded();document.getElementById('msgInput').placeholder=old;})
     .catch(e=>{recordedSending=false;document.getElementById('msgInput').placeholder=old;
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
 function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;recGen++;
+  try{stopRecSpeech();}catch(e){} recTranscriptText='';
   recordedSending=false;recSegs=[];audioChunks=[];recElapsed=0;recPausedAt=0;
   if(recStream){try{recStream.getTracks().forEach(t=>t.stop());}catch(e){}}
   recStream=null;mediaRecorder=null;isRecording=false;
@@ -8039,23 +8084,83 @@ function renderViewColumn(){
 }
 
 // ===== УВЕДОМЛЕНИЯ =====
+let _notifFreshTimer=null;
+let _notifFreshKeys=null; // ключи, подсвеченные как «новые» при входе (5 сек)
+function _markNotifKeysRead(keys,silent){
+  keys=(keys||[]).filter(k=>lastNotifs&&lastNotifs[k]&&!lastNotifs[k].read);
+  if(!keys.length){ if(!silent) toast('Непрочитанных нет'); return; }
+  const up={}; keys.forEach(k=>{up[k+'/read']=true;});
+  keys.forEach(k=>{ if(lastNotifs[k]) lastNotifs[k].read=true; });
+  renderNotifs();
+  db.ref('notifs/'+currentUser.uid).update(up).then(()=>{
+    if(!silent) toast('✓ Прочитано: '+keys.length,true);
+  }).catch(e=>{console.warn('markAllNotifs',e); renderNotifs(); if(!silent) toast('⚠️ Не получилось');});
+}
+function markAllNotifsRead(){ _markNotifKeysRead(lastNotifs?Object.keys(lastNotifs):[], false); }
+function openNotifScreen(){
+  // какие непрочитанные подсветить на 5 секунд
+  _notifFreshKeys = lastNotifs ? Object.keys(lastNotifs).filter(k=>lastNotifs[k]&&!lastNotifs[k].read) : [];
+  renderNotifs();
+  // зашёл в уведомления — помечаем прочитанными (бейджи гаснут), визуально подсветка держится 5 сек
+  const keys=(_notifFreshKeys||[]).slice();
+  if(keys.length){
+    const up={}; keys.forEach(k=>{up[k+'/read']=true;});
+    db.ref('notifs/'+currentUser.uid).update(up).catch(e=>console.warn('autoReadNotifs',e));
+  }
+  try{clearTimeout(_notifFreshTimer);}catch(e){}
+  _notifFreshTimer=setTimeout(()=>{
+    _notifFreshKeys=null;
+    if(currentScreenId==='notifScreen') renderNotifs();
+  }, 5000);
+}
 function renderNotifs(){
   const l=document.getElementById('notifList');if(!l||!currentUser)return;
   const items=lastNotifs?Object.entries(lastNotifs):[];
+  const freshSet=new Set((_notifFreshKeys&&currentScreenId==='notifScreen')?_notifFreshKeys:[]);
   const un=items.filter(([,n])=>!n.read).length;
   document.querySelectorAll('.js-notif-badge').forEach(b=>{
     if(un>0){b.textContent=un;b.classList.add('active');}
-    else{b.textContent='';b.classList.remove('active');}   // текст тоже гасим, иначе остаётся «1» без подсветки
+    else{b.textContent='';b.classList.remove('active');}
   });
   l.innerHTML='';
   if(!items.length){l.innerHTML='<div class="empty-state"><div class="icon">🔔</div><div>Пока тихо</div></div>';return;}
-  items.sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([key,n])=>{
-    const d=document.createElement('div');d.className='notif-item'+(n.read?'':' unread');
-    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':n.type==='post'?'📝':'';
+
+  // Группируем чат-уведомления по отправителю: «3 новых сообщения от Дмитрий»
+  const groups=[]; const chatMap={};
+  items.slice().sort((a,b2)=>(b2[1].ts||0)-(a[1].ts||0)).forEach(([key,n])=>{
+    if(n && n.type==='chat'){
+      const uid=n.chatWith||n.from||'';
+      if(!uid){ groups.push({kind:'single',key,n}); return; }
+      let g=chatMap[uid];
+      if(!g){ g={kind:'chat',uid,keys:[],count:0,ts:0,anyUnread:false,anyFresh:false}; chatMap[uid]=g; groups.push(g); }
+      g.keys.push(key); g.count++; if((n.ts||0)>g.ts) g.ts=n.ts||0; if(!n.read) g.anyUnread=true; if(freshSet.has(key)) g.anyFresh=true;
+      return;
+    }
+    groups.push({kind:'single',key,n});
+  });
+  groups.sort((a,b2)=>((b2.ts||b2.n&&b2.n.ts||0)-(a.ts||a.n&&a.n.ts||0)));
+
+  groups.forEach(g=>{
+    if(g.kind==='chat'){
+      const name=nameOf(g.uid, 'кто-то');
+      const u=ALL_USERS[g.uid];
+      const av=u?avatarHtml(u,'sm',name):('<div class="avatar sm" style="width:34px;height:34px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center">💬</div>');
+      const isNew=g.anyUnread||g.anyFresh;
+      const d=document.createElement('div');
+      d.className='notif-item'+(isNew?' unread':'')+(g.anyFresh?' notif-fresh':'');
+      const text = g.count>1 ? (g.count+' новых сообщения от '+esc(name)) : ('Новое сообщение от '+esc(name));
+      d.innerHTML=av+'<div style="flex:1;min-width:0"><div style="font-size:14px">💬 '+text+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(g.ts)+'</div></div>';
+      d.onclick=()=>{ _markNotifKeysRead(g.keys,true); openChat(getChatId(currentUser.uid,g.uid),g.uid); };
+      l.appendChild(d); return;
+    }
+    const key=g.key, n=g.n||{};
+    const d=document.createElement('div');
+    d.className='notif-item'+(n.read&&!freshSet.has(key)?'':' unread')+(freshSet.has(key)?' notif-fresh':'');
+    const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':n.type==='post'?'📝':'🔔';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
     const safeText = (n.type==='chat') ? '💬 Новое сообщение' : (n.text||'');
     d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(safeText)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
-    d.onclick=()=>{db.ref('notifs/'+currentUser.uid+'/'+key+'/read').set(true);
+    d.onclick=()=>{ _markNotifKeysRead([key],true);
       if(n.newsId){showScreen('newsScreen');renderNews();setTimeout(()=>{toggleComments('news',n.newsId);const el=document.getElementById('news_'+n.newsId);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},300);}
       else if(n.postId){const p=lastUserPosts&&lastUserPosts[n.postId];
         if(p&&n.from){openUserProfile(n.from);renderViewColumn();setTimeout(()=>{const el=document.querySelector('[data-pid="'+n.postId+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},420);}
@@ -8065,18 +8170,8 @@ function renderNotifs(){
       else if(n.type==='friend'||n.type==='friendok')showScreen('friendsScreen');
       else if(n.type==='relreq'&&n.from){openUserProfile(n.from);}
       else if(n.type==='proposal')showScreen('newsScreen');};
-    l.appendChild(d);});
-}
-function markAllNotifsRead(){
-  const keys=lastNotifs?Object.keys(lastNotifs).filter(k=>lastNotifs[k]&&!lastNotifs[k].read):[];
-  if(!keys.length){toast('Непрочитанных нет');return;}
-  const up={};keys.forEach(k=>{up[k+'/read']=true;});
-  // Гасим сразу локально — иначе бейдж на колокольчике держится до ответа сервера.
-  keys.forEach(k=>{if(lastNotifs[k])lastNotifs[k].read=true;});
-  renderNotifs();
-  db.ref('notifs/'+currentUser.uid).update(up)
-    .then(()=>toast('✓ Прочитано: '+keys.length,true))
-    .catch(e=>{console.warn('markAllNotifs',e);renderNotifs();toast('⚠️ Не получилось');});
+    l.appendChild(d);
+  });
 }
 
 // ===== ПРОФИЛЬ =====
@@ -8290,6 +8385,13 @@ function saveAvatarFromDataUrl(dataUrl, opts){
   };
   img.onerror=()=>toast('Ошибка изображения');
   img.src=dataUrl;
+}
+function editCurrentAvatar(){
+  const i=ALL_USERS[currentUser.uid]||currentUser;
+  const src=i&&i.avatar;
+  if(!src){ toast('Сначала загрузи аватарку'); return; }
+  if(String(src).startsWith('data:image/gif')){ toast('GIF-аватар нельзя редактировать без потери анимации — загрузи новое фото'); return; }
+  openAvatarEditor(src,'avatar');
 }
 function avatarFile(f){
   if(f.type==='image/gif'){
