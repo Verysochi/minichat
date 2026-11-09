@@ -194,18 +194,19 @@ img.avatar.sq{border-radius:8px}
 /* Праздничные украшения аватарок + снежок */
 .ava-wrap{position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle;line-height:0;isolation:isolate}
 .ava-wrap.profile-photo-wrap{display:inline-flex}
-/* Вращающаяся рамка: лёгкая тень + свечение */
-.ava-ring{position:absolute;inset:-3px;border-radius:50%;pointer-events:none;z-index:0;
-  background:conic-gradient(from 0deg, rgba(255,255,255,0), rgba(255,255,255,.5), color-mix(in srgb, var(--primary) 60%, #fff), rgba(255,255,255,0) 70%, rgba(255,255,255,0));
+/* Вращающаяся рамка: лёгкая тень + свечение (только когда поддерживается mask, иначе без артефактов) */
+.ava-ring{display:none;position:absolute;inset:-3px;border-radius:50%;pointer-events:none;z-index:0;
+  background:conic-gradient(from 0deg, transparent, color-mix(in srgb, var(--primary) 45%, #fff), transparent 55%, transparent);
   -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
   mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
-  opacity:.7;filter:drop-shadow(0 0 4px color-mix(in srgb, var(--primary) 35%, transparent)) drop-shadow(0 2px 5px rgba(0,0,0,.18));
-  animation:avaRingSpin 6s linear infinite;will-change:transform}
-.ava-wrap.profile-photo-wrap .ava-ring{inset:-5px;opacity:.82;filter:drop-shadow(0 0 7px color-mix(in srgb, var(--primary) 40%, transparent)) drop-shadow(0 3px 10px rgba(0,0,0,.25));animation-duration:8s}
-.ava-wrap:has(.avatar.sm) .ava-ring{inset:-2px;opacity:.58;animation-duration:5.2s}
+  opacity:.55;filter:drop-shadow(0 0 5px color-mix(in srgb, var(--primary) 28%, transparent)) drop-shadow(0 2px 4px rgba(0,0,0,.16));
+  animation:avaRingSpin 7s linear infinite;will-change:transform}
+@supports (mask: radial-gradient(#000,#000)) or (-webkit-mask: radial-gradient(#000,#000)){ .ava-ring{display:block} }
+.ava-wrap.profile-photo-wrap .ava-ring{inset:-5px;opacity:.62;animation-duration:9s}
+.ava-wrap:has(.avatar.sm) .ava-ring{inset:-2px;opacity:.48;animation-duration:6s}
 .ava-wrap>.avatar,.ava-wrap>.profile-photo,.ava-wrap>img.avatar,.ava-wrap>div.avatar{position:relative;z-index:1}
 @keyframes avaRingSpin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.ava-ring{animation:none;opacity:.4}}
+@media (prefers-reduced-motion:reduce){.ava-ring{animation:none;opacity:.35}}
 /* Бегущая строка настроения (в профиле друга) — исчезает по краям, цвет темы юзера */
 .mood-marquee{width:100%;max-width:520px;margin:2px auto 8px;overflow:hidden;position:relative;border-radius:999px;padding:6px 0;
   background:linear-gradient(90deg,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent),transparent 18%,transparent 82%,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent));
@@ -863,10 +864,12 @@ img,video,canvas{max-width:100%}
 @media (max-width:1000px){.pp-prev{left:4px}.pp-next{right:4px}}
 /* ===== КОЛЛАЖ: сетка фото в посте/новости ===== */
 .cg{display:grid;gap:4px;border-radius:12px;overflow:hidden;margin:2px 0}
-.cg .cg-i{position:relative;background:#000;overflow:hidden;border-radius:8px;cursor:pointer;min-width:0}
-.cg .cg-i img{width:100%;height:100%;object-fit:cover;display:block}
-.cg-1{grid-template-columns:1fr}
-.cg-1 .cg-i img{max-height:420px;object-fit:cover}
+.cg .cg-i{position:relative;background:var(--surface2,#111);overflow:hidden;border-radius:8px;cursor:pointer;min-width:0;display:flex;align-items:center;justify-content:center}
+/* Не обрезаем/не уродуем: показываем целиком (горизонтальные и вертикальные). */
+.cg .cg-i img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block}
+.cg-1{grid-template-columns:1fr;aspect-ratio:auto}
+.cg-1 .cg-i{aspect-ratio:auto;max-height:min(70vh,520px);min-height:120px}
+.cg-1 .cg-i img{width:auto;height:auto;max-width:100%;max-height:min(70vh,520px);object-fit:contain}
 .cg-2{grid-template-columns:repeat(2,1fr)}
 .cg-3{grid-template-columns:repeat(3,1fr)}
 .cg-4{grid-template-columns:repeat(2,1fr)}
@@ -874,14 +877,8 @@ img,video,canvas{max-width:100%}
 .cg-5 .cg-i:first-child{grid-column:span 2;grid-row:span 2}
 .cg-6,.cg-7,.cg-8,.cg-9{grid-template-columns:repeat(3,1fr)}
 .cg-2,.cg-3,.cg-4,.cg-5,.cg-6,.cg-7,.cg-8,.cg-9{aspect-ratio:1/1;grid-auto-rows:1fr}
+.cg-2 .cg-i,.cg-3 .cg-i,.cg-4 .cg-i,.cg-5 .cg-i,.cg-6 .cg-i,.cg-7 .cg-i,.cg-8 .cg-i,.cg-9 .cg-i{aspect-ratio:auto}
 .cg .cg-more{position:absolute;inset:0;background:rgba(0,0,0,.55);color:#fff;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;text-shadow:0 2px 8px #000}
-/* ВСЕ фото в новостях/колонках — одного размера (квадратная ячейка + object-fit:cover).
-   Раньше на ПК стояло height:auto/max-height:none, и высокое портретное фото
-   растягивалось без предела — «разрывало экран». Убрали. */
-.cg .cg-i{aspect-ratio:1/1}
-.cg-1 .cg-i img{max-height:none;height:100%;object-fit:cover}
-.cg-1{aspect-ratio:auto}
-.cg-1 .cg-i{aspect-ratio:16/10;max-height:420px}
 /* ПК: колонка широкая — ограничиваем, иначе фото растянуто на всю ширину */
 @media (min-width:900px){
   .cg{max-width:640px}
@@ -1862,7 +1859,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.11.2026 01:20';
+const BUILD='09.11.2026 01:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
