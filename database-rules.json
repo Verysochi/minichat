@@ -231,6 +231,33 @@
         ".write": "auth != null && root.child('approvals').child(auth.uid).exists()",
         ".validate": "newData.hasChildren(['from','ts','until']) && newData.child('from').val() === auth.uid && newData.child('ts').isNumber() && newData.child('until').isNumber() && newData.child('until').val() > newData.child('ts').val()"
       }
+    },
+    "profileAvatarRocks": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$targetUid": {
+        "$fromUid": {
+          ".write": "auth != null && auth.uid === $fromUid && root.child('approvals').child(auth.uid).exists()",
+          ".validate": "newData.val() === true || newData.val() === null || newData.isNumber()"
+        }
+      }
+    },
+    "profilePresence": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$profileUid": {
+        "$viewerUid": {
+          ".write": "auth != null && auth.uid === $viewerUid && root.child('approvals').child(auth.uid).exists()",
+          ".validate": "newData.val() === null || (newData.hasChild('ts') && newData.child('ts').isNumber())"
+        }
+      }
+    },
+    "profileEvents": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$profileUid": {
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()",
+        "$eventId": {
+          ".validate": "newData.val() === null || (newData.hasChild('from') && newData.child('from').val() === auth.uid && newData.child('ts').isNumber() && newData.child('type').isString())"
+        }
+      }
     }
   }
 }

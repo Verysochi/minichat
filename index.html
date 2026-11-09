@@ -1352,7 +1352,9 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         onblur="saveMoodQuick()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
     </div>
     <div id="profilePresence" style="font-size:13px;margin-bottom:12px"></div>
-    <div id="profileRockBadge" style="margin-bottom:12px"></div>
+    <div id="profileAvatarRockRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
+    <div id="profilePetRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
+    <div id="profileRockBadge" style="margin-bottom:12px" title="Сколько раз ты рокнул(а) 🤘 в новостях/колонках"></div>
     </div>
     <div class="profile-cards-col">
     <div class="profile-card">
@@ -1512,6 +1514,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-status" id="vpStatus"></div>
     <div id="vpThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35;text-align:center"></div>
     <div id="vpMoodMarquee" class="mood-marquee" style="display:none" aria-label="Настроение"></div>
+    <div id="vpAvatarRockRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:2px 0 8px"></div>
+    <div id="vpPetRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
     <div id="vpPresence" style="font-size:13px;margin-bottom:8px"></div>
     <!-- Переключатель видимости: сразу под шапкой профиля, чтобы не искать внизу -->
     <div class="sw-row" id="vpVisRow" style="display:none;max-width:520px;margin:10px auto 4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:14px;padding:10px 14px">
@@ -1859,7 +1863,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='09.11.2026 01:35';
+const BUILD='09.11.2026 02:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2258,9 +2262,20 @@ function navTrack(prev,next){
   if(NAV_ROOTS.indexOf(prev)>=0){navStack=[prev];return;}
   navStack.push(prev);
 }
-// Вернуться на шаг назад. fromHistory=true — когда назад нажали в браузере,
-// тогда новую запись в историю добавлять не надо, иначе получится зацикливание.
+let _lbPushed=false;
+// Вернуться на шаг назад. fromHistory=true — когда назад нажали в браузере.
 function goBack(fromHistory){
+  if(!currentUser && fromHistory) return false;
+  if(typeof closeAllHeaderMore==='function')closeAllHeaderMore();
+  if(navLock)return false;
+  try{
+    const lb=document.getElementById('lightbox');
+    if(lb && lb.style.display==='flex'){
+      if(fromHistory || NATIVE_APP || !_lbPushed){ closeLightbox(true); return true; }
+      try{ history.back(); }catch(e){ closeLightbox(true); }
+      return true;
+    }
+  }catch(e){}
   if(!currentUser)return false;
   if(currentScreenId==='chatScreen'){closeChat();return true;}
   if(navStack.length){const prev=navStack.pop();showScreen(prev,true);return true;}
@@ -2269,14 +2284,27 @@ function goBack(fromHistory){
   return false;
 }
 window.addEventListener('popstate',()=>{
-  // Браузер ушёл назад по своей истории: возвращаем экран и не добавляем
-  // новую запись, иначе кнопка «назад» залипла бы в цикл.
+  // «Назад» браузера/системы: сначала лайтбокс (аватар/фото), потом экраны.
   if(navLock)return;
-  navLock=true;goBack(true);setTimeout(()=>{navLock=false;},60);
+  navLock=true;
+  try{
+    const lb=document.getElementById('lightbox');
+    if(lb && lb.style.display==='flex'){ closeLightbox(true); setTimeout(()=>{navLock=false;},60); return; }
+  }catch(e){}
+  goBack(true); setTimeout(()=>{navLock=false;},60);
 });
+document.addEventListener('keydown',(e)=>{
+  if(e.key!=='Backspace') return;
+  const t=e.target; const tag=t && t.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable)) return;
+  if(NATIVE_APP) return;
+  e.preventDefault();
+  try{ history.back(); }catch(err){ goBack(); }
+}, true);
 function showScreen(id,fromBack){
   closeAllHeaderMore();   // выезжающее меню шапки не должно переезжать на другой экран
   if(id!=='chatScreen')closeChatActions();   // то же — для кнопок шапки личного чата
+  if(id!=='profileScreen' && id!=='viewProfileScreen'){ try{ if(typeof _stopProfileWatch==='function') _stopProfileWatch(); }catch(e){} }
   // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
   // угодно: обычный человек мог зайти и увидеть всех пользователей вместе
   // с кнопками «Бан», «Удалить» и прочим. Закрываем на уровне экрана.
@@ -3941,14 +3969,27 @@ function ppMove(n){
 function ppShow(){
   const it=PP_LIST[PP_I];if(!it)return;
   const lb=document.getElementById('lightbox');
+  const wasOpen=!!(lb && lb.style.display==='flex');
   document.getElementById('lightboxImg').src=it.src;
   document.getElementById('lightboxCaption').textContent=it.caption||'';
   const cnt=document.getElementById('ppCount');
   cnt.textContent=PP_LIST.length>1?((PP_I+1)+' / '+PP_LIST.length):'';
   lb.style.display='flex';
   lb.classList.toggle('pp-on',PP_LIST.length>1);
+  if(!wasOpen && !NATIVE_APP){
+    try{ _lbPushed=true; history.pushState(Object.assign({}, history.state||{}, {mcLb:1}), ''); }catch(e){ _lbPushed=false; }
+  }
 }
-function closeLightbox(){document.getElementById('lightbox').style.display='none';PP_LIST=[];PP_GID=null;}
+function closeLightbox(fromHistory){
+  const lb=document.getElementById('lightbox');
+  const open=!!(lb && lb.style.display==='flex');
+  if(open && !fromHistory && _lbPushed && !NATIVE_APP){
+    try{ history.back(); return; }catch(e){}
+  }
+  _lbPushed=false;
+  if(lb) lb.style.display='none';
+  PP_LIST=[];PP_GID=null;
+}
 // Медиа подгрузилось — если открыт именно этот кадр, обновляем картинку на полную
 function ppRefreshKey(key){if(!key)return;
   let ch=false;
@@ -7100,7 +7141,8 @@ function openUserProfile(uid){
   document.getElementById('vpCoverBand').innerHTML=coverHtmlFor(fr?i:null,'cover-band');
   document.getElementById('vpAvatarWrap').innerHTML=profilePhotoHtml(i,i.name);
   document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
-  document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+rockBadgeHtml(uid);
+  const _vpPet=(i&&i.anketa&&(i.anketa.totem||i.anketa.totemName))?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;margin-left:6px;font-size:12px;vertical-align:middle" onclick="petTotem(\''+escA(uid)+'\')" title="Погладить питомца">🐾</button>':'';
+  document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+_vpPet+rockBadgeHtml(uid);
   document.getElementById('vpLogin').textContent=currentUser.isAdmin?('логин: '+(i.login||'')):'';
   document.getElementById('vpStatus').textContent=fr?(i.status||'без статуса'):'🔒 информация для друзей';
   const _vth=document.getElementById('vpThoughts'); if(_vth) _vth.innerHTML=(fr&&i.thoughts)?('☁️ '+esc(i.thoughts)):'';
@@ -7139,10 +7181,13 @@ function openUserProfile(uid){
   paintVisibilitySwitches();
   renderVpRel();
   renderViewColumn();
+  try{ renderAvatarRockRow(uid,'vpAvatarRockRow', !isMe && (isFriend(uid)||!!(currentUser&&currentUser.isAdmin))); }catch(e){}
+  try{ renderPetRow(uid,'vpPetRow'); }catch(e){}
   showScreen('viewProfileScreen');
+  try{ _enterProfileWatch(uid, false); }catch(e){}
   // Открываем профиль с самого верха, а не там, где прокрутили в прошлый раз
   const w=document.querySelector('#viewProfileScreen .profile-wrap');
-  if(w){w.scrollTop=0;w.scrollTo({top:0});}
+  if(w){w.scrollTop=0;try{w.scrollTo({top:0});}catch(e){}}
 }
 function writeToUser(){const uid=viewProfileUid;if(!uid)return;
   if(!currentUser.isAdmin&&!isFriend(uid)){toast('Сначала добавьте друг друга в друзья');return;}
@@ -8235,6 +8280,98 @@ function anketaHtml(i){const a=i&&i.anketa;const r=[];
     if(a.mood)r.push('<div>💭 <b>Настроение:</b> '+esc(a.mood)+'</div>');}
   if(!r.length)return '<div class="status-line muted">Анкета не заполнена</div>';
   return r.join('');}
+// ===== ПРОФИЛЬ: рок аватарки, погладить питомца, присутствие на странице =====
+let _profWatch={uid:null,avatarRef:null,avatarCb:null,eventsRef:null,eventsCb:null,presRef:null,petSeen:{}};
+function _stopProfileWatch(){
+  try{ if(_profWatch.avatarRef && _profWatch.avatarCb) _profWatch.avatarRef.off('value',_profWatch.avatarCb); }catch(e){}
+  try{ if(_profWatch.eventsRef && _profWatch.eventsCb) _profWatch.eventsRef.off('child_added',_profWatch.eventsCb); }catch(e){}
+  try{ if(_profWatch.presRef){ _profWatch.presRef.onDisconnect().cancel(); _profWatch.presRef.remove(); } }catch(e){}
+  _profWatch={uid:null,avatarRef:null,avatarCb:null,eventsRef:null,eventsCb:null,presRef:null,petSeen:_profWatch.petSeen||{}};
+}
+function _themeColorOf(i){ return (THEMES.find(t=>t.id===(i&&i.theme||'dark'))||{}).p || (typeof colorOf==='function'?colorOf(i):null) || '#6c5ce7'; }
+function _petAnim(text, color, big){
+  try{
+    for(let k=0;k<(big?3:1);k++) setTimeout(()=>{
+      const d=document.createElement('div');
+      d.style.cssText='position:fixed;left:50%;top:'+(big?44:38)+'%;transform:translate(-50%,-50%) scale(.7);z-index:1200;pointer-events:none;'
+        +'padding:'+(big?'14px 18px':'10px 14px')+';border-radius:16px;background:rgba(15,17,22,.72);backdrop-filter:blur(6px);'
+        +'color:'+(color||'#fff')+';font-weight:800;font-size:'+(big?'20px':'16px')+';border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;transition:opacity .18s, transform .35s;text-align:center;max-width:min(92vw,420px)';
+      d.textContent=text||'🐾';
+      document.body.appendChild(d);
+      requestAnimationFrame(()=>{ d.style.opacity='1'; d.style.transform='translate(-50%,-72%) scale(1)'; });
+      setTimeout(()=>{ d.style.opacity='0'; d.style.transform='translate(-50%,-112%) scale(.96)'; }, big?1500:1100);
+      setTimeout(()=>d.remove(), big?2000:1500);
+    }, k*200);
+  }catch(e){}
+}
+function renderAvatarRockRow(targetUid, elId, canRock){
+  const el=document.getElementById(elId); if(!el||!targetUid) return;
+  const ref=db.ref('profileAvatarRocks/'+targetUid);
+  if(_profWatch.avatarRef && _profWatch.avatarCb){ try{ _profWatch.avatarRef.off('value',_profWatch.avatarCb); }catch(e){} }
+  _profWatch.avatarRef=ref; _profWatch.uid=targetUid;
+  _profWatch.avatarCb=ref.on('value', snap=>{
+    const v=snap.val()||{}; const n=Object.keys(v).length; const meRocked=!!(currentUser && v[currentUser.uid]);
+    const btn=(canRock && currentUser && targetUid!==currentUser.uid)
+      ? '<button class="btn btn-sm '+(meRocked?'btn-primary':'btn-outline')+'" style="width:auto;padding:6px 10px" onclick="toggleAvatarRock(\''+escA(targetUid)+'\')">🤘 '+(meRocked?'Рокнул(а)':'Рокнуть аву')+'</button>'
+      : '';
+    el.innerHTML=btn+'<span style="font-size:13px;color:var(--text2)">🤘 Аватарку рокнули: <b style="color:var(--text)">'+n+'</b></span>';
+  }, ()=>{ el.innerHTML='<span style="font-size:13px;color:var(--text2)">🤘 Аватарку рокнули: <b>0</b></span>'; });
+}
+function toggleAvatarRock(targetUid){
+  if(!currentUser||!targetUid||targetUid===currentUser.uid) return;
+  const ref=db.ref('profileAvatarRocks/'+targetUid+'/'+currentUser.uid);
+  ref.once('value').then(s=> s.exists()?ref.remove():ref.set(Date.now()))
+    .then(()=>{ try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.33,'🤘'); }catch(e){} })
+    .catch(()=>toast('Не удалось (проверь права)'));
+}
+function petTotem(targetUid){
+  if(!currentUser||!targetUid) return;
+  const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
+  const petName=(a.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===a.totem)||{}).name||'питомца');
+  if(!a.totem && !a.totemName){ toast('У пользователя нет тотемного животного'); return; }
+  _petAnim('🐾 Ты погладил(а): '+petName, _themeColorOf(i));
+  const ev={type:'pet', from:currentUser.uid, fromName:(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то'), petName:String(petName).slice(0,60), ts:Date.now()};
+  db.ref('profileEvents/'+targetUid).push(ev).catch(()=>{});
+  if(targetUid!==currentUser.uid && typeof notifyUser==='function'){
+    notifyUser(targetUid,'pet','🐾 Погладили питомца', ev.fromName+' погладил(а) '+ev.petName, {from:currentUser.uid, kind:'pet'});
+  }
+}
+function renderPetRow(targetUid, elId){
+  const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
+  const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
+  if(!(a.totem||a.totemName)){ el.innerHTML=''; return; }
+  const petName=esc(a.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===a.totem)||{}).name||'питомец');
+  el.innerHTML='<button class="btn btn-sm btn-outline" style="width:auto;padding:6px 10px" onclick="petTotem(\''+escA(targetUid)+'\')">🐾 Погладить</button>'
+    +'<span style="font-size:13px;color:'+_themeColorOf(i)+';font-weight:600">🐾 '+petName+'</span>';
+}
+function _enterProfileWatch(targetUid, isOwnerOpen){
+  if(!currentUser||!targetUid) return;
+  _stopProfileWatch(); _profWatch.uid=targetUid;
+  try{ const pr=db.ref('profilePresence/'+targetUid+'/'+currentUser.uid); _profWatch.presRef=pr; pr.set({ts:Date.now()}); pr.onDisconnect().remove(); }catch(e){}
+  try{
+    const er=db.ref('profileEvents/'+targetUid).limitToLast(1);
+    _profWatch.eventsRef=er;
+    _profWatch.eventsCb=er.on('child_added', snap=>{
+      const ev=snap.val(); if(!ev||ev.type!=='pet') return;
+      const key=snap.key; const now=Date.now();
+      if(_profWatch.petSeen[key]) return;
+      if(isOwnerOpen){ if((now-(ev.ts||0))>120000){ _profWatch.petSeen[key]=1; return; } }
+      else { if((now-(ev.ts||0))>15000){ _profWatch.petSeen[key]=1; return; } }
+      _profWatch.petSeen[key]=1;
+      if(ev.from===currentUser.uid) return;
+      _petAnim('🐾 '+(ev.fromName||'Кто-то')+' погладил(а) '+(ev.petName||'питомца'), _themeColorOf(ALL_USERS[targetUid]), !!isOwnerOpen);
+    });
+  }catch(e){}
+  if(isOwnerOpen){
+    try{
+      db.ref('profileEvents/'+targetUid).orderByChild('ts').startAt(Date.now()-120000).limitToLast(5).once('value').then(s=>{
+        const v=s.val()||{}; Object.entries(v).map(([k,x])=>Object.assign({_k:k},x)).filter(x=>x&&x.type==='pet'&&x.from!==currentUser.uid).sort((a,b)=>(a.ts||0)-(b.ts||0)).forEach((ev,i)=>{
+          if(_profWatch.petSeen[ev._k]) return; _profWatch.petSeen[ev._k]=1; setTimeout(()=>_petAnim('🐾 '+(ev.fromName||'Кто-то')+' погладил(а) '+(ev.petName||'питомца'), _themeColorOf(ALL_USERS[targetUid]), true), 350+i*500);
+        });
+      }).catch(()=>{});
+    }catch(e){}
+  }
+}
 function renderProfile(){
   if(!currentUser)return;
   paintVisibilitySwitches();
@@ -8248,16 +8385,20 @@ function renderProfile(){
     if(img){ img.style.cursor='pointer'; img.title='Нажми, чтобы редактировать стикеры/текст'; img.onclick=(e)=>{ e.stopPropagation(); editCurrentAvatar(); }; }
   }catch(e){}
   document.getElementById('profileAvatarTs').textContent=i.avatarTs?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
-  document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
+  const _myPet=(i&&i.anketa&&(i.anketa.totem||i.anketa.totemName))?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;margin-left:6px;font-size:12px;vertical-align:middle" onclick="petTotem(\''+escA(currentUser.uid)+'\')" title="Погладить питомца">🐾</button>':'';
+  document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+_myPet;
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
   const _pth=document.getElementById('profileThoughts'); if(_pth) _pth.innerHTML=i.thoughts?('☁️ '+esc(i.thoughts)):'';
   renderMyRels();
   try{ const mq=document.getElementById('profileMoodQuick'); if(mq && document.activeElement!==mq) mq.value=(i.anketa&&i.anketa.mood)||''; }catch(e){}
   document.getElementById('profilePresence').innerHTML=presenceHtml(i);
+  try{ renderAvatarRockRow(currentUser.uid,'profileAvatarRockRow', false); }catch(e){}
+  try{ renderPetRow(currentUser.uid,'profilePetRow'); }catch(e){}
   // Счётчик 🤘 показываем и в своём профиле — раньше был только в чужом.
   const rb=document.getElementById('profileRockBadge');
   if(rb)rb.innerHTML=rockBadgeHtml(currentUser.uid);
+  try{ _enterProfileWatch(currentUser.uid, true); }catch(e){}
   document.getElementById('ankView').innerHTML=anketaHtml(i);
   const sel=document.getElementById('statusSelect'),st=i.status||'';
   const pr=['✅ Доступен','⏳ Занят','🔕 Не беспокоить','😴 Сплю','🎮 Играю'];
@@ -8528,12 +8669,37 @@ function aeStickerPack(){
   items.push({name:'Солнышко',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#f9ca24"/><g stroke="#f9ca24" stroke-width="3" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${32+Math.cos(r)*18}" y1="${32+Math.sin(r)*18}" x2="${32+Math.cos(r)*26}" y2="${32+Math.sin(r)*26}"/>`;}).join('')}</g></svg>`)});
   items.push({name:'Луна',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M40 10a22 22 0 1 0 0 44a18 18 0 1 1 0-44z" fill="#ffeaa7"/></svg>`)});
   const cloud=(c,op)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="${c}" opacity="${op||1}"><circle cx="22" cy="36" r="10"/><circle cx="34" cy="30" r="13"/><circle cx="46" cy="36" r="9"/><rect x="14" y="34" width="38" height="12" rx="6"/></g></svg>`;
+  const rainCloud=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="${c}"><circle cx="22" cy="36" r="10"/><circle cx="34" cy="30" r="13"/><circle cx="46" cy="36" r="9"/><rect x="14" y="34" width="38" height="12" rx="6"/></g><path d="M24 48l-3 8M34 48l-3 8M44 48l-3 8" stroke="#74b9ff" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
   items.push({name:'Облачко',src:aeSvgData(cloud('#dfe6e9',1))});
   items.push({name:'Облачко 2',src:aeSvgData(cloud('#ffffff',.95))});
-  items.push({name:'Тучка',src:aeSvgData(cloud('#636e72',1)+`<path d="M24 48l-3 8M34 48l-3 8M44 48l-3 8" stroke="#74b9ff" stroke-width="3" stroke-linecap="round"/>`)});
+  items.push({name:'Тучка',src:aeSvgData(rainCloud('#636e72'))});
   items.push({name:'Звезда',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="32,6 39,25 59,25 43,37 49,56 32,44 15,56 21,37 5,25 25,25" fill="#fdcb6e"/></svg>`)});
   items.push({name:'Маска анонима',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 20c4-8 28-8 36 0 4 6 2 22-4 28-6 6-22 6-28 0-6-6-8-22-4-28z" fill="#f5f6fa" stroke="#2d3436" stroke-width="2"/><path d="M18 18c6 4 22 4 28 0" fill="#2d3436"/><path d="M20 30c4-2 8-2 10 0M34 30c4-2 8-2 10 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M22 41c6 4 14 4 20 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M24 40h4v4h-4zM36 40h4v4h-4z" fill="#2d3436"/></svg>`)});
   items.push({name:'Наушники',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 34a18 18 0 0 1 36 0" fill="none" stroke="#2d3436" stroke-width="4"/><rect x="8" y="32" width="10" height="16" rx="4" fill="#0984e3"/><rect x="46" y="32" width="10" height="16" rx="4" fill="#0984e3"/></svg>`)});
+  // extra stickers
+  items.push({name:'Сердце',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 54S8 39 8 22a13 13 0 0 1 24-6 13 13 0 0 1 24 6c0 17-24 32-24 32z" fill="#ff4757"/></svg>`)});
+  items.push({name:'Огонь',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 6c4 10 14 14 14 26 0 9-6 18-14 18S18 41 18 32c0-8 6-13 8-18 2 6 6 8 6 8s-2-8 0-16z" fill="#ff7f50"/><path d="M32 54c-5 0-9-6-9-12 0-5 4-8 5-11 1 4 4 5 4 5s-1-5 0-10c3 6 9 9 9 16 0 6-4 12-9 12z" fill="#ffd32a"/></svg>`)});
+  items.push({name:'Молния',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="36,4 18,34 30,34 26,60 48,26 34,26" fill="#f1c40f" stroke="#f39c12" stroke-width="1"/></svg>`)});
+  items.push({name:'Корона',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M8 48h48v6H8z" fill="#f39c12"/><path d="M10 48l4-26 10 12 8-18 8 18 10-12 4 26z" fill="#fdcb6e"/><circle cx="14" cy="22" r="3" fill="#ff7675"/><circle cx="32" cy="14" r="3" fill="#74b9ff"/><circle cx="50" cy="22" r="3" fill="#55efc4"/></svg>`)});
+  items.push({name:'Очки',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="20" cy="32" r="12" fill="none" stroke="#111" stroke-width="3"/><circle cx="44" cy="32" r="12" fill="none" stroke="#111" stroke-width="3"/><line x1="32" y1="32" x2="32" y2="32" stroke="#111" stroke-width="3"/><path d="M32 32h0M8 32h0M56 32h0" stroke="#111" stroke-width="3"/><line x1="32" y1="30" x2="32" y2="34" stroke="#111" stroke-width="3"/><line x1="8" y1="32" x2="8" y2="32" stroke="#111" stroke-width="3"/><path d="M8 30c2 2 2 4 0 4M56 30c-2 2-2 4 0 4M32 29v6" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`)});
+  items.push({name:'Крутые очки',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M8 26h22l-4 14H12z" fill="#111"/><path d="M34 26h22l-4 14H38z" fill="#111"/><rect x="30" y="28" width="4" height="3" fill="#111"/><line x1="4" y1="28" x2="8" y2="28" stroke="#111" stroke-width="3"/><line x1="56" y1="28" x2="60" y2="28" stroke="#111" stroke-width="3"/></svg>`)});
+  items.push({name:'Нимб',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="22" rx="20" ry="7" fill="none" stroke="#fdcb6e" stroke-width="4"/><ellipse cx="32" cy="22" rx="20" ry="7" fill="none" stroke="#fff59d" stroke-width="1.5" opacity=".8"/></svg>`)});
+  items.push({name:'Рожки',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 44c2-14 4-24 10-34 2 10 0 18-4 26M50 44c-2-14-4-24-10-34-2 10 0 18 4 26" fill="#d63031" stroke="#b71c1c" stroke-width="1"/></svg>`)});
+  items.push({name:'Ушки кота',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M10 44 L18 14 L30 34 Z" fill="#636e72"/><path d="M54 44 L46 14 L34 34 Z" fill="#636e72"/><path d="M14 40 L19 22 L27 35 Z" fill="#fab1a0"/><path d="M50 40 L45 22 L37 35 Z" fill="#fab1a0"/></svg>`)});
+  items.push({name:'Искры',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="#ffeaa7"><path d="M32 6l3 10 10 1-8 6 3 10-8-6-8 6 3-10-8-6 10-1z"/><circle cx="12" cy="18" r="3"/><circle cx="52" cy="20" r="2.5"/><circle cx="14" cy="46" r="2.5"/><circle cx="50" cy="48" r="3"/></g></svg>`)});
+  items.push({name:'Музыка',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M26 14v30a6 6 0 1 1-4-5.6V20l22-6v24a6 6 0 1 1-4-5.6V14z" fill="#a29bfe"/></svg>`)});
+  items.push({name:'Лайк',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 28h10v26H14z" fill="#74b9ff"/><path d="M24 28l8-18c4 0 6 3 5 8l-2 8h13c3 0 5 3 4 6l-4 16c-1 3-3 4-6 4H24z" fill="#0984e3"/></svg>`)});
+  items.push({name:'OK',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#00b894"/><path d="M18 33l9 9 19-20" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`)});
+  items.push({name:'100',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="6" y="14" width="52" height="36" rx="8" fill="#e84393"/><text x="32" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="Arial,sans-serif">100</text></svg>`)});
+  items.push({name:'Праздник',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M20 54l6-26 12 10 6-24 6 40z" fill="#fd79a8"/><circle cx="14" cy="18" r="4" fill="#ffeaa7"/><circle cx="48" cy="12" r="3" fill="#74b9ff"/><circle cx="52" cy="28" r="3.5" fill="#55efc4"/><rect x="16" y="26" width="4" height="4" fill="#a29bfe" transform="rotate(20 18 28)"/></svg>`)});
+  items.push({name:'Радуга',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M8 44a24 24 0 0 1 48 0" fill="none" stroke="#ff7675" stroke-width="4"/><path d="M14 44a18 18 0 0 1 36 0" fill="none" stroke="#fdcb6e" stroke-width="4"/><path d="M20 44a12 12 0 0 1 24 0" fill="none" stroke="#55efc4" stroke-width="4"/><path d="M26 44a6 6 0 0 1 12 0" fill="none" stroke="#74b9ff" stroke-width="4"/></svg>`)});
+  items.push({name:'Призрак',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 30a18 18 0 0 1 36 0v22l-6-5-6 5-6-5-6 5-6-5-6 5z" fill="#dfe6e9"/><circle cx="25" cy="28" r="3" fill="#2d3436"/><circle cx="39" cy="28" r="3" fill="#2d3436"/><ellipse cx="32" cy="36" rx="4" ry="5" fill="#b2bec3"/></svg>`)});
+  items.push({name:'Инопланетянин',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="34" rx="18" ry="22" fill="#55efc4"/><ellipse cx="24" cy="30" rx="6" ry="8" fill="#111"/><ellipse cx="40" cy="30" rx="6" ry="8" fill="#111"/><ellipse cx="26" cy="28" rx="2" ry="3" fill="#fff"/><ellipse cx="42" cy="28" rx="2" ry="3" fill="#fff"/><path d="M28 44c2 2 6 2 8 0" stroke="#00b894" stroke-width="2" fill="none"/></svg>`)});
+  items.push({name:'Робот',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="14" y="18" width="36" height="30" rx="6" fill="#b2bec3"/><rect x="20" y="24" width="10" height="8" rx="2" fill="#74b9ff"/><rect x="34" y="24" width="10" height="8" rx="2" fill="#74b9ff"/><rect x="24" y="38" width="16" height="4" rx="2" fill="#636e72"/><line x1="32" y1="10" x2="32" y2="18" stroke="#636e72" stroke-width="3"/><circle cx="32" cy="8" r="3" fill="#ff7675"/><rect x="8" y="26" width="6" height="12" rx="2" fill="#636e72"/><rect x="50" y="26" width="6" height="12" rx="2" fill="#636e72"/></svg>`)});
+  items.push({name:'Пицца',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 8 L56 52 A28 28 0 0 1 8 52 Z" fill="#fdcb6e" stroke="#e17055" stroke-width="2"/><circle cx="28" cy="34" r="4" fill="#d63031"/><circle cx="40" cy="38" r="4" fill="#d63031"/><circle cx="32" cy="46" r="3.5" fill="#d63031"/><circle cx="24" cy="44" r="2.5" fill="#00b894"/><circle cx="38" cy="28" r="2.5" fill="#00b894"/></svg>`)});
+  items.push({name:'Кофе',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M16 22h28v22a10 10 0 0 1-10 10H26a10 10 0 0 1-10-10z" fill="#dfe6e9" stroke="#b2bec3" stroke-width="2"/><path d="M44 26h6a6 6 0 0 1 0 12h-6" fill="none" stroke="#b2bec3" stroke-width="2"/><path d="M20 26h20v6a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8z" fill="#6d4c41"/><path d="M24 14c0-4 4-4 4 0M32 14c0-4 4-4 4 0" stroke="#b2bec3" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`)});
+  items.push({name:'Алмаз',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="18,22 46,22 54,32 32,56 10,32" fill="#74b9ff"/><polygon points="18,22 32,22 32,56 10,32" fill="#0984e3" opacity=".35"/><polygon points="10,32 54,32 32,22" fill="#dfe6ff" opacity=".55"/><line x1="18" y1="22" x2="32" y2="56" stroke="#fff" opacity=".3"/><line x1="46" y1="22" x2="32" y2="56" stroke="#fff" opacity=".3"/></svg>`)});
+  items.push({name:'Бабл',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="30" rx="22" ry="18" fill="#fff" stroke="#dfe6e9" stroke-width="2"/><path d="M20 46l-6 10 14-8" fill="#fff" stroke="#dfe6e9" stroke-width="2" stroke-linejoin="round"/></svg>`)});
   return items;
 }
 function aeRender(){
