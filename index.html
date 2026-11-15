@@ -192,7 +192,10 @@ img.avatar.sq{border-radius:8px}
 .avatar.online-frame{box-shadow:0 0 0 3px var(--green),0 0 14px rgba(0,184,148,.5)}
 .avatar.offline-frame{box-shadow:0 0 0 3px transparent}
 /* Праздничные украшения аватарок + снежок */
-.ava-wrap{position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle;line-height:0;isolation:isolate}
+/* Раньше здесь был isolation:isolate — он создавал отдельный композитинг-слой
+   (и в связке с border-radius/overflow у аватарки Chromium на ПК рисовал
+   полупрозрачную «шмальту» у левого края профиля). Убираем: слой не нужен. */
+.ava-wrap{position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle;line-height:0}
 .ava-wrap.profile-photo-wrap{display:inline-flex}
 /* Лёгкая тень + свечение у аватарок (без отдельного overlay-элемента, чтобы не было артефактов) */
 .ava-ring{display:none !important}
@@ -957,6 +960,13 @@ img,video,canvas{max-width:100%}
   }
   #profileScreen .profile-identity-col,
   #profileScreen .profile-cards-col{min-width:0}
+  /* Липкая (sticky) левая колонка профиля.
+     Раньше здесь стояли isolation:isolate, backface-visibility:hidden,
+     background-clip:padding-box и overflow:hidden — вместе со скруглением
+     они заставляли Chromium создавать отдельный композитинг-слой, и при
+     скролле ПК рисовался светлый полупрозрачный «призрак» у левого края
+     карточки (белая «запятая» поверх обложки/аватара/текста).
+     Ни одно из этих свойств здесь не нужно — оставляем только раскладку. */
   #profileScreen .profile-identity-col{
     background:var(--surface);
     border:1px solid var(--surface2);
@@ -964,10 +974,6 @@ img,video,canvas{max-width:100%}
     padding:14px;
     position:sticky;
     top:12px;
-    background-clip:padding-box;
-    -webkit-backface-visibility:hidden;
-    backface-visibility:hidden;
-    overflow:hidden;
   }
   #profileScreen .profile-identity-col .profile-name,
   #profileScreen .profile-identity-col .profile-login,
@@ -1421,6 +1427,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="row">
         <button class="btn btn-primary btn-sm" onclick="pickMedia('avatar',false)">📷 Аватар/GIF</button>
         <button class="btn btn-outline btn-sm" onclick="editCurrentAvatar()">✏️ Редакт. текущую</button>
+        <button class="btn btn-outline btn-sm" onclick="resetAvatarToBase()">🧼 Убрать стикеры</button>
         <button class="btn btn-outline btn-sm" onclick="pickMedia('cover',false)">🌄 Обложка</button>
         <button class="btn btn-outline btn-sm" onclick="removeCover()">✂️ Убрать обложку</button>
       </div>
@@ -1860,7 +1867,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 14:10';
+const BUILD='15.11.2026 17:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8694,6 +8701,16 @@ function editCurrentAvatar(){
   }
   openAvatarEditor(base,'avatar',{baseSrc:base, layers:layers});
 }
+/* Вернуть аватарку к чистому оригиналу (без вписанных стикеров/текста).
+   Оригинал хранится в avatarBase — он пишется при каждом сохранении из редактора. */
+function resetAvatarToBase(){
+  const i=ALL_USERS[currentUser.uid]||currentUser;
+  if(!i||!i.avatarBase){ toast('Чистого оригинала нет — загрузи фото заново через «Сменить аватар»', false); return; }
+  db.ref('users/'+currentUser.uid).update({avatar:i.avatarBase, avatarLayers:null, avatarTs:Date.now()}).then(()=>{
+    toast('✅ Аватар возвращён к оригиналу, стикеры убраны', true);
+    try{ renderProfile(); }catch(e){}
+  }).catch(()=>toast('Не удалось сбросить аватар'));
+}
 function avatarFile(f){
   if(f.type==='image/gif'){
     // GIF с анимацией нельзя редактировать на canvas без потери анимации — сохраняем как есть
@@ -8841,6 +8858,8 @@ function aeUpdateSelectedText(){
   aeRender();
 }
 function aeDeleteSelected(){ if(ae.sel>=0){ ae.layers.splice(ae.sel,1); ae.sel=-1; aeSyncProps(); aeRender(); } }
+/* Снести все стикеры/текст одним кликом (возвращаем чистую базу) */
+function aeClearAll(){ if(!ae.layers.length){ aeStatus('Стикеров и текста нет — сохраняй'); return; } ae.layers=[]; ae.sel=-1; aeSyncProps(); aeRender(); aeStatus('Все стикеры и текст сняты — нажми «Сохранить»'); }
 function aeBringForward(){ if(ae.sel>=0 && ae.sel<ae.layers.length-1){ const [it]=ae.layers.splice(ae.sel,1); ae.layers.push(it); ae.sel=ae.layers.length-1; aeRender(); } }
 function aeSyncProps(){
   const p=document.getElementById('aePanelProps'); const L=ae.layers[ae.sel];
@@ -9682,6 +9701,7 @@ boot();
       <button class="btn btn-outline" onclick="aeShowPanel('stickers')">🧩 Стикеры</button>
       <button class="btn btn-outline" onclick="aeShowPanel('text')">🔤 Текст</button>
       <button class="btn btn-outline" onclick="aeDeleteSelected()">🗑 Удалить</button>
+      <button class="btn btn-outline" onclick="aeClearAll()">🧼 Очистить всё</button>
       <button class="btn btn-outline" onclick="aeBringForward()">⬆️ Поверх</button>
       <button class="btn btn-primary" onclick="aeSave()">💾 Сохранить</button>
     </div>
