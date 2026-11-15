@@ -1857,7 +1857,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 12:40';
+const BUILD='15.11.2026 13:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2366,34 +2366,74 @@ function mskNow(){return new Date(Date.now()+(3*60+new Date().getTimezoneOffset(
 function weatherEmoji(c){c=+c;if(c===0)return '☀️';if(c<=2)return '🌤';if(c===3)return '☁️';if(c<=48)return '🌫';if(c<=57)return '🌦';if(c<=67)return '🌧';if(c<=77)return '🌨';if(c<=82)return '🌧';return '⛈';}
 function windDir(d){return ['С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'][Math.round((d||0)/45)%8];}
 function cleanupOldNews(){const cut=Date.now()-7*86400000;db.ref('news').once('value').then(s=>{const up={};s.forEach(c=>{if((c.val().ts||0)<cut)up[c.key]=null;});if(Object.keys(up).length)db.ref('news').update(up).catch(()=>{});});}
+function _mskTomorrowDateStr(base){
+  const d=new Date(base.getTime()+86400000);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function checkWeatherNews(){
+  // Резервный клиентский запуск (если админ онлайн). Основной автопост — через воркер/cron.
   if(!currentUser||!currentUser.isAdmin)return;
   const now=mskNow(), h=now.getHours();
-  // 3 раза в день по МСК: утро, обед, вечер (с дедупликацией по слоту)
-  let slot=null, title='🌤 Сводка погоды (МСК):', tail='Хорошего дня! ☕';
-  if(h>=7 && h<=9){ slot='morning'; title='🌤 Утренняя сводка погоды (МСК):'; tail='Доброе утро! ☕'; }
-  else if(h>=12 && h<=14){ slot='noon'; title='🌤 Дневная сводка погоды (МСК):'; tail='Хорошего дня!'; }
-  else if(h>=18 && h<=20){ slot='evening'; title='🌤 Вечерняя сводка погоды (МСК):'; tail='Доброго вечера! 🌙'; }
+  let slot=null, title='🌤 Утренняя сводка погоды (МСК)', tail='Доброе утро! ☕';
+  if(h>=7 && h<=9){ slot='morning'; title='🌤 Утренняя сводка погоды (МСК)'; tail='Доброе утро! ☕'; }
+  else if(h>=12 && h<=14){ slot='noon'; title='🌤 Дневная сводка погоды (МСК)'; tail='Хорошего дня! ☀️'; }
+  else if(h>=18 && h<=20){ slot='evening'; title='🌤 Вечерняя сводка погоды (МСК)'; tail='Доброго вечера! 🌙'; }
   else return;
   const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   const slotKey=today+'-'+slot;
-  // Не постим повторно этот слот (и не спамим, если lastNews ещё не загружен — проверим в базе)
   if(lastNews && Object.values(lastNews).some(n=>n && (n.weatherSlot===slotKey || (slot==='morning' && n.weatherDate===today && !n.weatherSlot)))) return;
   db.ref('news').orderByChild('weatherSlot').equalTo(slotKey).limitToFirst(1).once('value').then(s=>{
     if(s.exists()) return;
-    const _wfetch=sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code&timezone=auto',{cache:'no-store'})
-      .then(r=>r.ok?r.json():Promise.reject('http '+r.status))
-      .then(j=>{ const c=(j&&j.current)||{}; if(c.temperature_2m==null) throw new Error('no data'); return {sp,c}; })
-      .catch(()=>({sp,c:{},err:1}));
+    const isEvening = slot==='evening';
+    const tomorrowStr = _mskTomorrowDateStr(now);
+    const _wfetch=sp=>{
+      const daily=isEvening?'&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&forecast_days=2':'';
+      return fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code'+daily+'&timezone=auto',{cache:'no-store'})
+        .then(r=>r.ok?r.json():Promise.reject('http '+r.status))
+        .then(j=>{
+          const c=(j&&j.current)||{};
+          if(c.temperature_2m==null) throw new Error('no data');
+          let tmr=null;
+          if(isEvening && j && j.daily && Array.isArray(j.daily.time)){
+            let idx=j.daily.time.indexOf(tomorrowStr);
+            if(idx<0) idx = j.daily.time.length>1 ? 1 : -1;
+            if(idx>=0){
+              tmr={
+                code: j.daily.weather_code && j.daily.weather_code[idx],
+                tmax: j.daily.temperature_2m_max && j.daily.temperature_2m_max[idx],
+                tmin: j.daily.temperature_2m_min && j.daily.temperature_2m_min[idx],
+                pprob: j.daily.precipitation_probability_max && j.daily.precipitation_probability_max[idx],
+                wind: j.daily.wind_speed_10m_max && j.daily.wind_speed_10m_max[idx]
+              };
+            }
+          }
+          return {sp,c,tmr};
+        })
+        .catch(()=>({sp,c:{},tmr:null,err:1}));
+    };
     return Promise.all(WEATHER_SPOTS.map(_wfetch)).then(res=>{
       const L=[title,''];
-      res.forEach(({sp,c,err})=>{ if(err||c==null||c.temperature_2m==null){ L.push(sp.name+': нет данных'); L.push(''); return; }
-        L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
-        L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');L.push('');});
+      res.forEach(({sp,c,err})=>{
+        if(err||c==null||c.temperature_2m==null){ L.push('📍 '+sp.name+': нет данных'); L.push(''); return; }
+        L.push('📍 '+sp.name+': '+weatherEmoji(c.weather_code)+' '+c.temperature_2m+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
+        L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');
+        L.push('');
+      });
+      if(isEvening){
+        L.push('🌅 Погода на завтра:');
+        res.forEach(({sp,tmr,err})=>{
+          if(err||!tmr||tmr.tmax==null){
+            L.push('• '+sp.name+': нет данных');
+          } else {
+            const pp=(tmr.pprob!=null)?(', 🌧 осадки '+tmr.pprob+'%'):'';
+            const w=(tmr.wind!=null)?(', 💨 до '+tmr.wind+' м/с'):'';
+            L.push('• '+sp.name+': '+weatherEmoji(tmr.code)+' '+Math.round(tmr.tmin)+'…'+Math.round(tmr.tmax)+'°C'+pp+w);
+          }
+        });
+        L.push('');
+      }
       L.push(tail);
-      const _wsvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0984e3"/><stop offset="1" stop-color="#74b9ff"/></linearGradient></defs><rect width="640" height="180" rx="18" fill="url(#g)"/><circle cx="150" cy="78" r="30" fill="#ffeaa7"/><g fill="#ffffff" opacity="0.95"><ellipse cx="250" cy="82" rx="34" ry="20"/><ellipse cx="280" cy="78" rx="28" ry="18"/><ellipse cx="225" cy="78" rx="24" ry="16"/></g><g fill="#dfefff" opacity="0.95"><ellipse cx="390" cy="82" rx="36" ry="20"/><ellipse cx="420" cy="78" rx="28" ry="18"/><ellipse cx="365" cy="78" rx="24" ry="16"/></g><g stroke="#eaf6ff" stroke-width="4" stroke-linecap="round"><line x1="378" y1="108" x2="370" y2="124"/><line x1="400" y1="108" x2="392" y2="124"/><line x1="422" y1="108" x2="414" y2="124"/></g><text x="320" y="140" text-anchor="middle" font-size="34" fill="#ffffff" font-weight="700" font-family="Arial,Segoe UI,sans-serif">Сводка погоды</text><text x="320" y="165" text-anchor="middle" font-size="18" fill="#eaf6ff" font-family="Arial,Segoe UI,sans-serif">по МСК</text></svg>';
-      const weatherImg='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(_wsvg);
-      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey,extUrl:1,url:weatherImg,type:'image',mediaType:'image',name:'Сводка погоды'}).then(()=>{try{if(currentUser&&currentUser.isAdmin)toast('🌤 Погода опубликована ('+slotKey+')',true);}catch(e){}}).catch(e=>{console.warn('weather push',e);});
+      db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey}).then(()=>{try{if(currentUser&&currentUser.isAdmin)toast('🌤 Погода опубликована ('+slotKey+')',true);}catch(e){}}).catch(e=>{console.warn('weather push',e);});
     });
   }).catch(e=>{console.warn('weather check',e);});
 }
