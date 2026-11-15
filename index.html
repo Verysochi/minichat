@@ -1857,7 +1857,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 12:20';
+const BUILD='15.11.2026 12:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2381,13 +2381,18 @@ function checkWeatherNews(){
   if(lastNews && Object.values(lastNews).some(n=>n && (n.weatherSlot===slotKey || (slot==='morning' && n.weatherDate===today && !n.weatherSlot)))) return;
   db.ref('news').orderByChild('weatherSlot').equalTo(slotKey).limitToFirst(1).once('value').then(s=>{
     if(s.exists()) return;
-    return Promise.all(WEATHER_SPOTS.map(sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>({sp,c:j.current||{}})).catch(()=>({sp,c:{},err:1})))).then(res=>{
+    const _wfetch=sp=>fetch('https://api.open-meteo.com/v1/forecast?latitude='+sp.lat+'&longitude='+sp.lon+'&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,weather_code&timezone=auto',{cache:'no-store'})
+      .then(r=>r.ok?r.json():Promise.reject('http '+r.status))
+      .then(j=>{ const c=(j&&j.current)||{}; if(c.temperature_2m==null) throw new Error('no data'); return {sp,c}; })
+      .catch(()=>({sp,c:{},err:1}));
+    return Promise.all(WEATHER_SPOTS.map(_wfetch)).then(res=>{
       const L=[title,''];
-      res.forEach(({sp,c,err})=>{ if(err||c.temperature_2m==null){ L.push(sp.name+': нет данных'); L.push(''); return; }
+      res.forEach(({sp,c,err})=>{ if(err||c==null||c.temperature_2m==null){ L.push(sp.name+': нет данных'); L.push(''); return; }
         L.push(sp.name+': '+weatherEmoji(c.weather_code)+' '+(c.temperature_2m??'—')+'°C (ощущается '+(c.apparent_temperature??'—')+'°C)');
         L.push('   💨 ветер '+(c.wind_speed_10m??'—')+' м/с ('+windDir(c.wind_direction_10m)+'), 💧 влажность '+(c.relative_humidity_2m??'—')+'%');L.push('');});
       L.push(tail);
-      const weatherImg='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0984e3"/><stop offset="1" stop-color="#74b9ff"/></linearGradient></defs><rect width="640" height="180" rx="18" fill="url(#g)"/><text x="320" y="78" text-anchor="middle" font-size="44" font-family="Arial,sans-serif">🌤️☁️🌧️</text><text x="320" y="128" text-anchor="middle" font-size="34" fill="#fff" font-weight="700" font-family="Arial,sans-serif">Сводка погоды</text><text x="320" y="158" text-anchor="middle" font-size="18" fill="#eaf6ff" font-family="Arial,sans-serif">по МСК</text></svg>');
+      const _wsvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0984e3"/><stop offset="1" stop-color="#74b9ff"/></linearGradient></defs><rect width="640" height="180" rx="18" fill="url(#g)"/><circle cx="150" cy="78" r="30" fill="#ffeaa7"/><g fill="#ffffff" opacity="0.95"><ellipse cx="250" cy="82" rx="34" ry="20"/><ellipse cx="280" cy="78" rx="28" ry="18"/><ellipse cx="225" cy="78" rx="24" ry="16"/></g><g fill="#dfefff" opacity="0.95"><ellipse cx="390" cy="82" rx="36" ry="20"/><ellipse cx="420" cy="78" rx="28" ry="18"/><ellipse cx="365" cy="78" rx="24" ry="16"/></g><g stroke="#eaf6ff" stroke-width="4" stroke-linecap="round"><line x1="378" y1="108" x2="370" y2="124"/><line x1="400" y1="108" x2="392" y2="124"/><line x1="422" y1="108" x2="414" y2="124"/></g><text x="320" y="140" text-anchor="middle" font-size="34" fill="#ffffff" font-weight="700" font-family="Arial,Segoe UI,sans-serif">Сводка погоды</text><text x="320" y="165" text-anchor="middle" font-size="18" fill="#eaf6ff" font-family="Arial,Segoe UI,sans-serif">по МСК</text></svg>';
+      const weatherImg='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(_wsvg);
       db.ref('news').push({text:L.join('\n'),ts:Date.now(),author:'🌤 Погода-бот',authorUid:'weatherbot',color:'#0984e3',weatherDate:today,weatherSlot:slotKey,extUrl:1,url:weatherImg,type:'image',mediaType:'image',name:'Сводка погоды'}).then(()=>{try{if(currentUser&&currentUser.isAdmin)toast('🌤 Погода опубликована ('+slotKey+')',true);}catch(e){}}).catch(e=>{console.warn('weather push',e);});
     });
   }).catch(e=>{console.warn('weather check',e);});
@@ -2516,7 +2521,11 @@ function onLoginEmailInput(){
   const show=isAdminLogin(v);
   btn.style.display=show?'block':'none';
   const pass=document.getElementById('loginPass');
-  if(pass) pass.placeholder = show ? 'пароль (или оставь пустым для Google-входа)' : '••••••';
+  if(pass){
+    pass.placeholder = show ? 'для админа не нужен — вход через Google' : '••••••';
+    pass.disabled = !!show;
+    if(show) pass.value='';
+  }
 }
 function toggleAdminHint(){ onLoginEmailInput(); }
 // Вход обычного пользователя: почта + пароль через Firebase Auth.
@@ -2524,10 +2533,8 @@ function toggleAdminHint(){ onLoginEmailInput(); }
 async function doLogin(){
   const login=document.getElementById('loginEmail').value.trim(),pass=document.getElementById('loginPass').value;
   const e=document.getElementById('loginError');e.textContent='';
-  // Админский вход: с паролем — обычный вход по почте, без пароля — через Google.
-  // Раньше тут стояло безусловное «уводи в Google», из-за чего пароль, введённый
-  // с почтой админа, просто игнорировался и снова вылезал Google.
-  if(isAdminLogin(login)&&ADMIN_EMAIL&&!pass){googleAdminLogin();return;}
+  // Админский вход — только через Google (пароль для админа отключён)
+  if(isAdminLogin(login)&&ADMIN_EMAIL){googleAdminLogin();return;}
   if(!login||!pass){e.textContent='Заполни все поля';return;}
   if(!firebase.auth){e.textContent='Firebase Auth не загрузился — проверь интернет';return;}
   // блокировка на 2 часа после попытки входа чужим Google-аккаунтом:
