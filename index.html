@@ -961,19 +961,26 @@ img,video,canvas{max-width:100%}
   #profileScreen .profile-identity-col,
   #profileScreen .profile-cards-col{min-width:0}
   /* Липкая (sticky) левая колонка профиля.
-     Раньше здесь стояли isolation:isolate, backface-visibility:hidden,
-     background-clip:padding-box и overflow:hidden — вместе со скруглением
-     они заставляли Chromium создавать отдельный композитинг-слой, и при
-     скролле ПК рисовался светлый полупрозрачный «призрак» у левого края
-     карточки (белая «запятая» поверх обложки/аватара/текста).
-     Ни одно из этих свойств здесь не нужно — оставляем только раскладку. */
+     ВАЖНО: у самого sticky-элемента НЕ должно быть border-radius/background/
+     overflow — Chromium (особенно на ПК) рисует в таком случае полупрозрачную
+     светлую «вуаль» у левого края контейнера поверх обложки и текста
+     (пользователи описывали её как «белую запятую/сегмент круга»).
+     Поэтому скругление и фон перенесены во внутренний блок .profile-identity-card,
+     а липкой остаётся простая прозрачная колонка. */
   #profileScreen .profile-identity-col{
+    position:sticky;
+    top:12px;
+    min-width:0;
+    background:none;
+    border:none;
+    border-radius:0;
+    padding:0;
+  }
+  #profileScreen .profile-identity-card{
     background:var(--surface);
     border:1px solid var(--surface2);
     border-radius:16px;
     padding:14px;
-    position:sticky;
-    top:12px;
   }
   #profileScreen .profile-identity-col .profile-name,
   #profileScreen .profile-identity-col .profile-login,
@@ -1337,6 +1344,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   </div>
   <div class="profile-wrap">
     <div class="profile-identity-col">
+    <div class="profile-identity-card">
     <div class="cover-slot">
       <div id="profileCoverBand"></div>
       <div class="cover-avatar">
@@ -1358,6 +1366,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div id="profileAvatarRockRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
     <div id="profilePetRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
     <div id="profileRockBadge" style="margin-bottom:12px" title="Сколько раз ты рокнул(а) 🤘 в новостях/колонках"></div>
+    </div>
     </div>
     <div class="profile-cards-col">
     <div class="profile-card">
@@ -1867,7 +1876,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 17:05';
+const BUILD='15.11.2026 17:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4456,10 +4465,12 @@ try{ document.addEventListener('paste', handleClipboardImagePaste, true); }catch
 // ===== ЗАГРУЗКА/ОТПРАВКА =====
 function uploadChunked(key,data,meta){
   const parts=[];for(let i=0;i<data.length;i+=CHUNK)parts.push(data.substr(i,CHUNK));
-  return db.ref('files/'+key+'/meta').set(Object.assign({count:parts.length},meta||{})).then(()=>{
-    let i=0,done=0;
-    const w=[0,1,2].map(()=>{const run=()=>{if(i>=parts.length)return Promise.resolve();const idx=i++;return db.ref('files/'+key+'/chunks/'+idx).set(parts[idx]).then(()=>{done++;return run();});};return run();});
-    return Promise.all(w);});
+  // Сначала пишем куски, и ТОЛЬКО потом meta. Метаданные — это «маркер готовности»:
+  // если их записать первыми, читатель увидит count=N, пока кусков ещё нет,
+  // и посчитает файл битым (обложка не появилась бы до перезагрузки).
+  let i=0,done=0;
+  const w=[0,1,2].map(()=>{const run=()=>{if(i>=parts.length)return Promise.resolve();const idx=i++;return db.ref('files/'+key+'/chunks/'+idx).set(parts[idx]).then(()=>{done++;return run();});};return run();});
+  return Promise.all(w).then(()=>db.ref('files/'+key+'/meta').set(Object.assign({count:parts.length},meta||{})));
 }
 // Загрузка файла. Раньше читала files/<key> ЦЕЛИКОМ одним запросом: для песни
 // это несколько мегабайт за раз, на мобильном интернете такой ответ обрывался,
@@ -8608,14 +8619,21 @@ function closeCoverEditor(){ const ov=document.getElementById('coverEditor'); if
 function ceSave(){
   if(!_ce.src||!currentUser){ closeCoverEditor(); return; }
   const pos=_cePosFromDrag();
-  const uid=currentUser.uid, key='cov_'+uid;
+  const uid=currentUser.uid;
+  // Ключ должен быть НОВЫМ при каждой загрузке: со старым ключом кэш медиа
+  // отдавал бы прежнюю картинку, и новая обложка появлялась бы только после F5.
+  const key='cov_'+uid+'_'+Date.now();
   const btn=event&&event.target; if(btn){btn.disabled=true; btn.textContent='⏳ Сохраняю…';}
   toast('⬆ Загружаю обложку...');
   uploadChunked(key,_ce.src,{name:(_ce.file&&_ce.file.name)||'cover.jpg'}).then(()=>{
+    // Чистим кэш по этому ключу, чтобы картинка точно подгрузилась заново
+    try{ delete mediaCache[key]; delete loadingMedia[key]; delete failedMedia[key]; delete mediaRetryAt[key]; }catch(e){}
     return db.ref('users/'+uid).update({coverKey:key,cover:null,coverPos:pos});
   }).then(()=>{
     toast('🌄 Обложка обновлена',true);
-    closeCoverEditor(); renderCovers();
+    closeCoverEditor();
+    try{ loadMediaSilent(key); }catch(e){}
+    renderCovers(); renderProfile();
   }).catch(e=>{ console.warn('cover save',e); toast('❌ Не удалось сохранить обложку'); if(btn){btn.disabled=false;btn.textContent='ОК, сохранить';} });
 }
 let _ceBound=false;
@@ -8689,6 +8707,34 @@ function saveAvatarFromDataUrl(dataUrl, opts){
   }).then(()=>{toast('✅ Аватар обновлён',true); closeAvatarEditor();})
     .catch(()=>toast('Ошибка сохранения'));
 }
+/* Сжать изображение, СОХРАНИВ пропорции (без сплющивания в квадрат).
+   Раньше здесь было drawImage(img,0,0,dim,dim) — широкое фото сжималось
+   по ширине, и аватарка получалась «тонкой». Теперь вписываем целиком. */
+function _aeCompressKeepAspect(dataUrl, maxBytes){
+  maxBytes=maxBytes||MAX_AVATAR;
+  return new Promise((resolve)=>{
+    if(!dataUrl || dataUrl.length<=maxBytes){ resolve(dataUrl||''); return; }
+    const img=new Image();
+    img.onload=async()=>{
+      const tryQ=(dim,q)=>new Promise(res=>{
+        const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+        const sc=Math.min(dim/iw, dim/ih);
+        const cw=Math.max(1,Math.round(iw*sc)), ch=Math.max(1,Math.round(ih*sc));
+        const c=document.createElement('canvas'); c.width=cw; c.height=ch;
+        const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,cw,ch);
+        res(c.toDataURL('image/jpeg',q));
+      });
+      try{
+        let d=await tryQ(512,0.88); if(d.length<=maxBytes) return resolve(d);
+        d=await tryQ(512,0.72); if(d.length<=maxBytes) return resolve(d);
+        d=await tryQ(420,0.68); if(d.length<=maxBytes) return resolve(d);
+        d=await tryQ(360,0.62); resolve(d);
+      }catch(e){ resolve(dataUrl); }
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
+}
 function editCurrentAvatar(){
   const i=ALL_USERS[currentUser.uid]||currentUser;
   const src=i&&i.avatar;
@@ -8696,10 +8742,11 @@ function editCurrentAvatar(){
   if(String(src).startsWith('data:image/gif')){ toast('GIF-аватар нельзя редактировать без потери анимации — загрузи новое фото'); return; }
   const base=i.avatarBase||src;
   const layers=i.avatarLayers||null;
+  const fit=i.avatarFit||null;
   if(!i.avatarBase && !i.avatarLayers){
     toast('Эта аватарка сохранена одной картинкой — старые стикеры/текст уже вписаны и убрать их нельзя. Чтобы редактировать слоями, нажми «Сменить аватар» и загрузи фото заново.', false);
   }
-  openAvatarEditor(base,'avatar',{baseSrc:base, layers:layers});
+  openAvatarEditor(base,'avatar',{baseSrc:base, layers:layers, fit:fit});
 }
 /* Вернуть аватарку к чистому оригиналу (без вписанных стикеров/текста).
    Оригинал хранится в avatarBase — он пишется при каждом сохранении из редактора. */
@@ -8727,7 +8774,7 @@ function avatarFile(f){
 }
 
 // ===== РЕДАКТОР АВАТАРКИ =====
-let ae={img:null,layers:[],sel:-1,drag:null,target:'avatar',w:512,h:512,baseSrc:''};
+let ae={img:null,layers:[],sel:-1,drag:null,target:'avatar',w:512,h:512,baseSrc:'',fit:{mode:'cover',zoom:1,dx:0,dy:0}};
 function aeSvgData(svg){ try{return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));}catch(e){return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);} }
 function aeStickerPack(){
   const colors=['#ff4757','#ff7f50','#ffa502','#2ed573','#1e90ff','#3742fa','#a55eea','#ffffff','#111111','#00cec9','#fd79a8','#f1c40f'];
@@ -8785,9 +8832,19 @@ function aeStickerPack(){
 function aeRender(){
   const c=document.getElementById('aeCanvas'); if(!c||!ae.img) return;
   const ctx=c.getContext('2d'); ctx.clearRect(0,0,ae.w,ae.h);
-  // фон-изображение (cover)
-  const iw=ae.img.width, ih=ae.img.height, s=Math.max(ae.w/iw, ae.h/ih);
-  const dw=iw*s, dh=ih*s, dx=(ae.w-dw)/2, dy=(ae.h-dh)/2;
+  // фон-изображение. Раньше оно всегда вписывалось «по меньшей стороне» (cover),
+  // из-за чего широкое фото обрезалось в узкую полосу («худая аватарка»).
+  // Теперь есть режим «вписать» (contain) + зум и сдвиг — кадр можно подогнать.
+  const iw=ae.img.width, ih=ae.img.height;
+  const fit=(ae.fit&&ae.fit.mode)||'cover';
+  let s = fit==='contain' ? Math.min(ae.w/iw, ae.h/ih) : Math.max(ae.w/iw, ae.h/ih);
+  s *= (ae.fit&&ae.fit.zoom)||1;
+  const dw=iw*s, dh=ih*s;
+  const dx=(ae.w-dw)/2 + ((ae.fit&&ae.fit.dx)||0);
+  const dy=(ae.h-dh)/2 + ((ae.fit&&ae.fit.dy)||0);
+  // В режиме «вписать» по краям остаются полосы — заливаем их тёмным фоном,
+  // чтобы в JPEG они не превратились в чёрные дыры.
+  if(fit==='contain'){ ctx.fillStyle='#161616'; ctx.fillRect(0,0,ae.w,ae.h); }
   ctx.drawImage(ae.img,dx,dy,dw,dh);
   ae.layers.forEach((L,i)=>{
     ctx.save();
@@ -8814,8 +8871,9 @@ function aeRender(){
   });
 }
 function aeShowPanel(name){
-  ['Stickers','Text'].forEach(n=>{const el=document.getElementById('aePanel'+n); if(el) el.style.display=(n.toLowerCase()===name)?'block':'none';});
+  ['Stickers','Text','Fit'].forEach(n=>{const el=document.getElementById('aePanel'+n); if(el) el.style.display=(n.toLowerCase()===name)?'block':'none';});
   if(name==='stickers') aeRenderStickerGrid();
+  if(name==='fit') aeSyncFitUI();
 }
 function aeRenderStickerGrid(){
   const g=document.getElementById('aeStickerGrid'); if(!g||g.dataset.ready) return;
@@ -8877,6 +8935,31 @@ function aeSyncProps(){
 }
 function aeUpdateScale(v){ const L=ae.layers[ae.sel]; if(L){ L.scale=Math.max(.15,Math.min(3.5,(+v||100)/100)); aeRender(); } }
 function aeUpdateRotate(v){ const L=ae.layers[ae.sel]; if(L){ L.rot=(+v||0); aeRender(); } }
+/* Подгонка кадра основного фото: режим (заполнить/вписать), зум и сдвиг. */
+function aeSetFit(mode){
+  ae.fit=ae.fit||{mode:'cover',zoom:1,dx:0,dy:0};
+  ae.fit.mode=(mode==='contain')?'contain':'cover';
+  aeSyncFitUI(); aeRender();
+  aeStatus(ae.fit.mode==='contain' ? 'Фото вписано целиком — зумом и сдвигом можно подогнать' : 'Фото заполняет кадр');
+}
+function aeUpdateFit(which,v){
+  ae.fit=ae.fit||{mode:'cover',zoom:1,dx:0,dy:0};
+  const n=+v||0;
+  if(which==='zoom') ae.fit.zoom=Math.max(.5,Math.min(3,n/100));
+  else if(which==='dx') ae.fit.dx=n;
+  else if(which==='dy') ae.fit.dy=n;
+  aeSyncFitUI(); aeRender();
+}
+function aeSyncFitUI(){
+  const f=ae.fit||{mode:'cover',zoom:1,dx:0,dy:0};
+  const z=document.getElementById('aeFitZoom'),x=document.getElementById('aeFitDx'),y=document.getElementById('aeFitDy');
+  if(z)z.value=Math.round((f.zoom||1)*100);
+  if(x)x.value=Math.round(f.dx||0);
+  if(y)y.value=Math.round(f.dy||0);
+  const cv=document.getElementById('aeFitCover'),ct=document.getElementById('aeFitContain');
+  if(cv)cv.classList.toggle('active',f.mode!=='contain');
+  if(ct)ct.classList.toggle('active',f.mode==='contain');
+}
 function aeStatus(t){ const el=document.getElementById('aeStatus'); if(el) el.textContent=t||''; }
 function aeCanvasPos(ev){
   const c=document.getElementById('aeCanvas'); const r=c.getBoundingClientRect();
@@ -8939,6 +9022,7 @@ function aeBindCanvas(){
 function openAvatarEditor(dataUrl, target, opts){
   opts=opts||{};
   ae.target=target||'avatar'; ae.layers=[]; ae.sel=-1; ae.drag=null; ae.baseSrc=opts.baseSrc||dataUrl||'';
+  ae.fit=opts.fit||{mode:'cover',zoom:1,dx:0,dy:0};
   const baseSrc=opts.baseSrc||dataUrl;
   const img=new Image();
   img.onload=async()=>{
@@ -8970,11 +9054,15 @@ function aeSave(){
   const data=aeExportDataUrl();
   const layers=_aeSerializeLayers();
   const extra={ avatarLayers: layers.length?layers:null };
+  // настройка кадра (вписать/заполнить, зум, сдвиг) — чтобы кадр не слетал
+  if(ae.fit) extra.avatarFit={mode:ae.fit.mode||'cover',zoom:ae.fit.zoom||1,dx:ae.fit.dx||0,dy:ae.fit.dy||0};
   // сохраняем базу (оригинал/основу) чтобы слои можно было убирать/добавлять всегда
   (async()=>{
     try{
       if(ae.baseSrc && ae.target==='avatar'){
-        extra.avatarBase = await _aeCompressDataUrl(ae.baseSrc, Math.min(MAX_AVATAR, 1400000));
+        // Базу сжимаем БЕЗ искажения пропорций — иначе широкое фото
+        // превращается в «худую» аватарку (см. _aeCompressKeepAspect).
+        extra.avatarBase = await _aeCompressKeepAspect(ae.baseSrc, Math.min(MAX_AVATAR, 1400000));
       }
     }catch(e){}
     if(ae.target==='avatar') saveAvatarFromDataUrl(data,{extra});
@@ -9700,6 +9788,7 @@ boot();
     <div class="ae-toolbar">
       <button class="btn btn-outline" onclick="aeShowPanel('stickers')">🧩 Стикеры</button>
       <button class="btn btn-outline" onclick="aeShowPanel('text')">🔤 Текст</button>
+      <button class="btn btn-outline" onclick="aeShowPanel('fit')">🖼 Кадр</button>
       <button class="btn btn-outline" onclick="aeDeleteSelected()">🗑 Удалить</button>
       <button class="btn btn-outline" onclick="aeClearAll()">🧼 Очистить всё</button>
       <button class="btn btn-outline" onclick="aeBringForward()">⬆️ Поверх</button>
@@ -9739,6 +9828,20 @@ boot();
       <label>Поворот</label>
       <input type="range" id="aeRotate" min="-180" max="180" value="0" oninput="aeUpdateRotate(this.value)">
       <div class="ae-hint">На телефоне: двумя пальцами растягивай и поворачивай выбранный элемент.</div>
+    </div>
+    <div class="ae-panel" id="aePanelFit" style="display:none">
+      <label>Как вписать фото</label>
+      <div class="ae-row">
+        <button class="btn btn-outline btn-sm" id="aeFitCover" style="width:auto" onclick="aeSetFit('cover')">✂ Заполнить</button>
+        <button class="btn btn-outline btn-sm" id="aeFitContain" style="width:auto" onclick="aeSetFit('contain')">▭ Вписать целиком</button>
+      </div>
+      <label>Приближение фото</label>
+      <input type="range" id="aeFitZoom" min="50" max="300" value="100" oninput="aeUpdateFit('zoom',this.value)">
+      <label>Сдвиг по горизонтали</label>
+      <input type="range" id="aeFitDx" min="-250" max="250" value="0" oninput="aeUpdateFit('dx',this.value)">
+      <label>Сдвиг по вертикали</label>
+      <input type="range" id="aeFitDy" min="-250" max="250" value="0" oninput="aeUpdateFit('dy',this.value)">
+      <div class="ae-hint">«Вписать целиком» показывает фото полностью, без обрезки. Зум и сдвиг позволяют подогнать кадр — настройка сохранится вместе с аватаркой.</div>
     </div>
     <div class="ae-hint" id="aeStatus" style="margin-top:8px"></div>
   </div>
