@@ -203,13 +203,19 @@ img.avatar.sq{border-radius:8px}
 .ava-wrap:has(.avatar.sm)>.avatar,.ava-wrap:has(.avatar.sm)>img.avatar,.ava-wrap:has(.avatar.sm)>div.avatar{box-shadow:0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent), 0 0 6px color-mix(in srgb, var(--primary) 10%, transparent), 0 1px 4px rgba(0,0,0,.16)}
 /* Бегущая строка настроения (в профиле друга) — исчезает по краям, цвет темы юзера */
 .mood-marquee{width:100%;max-width:520px;margin:2px auto 8px;overflow:hidden;position:relative;border-radius:999px;padding:6px 0;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent),transparent 18%,transparent 82%,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent));
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
-.mood-marquee-track{display:inline-flex;gap:28px;white-space:nowrap;animation:moodMarq 14s linear infinite;padding-left:100%;backface-visibility:hidden}
+  background:linear-gradient(90deg,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent),transparent 18%,transparent 82%,color-mix(in srgb,var(--mood-c,var(--primary)) 10%,transparent))}
+.mood-marquee-track{display:inline-flex;gap:28px;white-space:nowrap;animation:moodMarq 14s linear infinite;padding-left:100%}
+/* Затухание по краям раньше делалось через mask-image. Chromium при прокрутке
+   страницы оставлял от маски «неинициализированный» слой и рисовал его
+   белой полупрозрачной вуалью (та самая белая хрень у левого края).
+   Теперь края гасим обычными градиентами — без mask-композитинга. */
+.mood-marquee::before,.mood-marquee::after{content:'';position:absolute;top:0;bottom:0;width:20%;z-index:2;pointer-events:none}
+.mood-marquee::before{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+.mood-marquee::after{right:0;background:linear-gradient(270deg,var(--bg),transparent)}
 .mood-marquee span{font-size:13px;font-weight:600;color:var(--mood-c,var(--primary));text-shadow:0 0 8px color-mix(in srgb,var(--mood-c,var(--primary)) 22%,transparent)}
 .mood-marquee:hover .mood-marquee-track{animation-play-state:paused}
 @keyframes moodMarq{from{transform:translateX(0)}to{transform:translateX(-100%)}}
-@media (prefers-reduced-motion:reduce){.mood-marquee{-webkit-mask-image:none;mask-image:none}.mood-marquee-track{animation:none;padding-left:0;justify-content:center;width:100%}}
+@media (prefers-reduced-motion:reduce){.mood-marquee-track{animation:none;padding-left:0;justify-content:center;width:100%}}
 .ava-decor{position:absolute;right:-4px;bottom:-4px;font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));pointer-events:none;z-index:2;transform-origin:center}
 .ava-decor.top{top:-6px;right:-4px;bottom:auto}
 .ava-decor.bday{font-size:17px}
@@ -975,12 +981,18 @@ img,video,canvas{max-width:100%}
     border:none;
     border-radius:0;
     padding:0;
+    /* Явно поднимаем колонку в отдельный слой и заставляем Chromium
+       перерисовывать её при прокрутке: без этого у «пустого» GPU-тайла
+       оставался белый полупрозрачный след. */
+    will-change:transform;
+    transform:translateZ(0);
   }
   #profileScreen .profile-identity-card{
     background:var(--surface);
     border:1px solid var(--surface2);
     border-radius:16px;
     padding:14px;
+    overflow:hidden;
   }
   #profileScreen .profile-identity-col .profile-name,
   #profileScreen .profile-identity-col .profile-login,
@@ -988,6 +1000,19 @@ img,video,canvas{max-width:100%}
   #profileScreen .profile-identity-col #profilePresence,
   #profileScreen .profile-identity-col #profileRockBadge{text-align:center}
   #profileScreen .profile-cards-col{display:flex;flex-direction:column;gap:0}
+  /* ДИАГНОСТИКА БЕЛОЙ «ВУАЛИ» (кнопка «Диагностика» в шапке профиля).
+     Включается по клику и гасит по очереди тяжёлые для композитинга эффекты:
+     маску/анимацию бегущей строки, свечение аватарок, backdrop-filter.
+     Если после включения вуаль пропала — значит виноват был эффект,
+     который выключили (в логе пишется, какой). */
+  body.diag-off-glow .ava-wrap>.avatar,body.diag-off-glow .ava-wrap>.profile-photo,
+  body.diag-off-glow .ava-wrap>img.avatar,body.diag-off-glow .ava-wrap>div.avatar{box-shadow:none !important}
+  body.diag-off-glow .mood-marquee span{text-shadow:none !important}
+  body.diag-off-mask .mood-marquee::before,body.diag-off-mask .mood-marquee::after{display:none !important}
+  body.diag-off-anim .mood-marquee-track{animation:none !important}
+  body.diag-off-blur .msg-in-banner,body.diag-off-blur .lightbox,body.diag-off-blur .mini-overlay,
+  body.diag-off-blur .ae-overlay,body.diag-off-blur .camera-overlay{backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+  body.diag-off-sticky #profileScreen .profile-identity-col{position:static !important;transform:none !important;will-change:auto !important}
   #profileScreen .profile-card{width:100%;max-width:none;margin-left:0;margin-right:0;box-sizing:border-box}
   #profileScreen .cover-slot{max-width:none}
   /* Композер "Моя колонка" — по ширине как соседние контейнеры */
@@ -1337,6 +1362,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn desk-nav-btn" onclick="showScreen('friendsScreen')" title="Друзья"><span class="hicon">🤝</span></button>
     <div class="header-col"><h2>🌐 Моё окружение</h2></div>
     <div class="header-more" id="profMore">
+      <button class="header-btn" onclick="toggleProfileDiag()" title="Диагностика белой вуали" id="diagBtn"><span class="hicon">🩺</span></button>
       <button class="header-btn" onclick="showScreen('notifScreen')" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
       <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
       <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
@@ -1876,7 +1902,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 17:35';
+const BUILD='15.11.2026 18:57';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8653,6 +8679,41 @@ function coverFile(f){
   r.readAsDataURL(f);
 }
 function removeCover(){db.ref('users/'+currentUser.uid).update({cover:'',coverKey:null}).then(()=>{toast('Обложка убрана');renderCovers();});}
+/* ДИАГНОСТИКА «белой вуали» в профиле.
+   По кнопке 🩺 поочерёдно гасим тяжёлые для композитинга эффекты и пишем
+   в консоль, какой именно. Если вуаль пропала после конкретного шага —
+   виновник найден. Каждый шаг можно включать/выключать отдельно. */
+const DIAG_STEPS=[
+  {cls:'diag-off-glow',  what:'свечение аватарок (box-shadow)'},
+  {cls:'diag-off-mask',  what:'гашение краёв бегущей строки (псевдоэлементы)'},
+  {cls:'diag-off-anim',  what:'анимация бегущей строки'},
+  {cls:'diag-off-blur',  what:'backdrop-filter (размывы)'},
+  {cls:'diag-off-sticky',what:'липкая колонка профиля (position:sticky)'}
+];
+let diagIdx=-1;
+function toggleProfileDiag(){
+  const b=document.body;
+  if(diagIdx>=0){                     // снимаем последний шаг
+    const s=DIAG_STEPS[diagIdx];
+    b.classList.remove(s.cls);
+    diagIdx--;
+    const on=DIAG_STEPS.slice(0,diagIdx+1).map(x=>x.what);
+    console.log('[diag] выключено:',s.what,'| сейчас выключено:',on.join(', ')||'ничего');
+    toast('Диагностика: вернули «'+s.what+'»'+(on.length?('. Выключено: '+on.join(', ')):'(всё включено)'),false);
+    syncDiagBtn();
+    return;
+  }
+  diagIdx++;
+  const s=DIAG_STEPS[diagIdx];
+  b.classList.add(s.cls);
+  console.log('[diag] выключено:',s.what,'| всего:',DIAG_STEPS.slice(0,diagIdx+1).map(x=>x.what).join(', '));
+  toast('Диагностика: выключено «'+s.what+'». Прокрути профиль — вуаль пропала? Смотри консоль.',false);
+  syncDiagBtn();
+}
+function syncDiagBtn(){
+  const el=document.getElementById('diagBtn');
+  if(el) el.style.opacity=diagIdx>=0?'0.55':'1';
+}
 function _aeCompressDataUrl(dataUrl, maxBytes){
   maxBytes=maxBytes||MAX_AVATAR;
   return new Promise((resolve)=>{
