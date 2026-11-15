@@ -1132,9 +1132,9 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="login-box">
     <h1>💬 MiniChat</h1>
     <p>Закрытый мессенджер для своих</p>
-    <div class="input-group"><label>Почта</label><input type="text" id="loginEmail" placeholder="твоя почта"></div>
+    <div class="input-group"><label>Почта</label><input type="text" id="loginEmail" placeholder="твоя почта" autocomplete="username email" inputmode="email" oninput="onLoginEmailInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}"></div>
     <div class="input-group"><label>Пароль</label>
-      <div class="pass-wrap"><input type="password" id="loginPass" placeholder="••••••">
+      <div class="pass-wrap"><input type="password" id="loginPass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
         <button class="pass-toggle" id="passToggleLogin" type="button" aria-label="Показать пароль" onclick="togglePass('loginPass','passToggleLogin')"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12.5c3 4 6.4 5.8 9.5 5.8s6.5-1.8 9.5-5.8"/><path d="M6.6 15.4 5.2 18.6M12 17.3v3.4M17.4 15.4l1.4 3.2"/></svg></button></div>
     </div>
     <label class="remember"><input type="checkbox" id="rememberChk"> Запомнить меня</label>
@@ -1143,6 +1143,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="btn btn-outline" onclick="showScreen('registerScreen')">Регистрация</button>
     <button class="btn btn-outline" style="margin-top:6px;font-size:13px" onclick="forgotPass()">Забыли пароль?</button>
     <div class="error-msg" id="loginError"></div>
+    <div class="build-ver" id="loginBuildVer" style="margin-top:10px;font-size:11px;color:var(--text3);text-align:center;opacity:.8"></div>
   </div>
 </div>
 
@@ -1150,17 +1151,18 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto">
     <div class="login-box">
       <h1>📝 Регистрация</h1><p>Аккаунт создаётся сразу, но в приложение пустит только после одобрения админа</p>
-      <div class="input-group"><label>Имя</label><input type="text" id="regName"></div>
-      <div class="input-group"><label>Почта (любая)</label><input type="text" id="regLogin" placeholder="name@mail.ru"></div>
+      <div class="input-group"><label>Имя</label><input type="text" id="regName" autocomplete="name" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('regLogin').focus();}"></div>
+      <div class="input-group"><label>Почта (любая)</label><input type="text" id="regLogin" placeholder="name@mail.ru" autocomplete="email" inputmode="email" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('regPass').focus();}"></div>
       <div class="input-group"><label>Пароль (мин 6)</label>
-        <div class="pass-wrap"><input type="password" id="regPass" placeholder="••••••">
+        <div class="pass-wrap"><input type="password" id="regPass" placeholder="••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('regInvite').focus();}">
           <button class="pass-toggle" id="passToggleReg" type="button" aria-label="Показать пароль" onclick="togglePass('regPass','passToggleReg')"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12.5c3 4 6.4 5.8 9.5 5.8s6.5-1.8 9.5-5.8"/><path d="M6.6 15.4 5.2 18.6M12 17.3v3.4M17.4 15.4l1.4 3.2"/></svg></button></div>
       </div>
-      <div class="input-group"><label>Код приглашения</label><input type="text" id="regInvite" placeholder="Получи у админа"></div>
-      <div class="input-group"><label id="captchaQ">Сколько будет 3 + 4?</label><input type="text" id="regCaptcha" inputmode="numeric" placeholder="Ответ"></div>
+      <div class="input-group"><label>Код приглашения</label><input type="text" id="regInvite" placeholder="Получи у админа" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('regCaptcha').focus();}"></div>
+      <div class="input-group"><label id="captchaQ">Сколько будет 3 + 4?</label><input type="text" id="regCaptcha" inputmode="numeric" placeholder="Ответ" onkeydown="if(event.key==='Enter'){event.preventDefault();submitReg();}"></div>
       <button class="btn btn-primary" onclick="submitReg()">Отправить заявку</button>
       <button class="btn btn-outline" onclick="showScreen('loginScreen')">← Назад</button>
       <div class="error-msg" id="regError"></div><div class="success-msg" id="regSuccess"></div>
+      <div class="build-ver" id="regBuildVer" style="margin-top:10px;font-size:11px;color:var(--text3);text-align:center;opacity:.8"></div>
     </div>
   </div>
 </div>
@@ -1855,7 +1857,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 12:00';
+const BUILD='15.11.2026 12:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2293,10 +2295,13 @@ document.addEventListener('keydown',(e)=>{
   e.preventDefault();
   try{ history.back(); }catch(err){ goBack(); }
 }, true);
+function showBuildVer(){ try{ if(typeof BUILD!=='undefined'){ const t='Версия: '+BUILD; ['loginBuildVer','regBuildVer'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=t;}); } }catch(e){} }
+try{ setTimeout(showBuildVer, 0); }catch(e){}
 function showScreen(id,fromBack){
   closeAllHeaderMore();   // выезжающее меню шапки не должно переезжать на другой экран
   if(id!=='chatScreen')closeChatActions();   // то же — для кнопок шапки личного чата
   if(id!=='profileScreen' && id!=='viewProfileScreen'){ try{ if(typeof _stopProfileWatch==='function') _stopProfileWatch(); }catch(e){} }
+  if(id==='loginScreen'||id==='registerScreen') showBuildVer();
   // Админка скрыта только кнопкой в навигации. Сам экран открывался кому
   // угодно: обычный человек мог зайти и увидеть всех пользователей вместе
   // с кнопками «Бан», «Удалить» и прочим. Закрываем на уровне экрана.
@@ -2505,11 +2510,15 @@ function forgotPass(){
 // Случайный юзер никаких кнопок и подсказок не видит.
 function isAdminLogin(v){v=String(v||'').trim().toLowerCase();
   return isAdminEmail(v);}
-function toggleAdminHint(){
+function onLoginEmailInput(){
   const btn=document.getElementById('googleAdminBtn');if(!btn)return;
   const v=(document.getElementById('loginEmail').value||'').trim().toLowerCase();
-  btn.style.display=isAdminLogin(v)?'block':'none';
+  const show=isAdminLogin(v);
+  btn.style.display=show?'block':'none';
+  const pass=document.getElementById('loginPass');
+  if(pass) pass.placeholder = show ? 'пароль (или оставь пустым для Google-входа)' : '••••••';
 }
+function toggleAdminHint(){ onLoginEmailInput(); }
 // Вход обычного пользователя: почта + пароль через Firebase Auth.
 // Пароль НИКОГДА не пишется в localStorage — его хранит сам Firebase.
 async function doLogin(){
