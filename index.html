@@ -967,6 +967,7 @@ img,video,canvas{max-width:100%}
     background-clip:padding-box;
     -webkit-backface-visibility:hidden;
     backface-visibility:hidden;
+    overflow:hidden;
   }
   #profileScreen .profile-identity-col .profile-name,
   #profileScreen .profile-identity-col .profile-login,
@@ -1859,7 +1860,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 13:30';
+const BUILD='15.11.2026 13:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
