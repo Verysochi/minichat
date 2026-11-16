@@ -5,7 +5,7 @@
 <!-- maximum-scale=1,user-scalable=no запрещал увеличивать текст: людям со слабым зрением
      и при мелком шрифте было невозможно приблизить. Масштабирование разрешили,
      а кнопкам добавили touch-action, чтобы двойной тап не вызывал зум и задержку. -->
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#0a0a0a">
 <title>MiniChat — мессенджер</title>
 <meta name="description" content="MiniChat — мессенджер для общения с друзьями: чаты, звонки, новости и колонки.">
@@ -50,7 +50,8 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 #bootLoader .bl-ring{width:40px;height:40px;border-radius:50%;border:3px solid var(--surface3);border-top-color:var(--primary);animation:blSpin .9s linear infinite}
 #bootLoader .bl-txt{font-size:14px;color:var(--text2)}
 @keyframes blSpin{to{transform:rotate(360deg)}}
-.screen{display:none;flex-direction:column;height:100%;position:absolute;inset:0;z-index:1;padding-bottom:56px}
+.screen{display:none;flex-direction:column;height:100%;min-height:100%;position:absolute;inset:0;z-index:1;padding-bottom:56px}
+@supports (height: 100dvh){.screen{height:100dvh;min-height:100dvh}}
 .screen.active{display:flex;z-index:2}
 #loginScreen,#registerScreen{padding-bottom:0}
 #loginScreen{justify-content:center;align-items:center;padding:24px;background:linear-gradient(135deg,var(--bg) 0%,var(--surface2) 100%)}
@@ -975,12 +976,17 @@ img,video,canvas{max-width:100%}
      а липкой остаётся простая прозрачная колонка. */
   #profileScreen .profile-identity-col{
     position:sticky;
-    top:12px;
+    top:8px;
     min-width:0;
     background:none;
     border:none;
     border-radius:0;
     padding:0;
+    align-self:start;
+    max-height:calc(100dvh - 54px - 68px - 16px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
     /* Явно поднимаем колонку в отдельный слой и заставляем Chromium
        перерисовывать её при прокрутке: без этого у «пустого» GPU-тайла
        оставался белый полупрозрачный след. */
@@ -991,15 +997,31 @@ img,video,canvas{max-width:100%}
     background:var(--surface);
     border:1px solid var(--surface2);
     border-radius:16px;
-    padding:14px;
-    overflow:hidden;
+    padding:10px 12px;
+    overflow:visible;
   }
   #profileScreen .profile-identity-col .profile-name,
   #profileScreen .profile-identity-col .profile-login,
   #profileScreen .profile-identity-col .profile-status,
   #profileScreen .profile-identity-col #profilePresence,
   #profileScreen .profile-identity-col #profileRockBadge{text-align:center}
-  #profileScreen .profile-cards-col{display:flex;flex-direction:column;gap:0}
+  /* Компактная высота левого блока профиля, чтобы карточка помещалась в экран */
+  #profileScreen .cover-band{height:140px}
+  #profileScreen .cover-avatar{margin:-38px auto 0}
+  #profileScreen .profile-photo{width:84px;height:84px}
+  #profileScreen div.profile-photo{font-size:32px}
+  #profileScreen .avatar-ts{margin-top:4px;font-size:11px}
+  #profileScreen .profile-name{font-size:18px;margin-top:6px;line-height:1.2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  #profileScreen .profile-login{font-size:13px;margin-top:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  #profileScreen .profile-status{font-size:13px;margin:4px 0 8px;max-width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  #profileScreen #profileThoughts{font-size:12px;margin:0 0 4px;line-height:1.3}
+  #profileScreen #profileMoodQuickWrap{margin:0 0 6px}
+  #profileScreen #profileMoodQuick{padding:6px 10px;font-size:13px}
+  #profileScreen #profilePresence{font-size:12px;margin-bottom:6px}
+  #profileScreen #profileAvatarRockRow,
+  #profileScreen #profilePetRow{margin:0 0 4px;gap:6px}
+  #profileScreen #profileRockBadge{margin-bottom:4px}
+  #profileScreen .profile-cards-col{display:flex;flex-direction:column;gap:0;contain:paint;position:relative}
   /* ДИАГНОСТИКА БЕЛОЙ «ВУАЛИ» (кнопка «Диагностика» в шапке профиля).
      Включается по клику и гасит по очереди тяжёлые для композитинга эффекты:
      маску/анимацию бегущей строки, свечение аватарок, backdrop-filter.
@@ -1902,7 +1924,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='15.11.2026 18:57';
+const BUILD='16.11.2026 22:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
