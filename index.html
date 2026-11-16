@@ -1238,6 +1238,20 @@ img,video,canvas{max-width:100%}
 .pet-actions .btn{padding:6px 10px;font-size:12px;width:auto}
 .pet-ask{font-size:12px;color:var(--warn,#fdcb6e);margin-top:6px}
 
+
+/* Polls */
+.poll-box{background:var(--surface2);border:1px solid var(--surface3);border-radius:12px;padding:10px;margin:2px 0;min-width:220px}
+.poll-q{font-weight:700;margin-bottom:8px;white-space:pre-wrap}
+.poll-opt{position:relative;border:1px solid var(--surface3);border-radius:10px;padding:8px 10px;margin:6px 0;cursor:pointer;background:var(--surface);overflow:hidden}
+.poll-opt.voted{border-color:var(--primary)}
+.poll-bar{position:absolute;left:0;top:0;bottom:0;background:rgba(108,92,231,.18);pointer-events:none}
+.poll-opt-inner{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.poll-opt-text{font-size:14px}
+.poll-opt-meta{font-size:12px;color:var(--text2);white-space:nowrap}
+.poll-foot{font-size:12px;color:var(--text3);margin-top:6px}
+.poll-create-opt{display:flex;gap:6px;margin-bottom:6px}
+.poll-create-opt input{flex:1}
+
 </style>
 </head>
 <body class="login-active booting">
@@ -1705,6 +1719,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <button class="row" onclick="closeAttachMenu();addFileToContainer()">📎 Любой файл</button>
       <button class="row" onclick="closeAttachMenu();addMediaUrl('chat')">▶ Медиа по ссылке (YouTube/фото/видео)</button>
       <button class="row" onclick="closeAttachMenu();openLinkAdd('chat')">🔗 Добавить ссылку с названием</button>
+      <button class="row" onclick="closeAttachMenu();openPollCreator()">📊 Опрос</button>
     </div>
     <div class="input-bar" id="chatInputBar">
     <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" title="Голосовое сообщение">🎤</button>
@@ -1980,7 +1995,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='16.11.2026 23:49';
+const BUILD='17.11.2026 00:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -5053,6 +5068,94 @@ function downloadFile(key){
   toast('⏳ Загружаю файл...');
   loadMedia(m.mediaKey||key);
 }
+
+// ===== POLLS =====
+function openPollCreator(){
+  if(!currentChatId){ toast('Открой чат или группу'); return; }
+  if(!dmGuard || !dmGuard()) return;
+  const m=document.getElementById('pollCreatorModal'); if(!m) return;
+  document.getElementById('pollQuestion').value='';
+  document.getElementById('pollMulti').checked=false;
+  const w=document.getElementById('pollOptionsWrap'); w.innerHTML='';
+  addPollOption(''); addPollOption('');
+  m.style.display='flex';
+  setTimeout(()=>{ try{ document.getElementById('pollQuestion').focus(); }catch(e){} }, 50);
+}
+function closePollCreator(){ const m=document.getElementById('pollCreatorModal'); if(m) m.style.display='none'; }
+function addPollOption(val){
+  const w=document.getElementById('pollOptionsWrap'); if(!w) return;
+  const d=document.createElement('div'); d.className='poll-create-opt';
+  d.innerHTML='<input type="text" class="poll-opt-input" placeholder="Вариант ответа" maxlength="120" value="'+escA(val||'')+'"><button class="btn btn-outline btn-sm" style="width:auto;padding:6px 10px" onclick="this.parentNode.remove()">✕</button>';
+  w.appendChild(d);
+}
+function createPoll(){
+  if(!currentChatId) return;
+  if(typeof dmGuard==='function' && !dmGuard()) return;
+  const q=(document.getElementById('pollQuestion').value||'').trim();
+  if(!q){ toast('Введите тему опроса'); return; }
+  const multi=!!document.getElementById('pollMulti').checked;
+  const opts=[...document.querySelectorAll('#pollOptionsWrap .poll-opt-input')].map(i=>i.value.trim()).filter(Boolean);
+  if(opts.length<2){ toast('Добавьте минимум 2 варианта'); return; }
+  if(opts.length>10){ toast('Максимум 10 вариантов'); return; }
+  const poll={question:q.slice(0,200), multi, options:opts.slice(0,10).map(t=>({text:t.slice(0,120)})), votes:{}};
+  const key=db.ref('messages/'+currentChatId).push().key;
+  const p={sender:currentUser.uid, ts:Date.now(), type:'poll', poll, text:'📊 '+q};
+  if(typeof replyingTo!=='undefined' && replyingTo){ p.replyTo=replyingTo.key; p.replySnap={name:replyingTo.name,text:replyingTo.text,type:replyingTo.type}; }
+  commitMessage(currentChatId,key,p,'📊 Опрос: '+q);
+  closePollCreator();
+  if(typeof cancelReply==='function') try{ cancelReply(); }catch(e){}
+}
+function pollVotesCount(poll){
+  const votes=(poll&&poll.votes)||{}; let total=0; const per=(poll.options||[]).map(()=>0);
+  Object.values(votes).forEach(v=>{
+    const arr = Array.isArray(v) ? v : [v];
+    const uniq=[...new Set(arr.map(x=>parseInt(x,10)).filter(x=>!isNaN(x)))];
+    uniq.forEach(i=>{ if(per[i]!=null){ per[i]++; total++; } });
+  });
+  return {total, per};
+}
+function pollHtml(m, key){
+  const poll=m.poll||{}; const opts=poll.options||[];
+  const vc=pollVotesCount(poll);
+  const myRaw = (poll.votes||{})[(currentUser&&currentUser.uid)||''];
+  const myArr = Array.isArray(myRaw) ? myRaw.map(x=>parseInt(x,10)) : (myRaw==null?[]:[parseInt(myRaw,10)]);
+  const mySet = new Set(myArr.filter(x=>!isNaN(x)));
+  let h='<div class="poll-box" data-poll-msg="'+escA(key)+'">';
+  h+='<div class="poll-q">📊 '+esc(poll.question||'Опрос')+'</div>';
+  opts.forEach((o,i)=>{
+    const c=vc.per[i]||0;
+    const pct = vc.total? Math.round(c*100/vc.total) : 0;
+    const voted = mySet.has(i);
+    h+='<div class="poll-opt '+(voted?'voted':'')+'" onclick="event.stopPropagation();votePoll(\''+escA(currentChatId||'')+'\',\''+escA(key)+'\','+i+')">';
+    h+='<div class="poll-bar" style="width:'+pct+'%"></div>';
+    h+='<div class="poll-opt-inner"><div class="poll-opt-text">'+(voted?'✅ ':'')+esc(o.text||('Вариант '+(i+1)))+'</div><div class="poll-opt-meta">'+c+' · '+pct+'%</div></div>';
+    h+='</div>';
+  });
+  h+='<div class="poll-foot">'+(poll.multi?'Можно выбрать несколько':'Один вариант')+' · голосов: '+vc.total+'</div>';
+  h+='</div>';
+  return h;
+}
+function votePoll(chatId, msgKey, optIdx){
+  if(!currentUser||!chatId||!msgKey) return;
+  const ref=db.ref('messages/'+chatId+'/'+msgKey+'/poll');
+  ref.once('value').then(snap=>{
+    const poll=snap.val(); if(!poll) return;
+    const uid=currentUser.uid;
+    const votes=Object.assign({}, poll.votes||{});
+    const cur=votes[uid];
+    if(poll.multi){
+      let arr = Array.isArray(cur)?cur.slice(): (cur==null?[]:[cur]);
+      arr = arr.map(x=>parseInt(x,10)).filter(x=>!isNaN(x));
+      if(arr.includes(optIdx)) arr = arr.filter(x=>x!==optIdx); else arr.push(optIdx);
+      votes[uid]=arr;
+    } else {
+      const curN = Array.isArray(cur)?parseInt(cur[0],10):parseInt(cur,10);
+      if(curN===optIdx) delete votes[uid]; else votes[uid]=optIdx;
+    }
+    return ref.child('votes').set(votes);
+  }).catch(()=>toast('Не удалось проголосовать'));
+}
+
 function sendMessage(){
   const input=document.getElementById('msgInput'),text=input.value.trim();
   if(!currentChatId)return;
@@ -5656,6 +5759,7 @@ function bubbleInner(m,key,senderInside){
   if(m.type==='call'){const ic=m.callType==='video'?'📹':'';
     const st=m.callStatus==='missed'?'пропущенный звонок':m.callStatus==='declined'?'звонок отклонён':('звонок · '+fmtDur(m.dur||0));
     return '<div class="dl-name">'+ic+' '+st+'</div>';}
+  if(m.type==='poll'){ c+=pollHtml(m,key); if(m.text&&m.text.indexOf('📊')!==0)c+='<div style="margin-top:6px">'+mentionHtml(m.text)+'</div>'; return c; }
   // Пересланное: откуда (группа/ЛС), автор исходного сообщения и кем переслано
   if(m.fwdFrom)c+='<div class="fwd-head">'+fwdSrcHtml(m)+'<div class="fwd-author">'+avatarHtml(ALL_USERS[m.fwdFrom],'',m.fwdFromName)+
     '<span class="fwd-from" style="color:'+colorOf(ALL_USERS[m.fwdFrom])+'">'+esc(m.fwdFromName||nameOf(m.fwdFrom,'кто-то'))+'</span></div>'+
@@ -6080,6 +6184,10 @@ function doFwd(cid){
   }
   if(m.text)p.text=m.text;
   if(m.data)p.data=m.data;
+  if(m.type==='poll' && m.poll){
+    try{ p.poll = JSON.parse(JSON.stringify(m.poll)); p.poll.votes = {}; }catch(e){ p.poll = {question:(m.poll.question||'Опрос'), multi:!!m.poll.multi, options:(m.poll.options||[]), votes:{}}; }
+    if(!p.text) p.text='📊 '+(p.poll.question||'Опрос');
+  }
   if(m.name)p.name=m.name;
   if(m.size!==undefined&&m.size!==null)p.size=m.size;
   if(m.mime)p.mime=m.mime;
@@ -7849,7 +7957,7 @@ function renderProposals(){
       '<div style="font-size:12px;color:var(--text2);margin:4px 0">'+esc(p.text||'')+'</div>'+mh+
       // Автор предложения кликабельный, аватар тоже
 '<div style="font-size:11px;color:var(--text3)">от '+
-      (p.authorUid&&ALL_USERS[p.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+p.authorUid+'\')">'+esc(p.author||'')+'</span>':esc(p.author||''))+' · '+fmtFull(p.ts)+'</div>'+
+      (p.authorUid&&ALL_USERS[p.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+p.authorUid+'\')">'+esc(p.author||'')+'</span>':esc(p.author||''))+' · '+fmtNewsTime(p.ts)+'</div>'+
       '</div></div>'+
       '<div class="row" style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="approveProposal(\''+id+'\')">✅ Одобрить</button><button class="btn btn-outline btn-sm" style="border-color:var(--red);color:var(--red)" onclick="declineProposal(\''+id+'\')">❌ Отклонить</button></div>';
     b.appendChild(d);
@@ -8171,7 +8279,7 @@ function commentsHtml(base,n){
     return '<div class="comment-item"><div style="display:flex;gap:6px;align-items:center;margin-bottom:2px"><span class="clickable" onclick="openUserProfile(\''+c.authorUid+'\')">'+avatarHtml(ALL_USERS[c.authorUid],'sq')+'</span><span style="color:'+(c.color||'#fff')+';font-weight:600;cursor:pointer" onclick="openUserProfile(\''+c.authorUid+'\')">'+esc(c.author)+'</span></div> '+rep+esc(c.text||'')+
       (md?'<div style="margin-top:4px">'+md+'</div>':'')+
       rockHtml+
-      '<div class="news-date">'+fmtFull(c.ts)+
+      '<div class="news-date">'+fmtNewsTime(c.ts)+
       '<button class="c-reply-btn" onclick="setReply(\''+n._id+'\',\''+c.authorUid+'\',\''+esc(c.author).replace(/'/g,'')+'\')">↩ ответить</button></div></div>';
   }).join('');
 }
@@ -8225,7 +8333,7 @@ function renderNews(){
     const vC=n.views?Object.keys(n.views).length:0;
     const ctl=currentUser.isAdmin?('<button class="news-ctl" onclick="editNews(\''+id+'\')">✏️</button><button class="news-ctl" onclick="deleteNews(\''+id+'\')">🗑</button>'):'';
     const isWeatherPost = !!(n.weatherSlot || n.weatherDate || n.authorUid==='weatherbot');
-    const weatherHead = isWeatherPost ? '<div class="news-weather-head" style="font-size:12px;color:var(--text2);margin:0 0 6px;font-weight:600">🕒 '+fmtFull(n.ts)+'</div>' : '';
+    const weatherHead = isWeatherPost ? '<div class="news-weather-head" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;margin:0 0 8px;border-radius:12px;background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(251,191,36,.14));border:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--text);font-weight:700;letter-spacing:.2px">🌤️ Погода · <span style="font-variant-numeric:tabular-nums">'+fmtClockEmoji(n.ts)+'</span><span style="color:var(--text2);font-weight:600">('+fmtNewsTime(n.ts)+')</span></div>' : '';
     const titleHtml=n.title?'<div class="news-title">'+esc(n.title)+'</div>':'';
     const rockHtml=rockButtonHtml(n.reactions||{},n.reactions&&n.reactions[currentUser.uid],'news',id,'news');
     div.innerHTML='<div class="news-views">👁 '+vC+'</div>'+
@@ -8236,7 +8344,7 @@ function renderNews(){
       rockHtml+
       // Автор новости кликабельный — открывает его страницу.
 // Раньше имя было просто текстом, перейти к человеку было некуда.
-'<div class="news-date">'+(n.authorUid&&ALL_USERS[n.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+n.authorUid+'\')">'+esc(n.author||'Админ')+'</span>':esc(n.author||'Админ'))+' • '+fmtFull(n.ts)+ctl+'</div>'+
+'<div class="news-date">'+(n.authorUid&&ALL_USERS[n.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+n.authorUid+'\')">'+esc(n.author||'Админ')+'</span>':esc(n.author||'Админ'))+' • '+fmtNewsTime(n.ts)+ctl+'</div>'+
       '<div class="news-actions">'+shareBtnHtml('news',id)+commentsBlock('news',n,id)+'</div>'+cmtSlot(id)+
       '<div>'+whoListHtml('news',id,n)+'</div>';
     list.appendChild(div);});
@@ -8320,7 +8428,7 @@ function postHtml(p,id,canDelete){
   return '<div class="comment-item" data-pid="'+id+'">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="clickable" onclick="openUserProfile(\''+p.authorUid+'\')">'+avatarHtml(ALL_USERS[p.authorUid],'sq')+'</span>'+
       '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;cursor:pointer" onclick="openUserProfile(\''+p.authorUid+'\')">'+nameSpan(p.authorUid)+totemChip(ALL_USERS[p.authorUid])+'</div>'+
-      '<div style="color:var(--text3);font-size:11px">'+fmtFull(p.ts)+' · 👁 '+vC+'</div></div></div>'+
+      '<div style="color:var(--text3);font-size:11px">'+fmtNewsTime(p.ts)+' · 👁 '+vC+'</div></div></div>'+
     (mh?'<div style="margin-bottom:4px">'+mh+'</div>':'')+
     (p.text?'<div style="white-space:pre-wrap">'+esc(p.text)+'</div>':'')+
     rockHtml+
@@ -10239,6 +10347,23 @@ boot();
       <button class="btn btn-outline" onclick="closeCoverEditor()">Отмена</button>
       <button class="btn btn-primary" onclick="ceSave()">ОК, сохранить</button>
     </div>
+  </div>
+</div>
+
+
+<div id="pollCreatorModal" class="modal-bg" style="display:none;z-index:9000" onclick="if(event.target===this)closePollCreator()">
+  <div class="modal-box" style="max-width:520px;width:calc(100% - 24px)">
+    <div class="modal-title">📊 Создать опрос</div>
+    <div class="input-group"><label>Тема опроса</label><input type="text" id="pollQuestion" placeholder="Например: Куда идём?" maxlength="200"></div>
+    <div class="input-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pollMulti" style="width:auto"> Несколько вариантов ответа</label>
+    </div>
+    <div id="pollOptionsWrap"></div>
+    <div class="row" style="gap:8px;margin-top:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="addPollOption()">+ Вариант</button>
+      <button class="btn btn-primary" style="flex:1" onclick="createPoll()">Создать</button>
+    </div>
+    <button class="btn btn-outline" style="margin-top:8px" onclick="closePollCreator()">Отмена</button>
   </div>
 </div>
 
