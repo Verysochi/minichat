@@ -259,6 +259,13 @@
           ".validate": "newData.val() === null || (newData.hasChild('from') && newData.child('from').val() === auth.uid && newData.child('ts').isNumber() && newData.child('type').isString())"
         }
       }
+    },
+    "pets": {
+      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      "$ownerUid": {
+        ".write": "auth != null && root.child('approvals').child(auth.uid).exists() && (auth.uid === $ownerUid || root.child('friends').child($ownerUid).child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['lastUpdated']) || newData.val() === null"
+      }
     }
   }
 }

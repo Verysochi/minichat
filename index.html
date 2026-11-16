@@ -1225,6 +1225,18 @@ img,video,canvas{max-width:100%}
   #profileScreen .avatar-ts{opacity:calc(1 - var(--pcol,0));font-size:11px}
 }
 
+
+/* Pet system */
+.pet-panel{margin-top:8px;padding:10px;border:1px solid var(--surface3);border-radius:12px;background:var(--surface2);width:100%;max-width:420px}
+.pet-mood-cloud{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--surface3);margin-bottom:8px;font-size:13px;position:relative}
+.pet-mood-cloud:after{content:"";position:absolute;left:18px;bottom:-6px;width:10px;height:10px;background:var(--surface);border-left:1px solid var(--surface3);border-bottom:1px solid var(--surface3);transform:rotate(-45deg)}
+.pet-hp{height:10px;border-radius:999px;background:var(--surface3);overflow:hidden;margin:6px 0 8px}
+.pet-hp-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#ff7675,#fdcb6e,#00b894);transition:width .4s ease}
+.pet-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12px;color:var(--text2);margin-bottom:8px}
+.pet-actions{display:flex;flex-wrap:wrap;gap:6px}
+.pet-actions .btn{padding:6px 10px;font-size:12px;width:auto}
+.pet-ask{font-size:12px;color:var(--warn,#fdcb6e);margin-top:6px}
+
 </style>
 </head>
 <body class="login-active booting">
@@ -1968,7 +1980,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='16.11.2026 23:38';
+const BUILD='16.11.2026 23:39';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8541,13 +8553,131 @@ function petTotem(targetUid){
     }catch(e){ notifyUser(targetUid,'pet','🐾 Погладили питомца', ev.fromName+' погладил(а) '+ev.petName, {from:currentUser.uid, kind:'pet'}); }
   }
 }
+// ===== Живой питомец =====
+const PET_DECAY = { hunger: 6, fun: 5, toilet: 4, affection: 3 }; // в час
+function petDefaultState(){
+  return { hunger:70, fun:70, toilet:70, affection:70, happiness:70, lastUpdated:Date.now(), lastFed:Date.now(), lastPlayed:Date.now(), lastToilet:Date.now(), lastWalked:Date.now(), lastPetted:Date.now() };
+}
+function petClamp(v){ return Math.max(0, Math.min(100, Math.round(v))); }
+function petCompute(state){
+  const s0 = Object.assign(petDefaultState(), state||{});
+  const now = Date.now();
+  const hours = Math.max(0, (now - (s0.lastUpdated||now)) / 3600000);
+  const hunger = petClamp((s0.hunger!=null?s0.hunger:70) - hours*PET_DECAY.hunger);
+  const fun = petClamp((s0.fun!=null?s0.fun:70) - hours*PET_DECAY.fun);
+  const toilet = petClamp((s0.toilet!=null?s0.toilet:70) - hours*PET_DECAY.toilet);
+  const affection = petClamp((s0.affection!=null?s0.affection:70) - hours*PET_DECAY.affection);
+  const happiness = petClamp((hunger + fun + toilet + affection) / 4);
+  return Object.assign({}, s0, { hunger, fun, toilet, affection, happiness, lastUpdated: now });
+}
+function petMood(p){
+  const h = p.happiness!=null?p.happiness:70;
+  if(p.hunger < 25) return {emoji:'🍖', text:'Хочу кушать!'};
+  if(p.toilet < 25) return {emoji:'🚽', text:'Хочу в туалет!'};
+  if(p.fun < 25) return {emoji:'🎾', text:'Хочу играть!'};
+  if(p.affection < 25) return {emoji:'🤗', text:'Погладь меня!'};
+  if(h >= 80) return {emoji:'😄', text:'Счастлив!'};
+  if(h >= 60) return {emoji:'🙂', text:'Всё хорошо'};
+  if(h >= 40) return {emoji:'😐', text:'Так себе'};
+  if(h >= 20) return {emoji:'😟', text:'Мне грустно'};
+  return {emoji:'😭', text:'Мне очень плохо'};
+}
+function petNeedsText(p){
+  const needs=[];
+  if(p.hunger<35) needs.push('покормить');
+  if(p.fun<35) needs.push('поиграть');
+  if(p.toilet<35) needs.push('в туалет');
+  if(p.affection<35) needs.push('погладить');
+  return needs.length?('Просится: '+needs.join(', ')):'';
+}
+const _petStateCache = {};
+const _petRefs = {};
+function loadPetState(ownerUid, cb){
+  if(!ownerUid) return;
+  if(_petRefs[ownerUid]) return; // already listening
+  const ref = db.ref('pets/'+ownerUid);
+  _petRefs[ownerUid]=ref;
+  ref.on('value', snap=>{
+    const raw = snap.val();
+    const st = petCompute(raw || petDefaultState());
+    _petStateCache[ownerUid]=st;
+    try{ cb && cb(st); }catch(e){}
+    try{ refreshPetRows(ownerUid); }catch(e){}
+  });
+}
+function refreshPetRows(ownerUid){
+  try{ renderPetRow(ownerUid, 'profilePetRow'); }catch(e){}
+  try{ renderPetRow(ownerUid, 'vpPetRow'); }catch(e){}
+}
+async function petAction(ownerUid, action){
+  if(!currentUser||!ownerUid) return;
+  const isOwner = currentUser.uid===ownerUid;
+  const isFriend = !!(lastFriends && lastFriends[ownerUid]);
+  if(!isOwner && !isFriend){ toast('Только друзья могут ухаживать за питомцем'); return; }
+  if(!isOwner && action!=='walk' && action!=='pet'){ toast('Друзья могут гладить и выгуливать питомца'); return; }
+  const ref = db.ref('pets/'+ownerUid);
+  try{
+    const snap = await ref.once('value');
+    const cur = petCompute(snap.val() || petDefaultState());
+    const now = Date.now();
+    if(action==='feed'){ cur.hunger = petClamp(cur.hunger + 35); cur.lastFed = now; }
+    else if(action==='play'){ cur.fun = petClamp(cur.fun + 35); cur.lastPlayed = now; }
+    else if(action==='toilet'){ cur.toilet = petClamp(cur.toilet + 40); cur.lastToilet = now; }
+    else if(action==='walk'){ cur.fun = petClamp(cur.fun + 25); cur.toilet = petClamp(cur.toilet + 20); cur.happiness = petClamp(cur.happiness + 10); cur.lastWalked = now; }
+    else if(action==='pet'){ cur.affection = petClamp(cur.affection + 20); cur.lastPetted = now; }
+    cur.happiness = petClamp((cur.hunger + cur.fun + cur.toilet + cur.affection)/4);
+    cur.lastUpdated = now;
+    await ref.set(cur);
+    const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)'};
+    toast(labels[action]||'Готово', true);
+    try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, (labels[action]||'🐾').slice(0,2)); }catch(e){}
+    // событие для владельца/наблюдателей
+    if(ownerUid!==currentUser.uid){
+      const ev={type:'petcare', action, from:currentUser.uid, fromName:(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то'), ts:now};
+      db.ref('profileEvents/'+ownerUid).push(ev).catch(()=>{});
+    }
+  }catch(e){ toast('Не удалось (проверь права/сеть)'); }
+}
 function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
   const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
   if(!(a.totem||a.totemName)){ el.innerHTML=''; return; }
-  const petName=esc(a.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===a.totem)||{}).name||'питомец');
-  el.innerHTML='<button class="btn btn-sm btn-outline" style="width:auto;padding:6px 10px" onclick="petTotem(\''+escA(targetUid)+'\')">🐾 Погладить</button>'
-    +'<span style="font-size:13px;color:'+_themeColorOf(i)+';font-weight:600">🐾 '+petName+'</span>';
+  const petNameRaw=(a.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===a.totem)||{}).name||'питомец');
+  const petName=esc(petNameRaw);
+  const st = petCompute(_petStateCache[targetUid] || petDefaultState());
+  const mood = petMood(st);
+  const isOwner = currentUser && currentUser.uid===targetUid;
+  const isFriend = !!(currentUser && lastFriends && lastFriends[targetUid]);
+  const canCare = isOwner || isFriend;
+  loadPetState(targetUid);
+  const ask = petNeedsText(st);
+  const actions = isOwner
+    ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'feed\')">🍖 Кормить</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'play\')">🎾 Играть</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'toilet\')">🚽 Туалет</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
+    : (isFriend
+      ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
+        +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
+      : '');
+  el.innerHTML = '<div class="pet-panel">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+    +   '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+'">🐾 '+petName+'</div>'
+    +   '<div class="pet-mood-cloud"><span style="font-size:16px">'+mood.emoji+'</span><span>'+esc(mood.text)+'</span></div>'
+    + '</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-bottom:2px">Счастье (HP): <b style="color:var(--text)">'+st.happiness+'</b>/100</div>'
+    + '<div class="pet-hp"><div class="pet-hp-fill" style="width:'+st.happiness+'%"></div></div>'
+    + '<div class="pet-stats">'
+    +   '<div>🍖 Сытость: '+st.hunger+'</div>'
+    +   '<div>🎾 Игра: '+st.fun+'</div>'
+    +   '<div>🚽 Туалет: '+st.toilet+'</div>'
+    +   '<div>🤗 Ласка: '+st.affection+'</div>'
+    + '</div>'
+    + (actions?('<div class="pet-actions">'+actions+'</div>'):'')
+    + (ask?('<div class="pet-ask">💬 '+esc(ask)+'</div>'):'')
+    + (!canCare?'<div class="pet-ask" style="color:var(--text3)">Добавьте в друзья, чтобы выгуливать питомца</div>':'')
+    + '</div>';
 }
 function _enterProfileWatch(targetUid, isOwnerOpen){
   if(!currentUser||!targetUid) return;
