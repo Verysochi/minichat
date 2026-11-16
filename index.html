@@ -952,7 +952,8 @@ img,video,canvas{max-width:100%}
   .header-btn{width:40px;height:40px;font-size:18px}
   #viewProfileScreen .profile-wrap,#profileEditScreen .profile-wrap,#myColumnScreen .scroll{display:flex;flex-direction:column;align-items:center}
   /* базовая читаемая ширина (кроме чатов в split и переделанных экранов) */
-  #viewProfileScreen .profile-card,#profileEditScreen .profile-card,.cover-slot,#myColumnList,#myColumnScreen .card{width:100%;max-width:var(--app-w)}
+  #viewProfileScreen .profile-card,#profileEditScreen .profile-card,.cover-slot{width:100%;max-width:var(--app-w)}
+  #myColumnList,#myColumnScreen .card{width:100%;max-width:860px}
   /* Профиль — двухколоночный десктоп */
   #profileScreen .profile-wrap{
     display:grid;
@@ -1038,7 +1039,7 @@ img,video,canvas{max-width:100%}
   #profileScreen .profile-card{width:100%;max-width:none;margin-left:0;margin-right:0;box-sizing:border-box}
   #profileScreen .cover-slot{max-width:none}
   /* Композер "Моя колонка" — по ширине как соседние контейнеры */
-  #myColComposer{max-width:var(--app-w);width:100%;margin:0 auto 14px;box-sizing:border-box}
+  #myColComposer{max-width:860px;width:100%;margin:0 auto 14px;box-sizing:border-box}
   #myColComposer .card{margin-left:0;margin-right:0}
   /* Новости — адаптивный десктоп */
   #newsScreen .scroll{display:block;padding:16px 20px 24px;max-width:1400px;margin:0 auto;width:100%;box-sizing:border-box}
@@ -1046,7 +1047,7 @@ img,video,canvas{max-width:100%}
   #newsList{display:flex;flex-direction:column;align-items:stretch;gap:14px;max-width:860px;width:100%;margin:0 auto;padding-top:6px !important;box-sizing:border-box;contain:paint;position:relative}
   #newsList .news-card{margin:0;display:block;width:100%;box-sizing:border-box}
   /* список «Колонки друзей» — в одну линию с остальными контейнерами */
-  #myColFriendsList{max-width:var(--app-w);width:100%;margin:0 auto;box-sizing:border-box}
+  #myColFriendsList{max-width:860px;width:100%;margin:0 auto;box-sizing:border-box}
   /* у .card есть боковые поля 12px, а здесь задана ширина 100% — без этой правки
      карточка колонки вылезала на 12px вправо за свою колонку (кривой вид) */
   #myColumnScreen .card{margin-left:0;margin-right:0}
@@ -1980,7 +1981,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='16.11.2026 23:39';
+const BUILD='16.11.2026 23:42';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
