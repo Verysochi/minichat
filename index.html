@@ -1980,7 +1980,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='16.11.2026 23:43';
+const BUILD='16.11.2026 23:46';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7323,8 +7323,7 @@ function openUserProfile(uid){
   document.getElementById('vpCoverBand').innerHTML=coverHtmlFor(fr?i:null,'cover-band');
   document.getElementById('vpAvatarWrap').innerHTML=profilePhotoHtml(i,i.name);
   document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
-  const _vpPet=(i&&i.anketa&&(i.anketa.totem||i.anketa.totemName))?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;margin-left:6px;font-size:12px;vertical-align:middle" onclick="petTotem(\''+escA(uid)+'\')" title="Погладить питомца">🐾</button>':'';
-  document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+_vpPet+rockBadgeHtml(uid);
+  document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+rockBadgeHtml(uid);
   document.getElementById('vpLogin').textContent=currentUser.isAdmin?('логин: '+(i.login||'')):'';
   document.getElementById('vpStatus').textContent=fr?(i.status||'без статуса'):'🔒 информация для друзей';
   const _vth=document.getElementById('vpThoughts'); if(_vth) _vth.innerHTML=(fr&&i.thoughts)?('☁️ '+esc(i.thoughts)):'';
@@ -8509,6 +8508,45 @@ function toggleAvatarRock(targetUid){
     .then(()=>{ try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.33,'🤘'); }catch(e){} })
     .catch(()=>toast('Не удалось (проверь права)'));
 }
+function _petStrokeAnim(petName, count, color){
+  try{
+    window._petStrokeToast = window._petStrokeToast || {el:null, timer:null, countEl:null};
+    const t = window._petStrokeToast;
+    if(t.timer){ clearTimeout(t.timer); t.timer=null; }
+    if(!t.el || !document.body.contains(t.el)){
+      const d=document.createElement('div');
+      d.style.cssText='position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.85);z-index:1200;pointer-events:none;'
+        +'padding:10px 14px;border-radius:16px;background:rgba(15,17,22,.72);backdrop-filter:blur(6px);'
+        +'color:#fff;font-weight:800;font-size:16px;border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;transition:opacity .18s, transform .25s;text-align:center;max-width:80vw;display:flex;align-items:center;gap:8px;white-space:nowrap';
+      const label=document.createElement('span');
+      label.textContent='🐾 Ты погладил(а): '+petName;
+      const num=document.createElement('span');
+      num.style.cssText='display:inline-block;min-width:1.5em;text-align:left;transition:transform .15s ease;color:'+(color||'#fff');
+      num.textContent='×'+count;
+      d.appendChild(label); d.appendChild(num);
+      document.body.appendChild(d);
+      t.el=d; t.countEl=num; t.labelEl=label;
+      requestAnimationFrame(()=>{ d.style.opacity='1'; d.style.transform='translate(-50%,-72%) scale(1)'; });
+    } else {
+      t.labelEl.textContent='🐾 Ты погладил(а): '+petName;
+      t.countEl.textContent='×'+count;
+      t.countEl.style.color=(color||'#fff');
+    }
+    // animate only the number
+    try{
+      t.countEl.style.transform='scale(1.45)';
+      requestAnimationFrame(()=>{ setTimeout(()=>{ if(t.countEl) t.countEl.style.transform='scale(1)'; }, 90); });
+    }catch(e){}
+    t.timer=setTimeout(()=>{
+      try{
+        if(t.el){ t.el.style.opacity='0'; t.el.style.transform='translate(-50%,-112%) scale(.96)'; }
+        const el=t.el; t.timer=null;
+        setTimeout(()=>{ try{ if(el && el.parentNode) el.remove(); }catch(e){} if(t.el===el){t.el=null;t.countEl=null;t.labelEl=null;} }, 350);
+      }catch(e){}
+    }, 1500);
+  }catch(e){}
+}
+
 function petTotem(targetUid){
   if(!currentUser||!targetUid) return;
   const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
@@ -8523,7 +8561,7 @@ function petTotem(targetUid){
   if(st.timer) clearTimeout(st.timer);
   st.timer=setTimeout(()=>{ try{ if(window._petStroke && window._petStroke[k] && Date.now()-window._petStroke[k].t>=3900) window._petStroke[k].n=0; }catch(e){} }, 4200);
   window._petStroke[k]=st;
-  _petAnim('🐾 Ты погладил(а): '+petName+'  ×'+st.n, _themeColorOf(i));
+  _petStrokeAnim(petName, st.n, _themeColorOf(i));
   const ev={type:'pet', from:currentUser.uid, fromName:(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то'), petName:String(petName).slice(0,60), ts:Date.now()};
   db.ref('profileEvents/'+targetUid).push(ev).catch(()=>{});
   if(targetUid!==currentUser.uid && typeof notifyUser==='function'){
@@ -8642,7 +8680,9 @@ function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
   const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
   if(!(a.totem||a.totemName)){ el.innerHTML=''; return; }
-  const petNameRaw=(a.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===a.totem)||{}).name||'питомец');
+  const petObj = (typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===a.totem) || {};
+  const petEmoji = petObj.emoji || '🐾';
+  const petNameRaw=(a.totemName||petObj.name||'питомец');
   const petName=esc(petNameRaw);
   const st = petCompute(_petStateCache[targetUid] || petDefaultState());
   const mood = petMood(st);
@@ -8663,10 +8703,10 @@ function renderPetRow(targetUid, elId){
       : '');
   el.innerHTML = '<div class="pet-panel">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-    +   '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+'">🐾 '+petName+'</div>'
+    +   '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px"><span style="font-size:22px;line-height:1">'+petEmoji+'</span><span>'+petName+'</span></div>'
     +   '<div class="pet-mood-cloud"><span style="font-size:16px">'+mood.emoji+'</span><span>'+esc(mood.text)+'</span></div>'
     + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);margin-bottom:2px">Счастье (HP): <b style="color:var(--text)">'+st.happiness+'</b>/100</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin:4px 0 2px;display:flex;align-items:center;gap:6px"><span style="font-size:18px">'+petEmoji+'</span><span>Счастье (HP): <b style="color:var(--text)">'+st.happiness+'</b>/100</span></div>'
     + '<div class="pet-hp"><div class="pet-hp-fill" style="width:'+st.happiness+'%"></div></div>'
     + '<div class="pet-stats">'
     +   '<div>🍖 Сытость: '+st.hunger+'</div>'
@@ -8740,8 +8780,7 @@ function renderProfile(){
     if(img){ img.style.cursor='pointer'; img.title='Нажми, чтобы редактировать стикеры/текст'; img.onclick=(e)=>{ e.stopPropagation(); editCurrentAvatar(); }; }
   }catch(e){}
   document.getElementById('profileAvatarTs').textContent=i.avatarTs?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
-  const _myPet=(i&&i.anketa&&(i.anketa.totem||i.anketa.totemName))?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;margin-left:6px;font-size:12px;vertical-align:middle" onclick="petTotem(\''+escA(currentUser.uid)+'\')" title="Погладить питомца">🐾</button>':'';
-  document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+_myPet;
+  document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
   const _pth=document.getElementById('profileThoughts'); if(_pth) _pth.innerHTML=i.thoughts?('☁️ '+esc(i.thoughts)):'';
