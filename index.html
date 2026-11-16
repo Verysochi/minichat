@@ -1043,7 +1043,7 @@ img,video,canvas{max-width:100%}
   /* Новости — адаптивный десктоп */
   #newsScreen .scroll{display:block;padding:16px 20px 24px;max-width:1400px;margin:0 auto;width:100%;box-sizing:border-box}
   #newsComposer,#proposeComposer{max-width:860px;margin:0 auto 14px;width:100%}
-  #newsList{display:flex;flex-direction:column;align-items:stretch;gap:14px;max-width:860px;width:100%;margin:0 auto;padding-top:6px !important;box-sizing:border-box}
+  #newsList{display:flex;flex-direction:column;align-items:stretch;gap:14px;max-width:860px;width:100%;margin:0 auto;padding-top:6px !important;box-sizing:border-box;contain:paint;position:relative}
   #newsList .news-card{margin:0;display:block;width:100%;box-sizing:border-box}
   /* список «Колонки друзей» — в одну линию с остальными контейнерами */
   #myColFriendsList{max-width:var(--app-w);width:100%;margin:0 auto;box-sizing:border-box}
@@ -1968,7 +1968,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='16.11.2026 23:36';
+const BUILD='16.11.2026 23:38';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -6746,7 +6746,7 @@ async function setupCall(id,peer,type,role){
     if(/^udp$/i.test(c.protocol||''))iceStats.udp++;
     // toJSON() НЕ содержит типа и протокола — без них в базе нечего было
     // прочитать, и причина вечного «Подключение» оставалась загадкой.
-    db.ref('calls/'+id+'/ice/'+role).push({c:c.toJSON(),t:c.type,p:c.protocol});
+    db.ref('calls/'+id+'/ice/'+role).push({c:(c.toJSON?c.toJSON():{candidate:c.candidate,sdpMid:c.sdpMid,sdpMLineIndex:c.sdpMLineIndex,usernameFragment:c.usernameFragment}),t:c.type,p:c.protocol});
   };
   pc.ontrack=e=>{const rv=document.getElementById('remoteVideo');if(rv.srcObject!==e.streams[0])rv.srcObject=e.streams[0];};
   pc.onconnectionstatechange=()=>{if(pc&&(pc.connectionState==='failed'||pc.connectionState==='disconnected')){toast('Связь потеряна');hangup(true);}};
@@ -6762,7 +6762,7 @@ async function setupCall(id,peer,type,role){
     if(c.status==='active'&&!callState.activeTs){callState.activeTs=Date.now();clearCallTimeout();
       document.getElementById('callType').textContent=(callState.type==='video'?'📹 Видео':'📞 Аудио')+' · в эфире';}
     try{
-      if(role==='callee'&&c.offer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.offer);const ans=await pc.createAnswer();await pc.setLocalDescription(ans);db.ref('calls/'+id+'/answer').set(ans.toJSON());db.ref('calls/'+id+'/status').set('active');}
+      if(role==='callee'&&c.offer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.offer);const ans=await pc.createAnswer();await pc.setLocalDescription(ans);db.ref('calls/'+id+'/answer').set(ans.toJSON?ans.toJSON():{type:ans.type,sdp:ans.sdp});db.ref('calls/'+id+'/status').set('active');}
       if(role==='caller'&&c.answer&&!pc.currentRemoteDescription){await pc.setRemoteDescription(c.answer);db.ref('calls/'+id+'/status').set('active');}
       // Описание удалённой стороны появилось — доедаем отложенные кандидаты
       if(pc.remoteDescription)await flushIceQueue();
@@ -6781,7 +6781,7 @@ async function setupCall(id,peer,type,role){
       await flushIceQueue();
     }catch(e){console.warn('sdp '+role,e);}   // раньше ошибка просто исчезала — звонок «молча» не соединялся
   });
-  if(role==='caller'){const offer=await pc.createOffer();await pc.setLocalDescription(offer);db.ref('calls/'+id+'/offer').set(offer.toJSON());}
+  if(role==='caller'){const offer=await pc.createOffer();await pc.setLocalDescription(offer);db.ref('calls/'+id+'/offer').set(offer.toJSON?offer.toJSON():{type:offer.type,sdp:offer.sdp});}
 }
 // Добавление отложенных ICE-кандидатов. Вызывается после setRemoteDescription.
 async function flushIceQueue(){
