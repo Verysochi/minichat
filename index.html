@@ -1980,7 +1980,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='16.11.2026 23:46';
+const BUILD='16.11.2026 23:48';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7322,7 +7322,7 @@ function openUserProfile(uid){
   document.getElementById('vpTitle').textContent=displayNameOf(i);
   document.getElementById('vpCoverBand').innerHTML=coverHtmlFor(fr?i:null,'cover-band');
   document.getElementById('vpAvatarWrap').innerHTML=profilePhotoHtml(i,i.name);
-  document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
+  document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('Обновлено: '+fmtFull(i.avatarTs)):'';
   document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+rockBadgeHtml(uid);
   document.getElementById('vpLogin').textContent=currentUser.isAdmin?('логин: '+(i.login||'')):'';
   document.getElementById('vpStatus').textContent=fr?(i.status||'без статуса'):'🔒 информация для друзей';
@@ -8779,7 +8779,7 @@ function renderProfile(){
     const img=aw && aw.querySelector('img.profile-photo, .profile-photo');
     if(img){ img.style.cursor='pointer'; img.title='Нажми, чтобы редактировать стикеры/текст'; img.onclick=(e)=>{ e.stopPropagation(); editCurrentAvatar(); }; }
   }catch(e){}
-  document.getElementById('profileAvatarTs').textContent=i.avatarTs?('📷 Обновлено: '+fmtFull(i.avatarTs)):'';
+  document.getElementById('profileAvatarTs').textContent=i.avatarTs?('Обновлено: '+fmtFull(i.avatarTs)):'';
   document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
