@@ -8515,7 +8515,30 @@ function petTotem(targetUid){
   const ev={type:'pet', from:currentUser.uid, fromName:(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то'), petName:String(petName).slice(0,60), ts:Date.now()};
   db.ref('profileEvents/'+targetUid).push(ev).catch(()=>{});
   if(targetUid!==currentUser.uid && typeof notifyUser==='function'){
-    notifyUser(targetUid,'pet','🐾 Погладили питомца', ev.fromName+' погладил(а) '+ev.petName, {from:currentUser.uid, kind:'pet'});
+    try{
+      window._petNotify=window._petNotify||{};
+      const nk=String(currentUser.uid)+'_'+String(targetUid);
+      const lsKey='mc_petnotif_'+nk;
+      const lastSent=parseInt(localStorage.getItem(lsKey)||'0',10)||0;
+      const nowN=Date.now();
+      const pn=window._petNotify[nk]||{pending:0,timer:null,lastSent:lastSent};
+      pn.pending=(pn.pending||0)+1;
+      pn.lastSent=Math.max(pn.lastSent||0,lastSent);
+      if(nowN - pn.lastSent >= 30*60*1000){
+        if(pn.timer) clearTimeout(pn.timer);
+        pn.timer=setTimeout(()=>{
+          try{
+            const cur=window._petNotify&&window._petNotify[nk];
+            if(!cur || !cur.pending) return;
+            if(Date.now() - (cur.lastSent||0) < 30*60*1000) return;
+            const cnt=cur.pending; cur.pending=0; cur.lastSent=Date.now(); cur.timer=null;
+            try{ localStorage.setItem(lsKey, String(cur.lastSent)); }catch(e){}
+            notifyUser(targetUid,'pet','🐾 Погладили питомца', ev.fromName+' погладил(а) '+ev.petName+' '+cnt+' раз', {from:currentUser.uid, kind:'pet', petCount:cnt});
+          }catch(e){}
+        }, 4000);
+      }
+      window._petNotify[nk]=pn;
+    }catch(e){ notifyUser(targetUid,'pet','🐾 Погладили питомца', ev.fromName+' погладил(а) '+ev.petName, {from:currentUser.uid, kind:'pet'}); }
   }
 }
 function renderPetRow(targetUid, elId){
