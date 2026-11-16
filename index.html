@@ -8594,7 +8594,7 @@ function petTotem(targetUid){
 // ===== Живой питомец =====
 const PET_DECAY = { hunger: 6, fun: 5, toilet: 4, affection: 3 }; // в час
 function petDefaultState(){
-  return { hunger:70, fun:70, toilet:70, affection:70, happiness:70, lastUpdated:Date.now(), lastFed:Date.now(), lastPlayed:Date.now(), lastToilet:Date.now(), lastWalked:Date.now(), lastPetted:Date.now() };
+  return { hunger:70, fun:70, toilet:70, affection:70, happiness:70, avatar:null, lastUpdated:Date.now(), lastFed:Date.now(), lastPlayed:Date.now(), lastToilet:Date.now(), lastWalked:Date.now(), lastPetted:Date.now() };
 }
 function petClamp(v){ return Math.max(0, Math.min(100, Math.round(v))); }
 function petCompute(state){
@@ -8606,7 +8606,7 @@ function petCompute(state){
   const toilet = petClamp((s0.toilet!=null?s0.toilet:70) - hours*PET_DECAY.toilet);
   const affection = petClamp((s0.affection!=null?s0.affection:70) - hours*PET_DECAY.affection);
   const happiness = petClamp((hunger + fun + toilet + affection) / 4);
-  return Object.assign({}, s0, { hunger, fun, toilet, affection, happiness, lastUpdated: now });
+  return Object.assign({}, s0, { hunger, fun, toilet, affection, happiness, avatar: s0.avatar || null, lastUpdated: now });
 }
 function petMood(p){
   const h = p.happiness!=null?p.happiness:70;
@@ -8665,6 +8665,7 @@ async function petAction(ownerUid, action){
     else if(action==='pet'){ cur.affection = petClamp(cur.affection + 20); cur.lastPetted = now; }
     cur.happiness = petClamp((cur.hunger + cur.fun + cur.toilet + cur.affection)/4);
     cur.lastUpdated = now;
+    if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
     await ref.set(cur);
     const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)'};
     toast(labels[action]||'Готово', true);
@@ -8676,6 +8677,29 @@ async function petAction(ownerUid, action){
     }
   }catch(e){ toast('Не удалось (проверь права/сеть)'); }
 }
+function setPetAvatar(ownerUid){
+  if(!currentUser||currentUser.uid!==ownerUid){ toast('Только владелец может менять аву питомца'); return; }
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{
+    const f=inp.files&&inp.files[0]; if(!f) return;
+    const done=(dataUrl)=>{
+      db.ref('pets/'+ownerUid).once('value').then(snap=>{
+        const cur=petCompute(snap.val()||petDefaultState());
+        cur.avatar=dataUrl; cur.lastUpdated=Date.now();
+        return db.ref('pets/'+ownerUid).set(cur);
+      }).then(()=>toast('🐾 Ава питомца обновлена',true)).catch(()=>toast('Не удалось сохранить аву'));
+    };
+    if(typeof compressImage==='function'){
+      compressImage(f,128,0.8).then(done).catch(()=>{
+        const r=new FileReader(); r.onload=e=>done(e.target.result); r.readAsDataURL(f);
+      });
+    } else {
+      const r=new FileReader(); r.onload=e=>done(e.target.result); r.readAsDataURL(f);
+    }
+  };
+  inp.click();
+}
+
 function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
   const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
@@ -8701,12 +8725,14 @@ function renderPetRow(targetUid, elId){
       ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
         +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
       : '');
+  const petFace = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:22px;line-height:1">'+petEmoji+'</span>';
+  const petFaceSmall = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:18px">'+petEmoji+'</span>';
   el.innerHTML = '<div class="pet-panel">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-    +   '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px"><span style="font-size:22px;line-height:1">'+petEmoji+'</span><span>'+petName+'</span></div>'
+    +   '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px">'+petFace+'<span>'+petName+'</span>'+(isOwner?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="setPetAvatar(\''+escA(targetUid)+'\')" title="Аватар питомца">📷</button>':'')+'</div>'
     +   '<div class="pet-mood-cloud"><span style="font-size:16px">'+mood.emoji+'</span><span>'+esc(mood.text)+'</span></div>'
     + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);margin:4px 0 2px;display:flex;align-items:center;gap:6px"><span style="font-size:18px">'+petEmoji+'</span><span>Счастье (HP): <b style="color:var(--text)">'+st.happiness+'</b>/100</span></div>'
+    + '<div style="font-size:12px;color:var(--text2);margin:4px 0 2px;display:flex;align-items:center;gap:6px">'+petFaceSmall+'<span>Счастье (HP): <b style="color:var(--text)">'+st.happiness+'</b>/100</span></div>'
     + '<div class="pet-hp"><div class="pet-hp-fill" style="width:'+st.happiness+'%"></div></div>'
     + '<div class="pet-stats">'
     +   '<div>🍖 Сытость: '+st.hunger+'</div>'
