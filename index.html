@@ -1572,6 +1572,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div class="input-group"><label>Тотемное животное</label>
         <button class="btn btn-outline" id="totemBtn" onclick="openTotemChooser()">🐾 Выбрать тотемное животное</button></div>
       <div class="input-group"><label>Имя тотемного животного</label><input type="text" id="totemNameInput" placeholder="Напр. Барсик"></div>
+      <div class="input-group"><label>Пол питомца (обязательно)</label><select id="petGenderInput"><option value="">— выбрать —</option><option value="m">Самец</option><option value="f">Самка</option></select></div>
     </div>
     <div class="profile-card">
       <div class="card-title">Оформление</div>
@@ -1582,6 +1583,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-card">
       <div class="card-title">📋 Анкета</div>
       <div class="input-group"><label>ФИО</label><input type="text" id="ankFio"></div>
+      <div class="input-group"><label>Ваш пол (обязательно)</label><select id="ankGender"><option value="">— выбрать —</option><option value="m">Мужской</option><option value="f">Женский</option></select></div>
       <div class="input-group">
         <label>Дата рождения</label>
         <div class="birth-age" id="birthAge"></div>
@@ -2002,7 +2004,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 02:15';
+const BUILD='17.11.2026 03:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8478,6 +8480,149 @@ function renderViewColumn(){
   if(CP)renderCommentsPanel();
 }
 
+// ===== Русские склонения (эвристика) =====
+function ruNormName(name){ return String(name||'').trim().replace(/\s+/g,' '); }
+function ruGenderOfUser(u){
+  const g=(u&&u.anketa&&u.anketa.gender) || u&&u.gender || '';
+  if(g==='f' || g==='female' || g==='ж') return 'f';
+  if(g==='m' || g==='male' || g==='м') return 'm';
+  return 'n';
+}
+function ruPetGenderOfUser(u){
+  const g=(u&&u.anketa&&u.anketa.petGender) || '';
+  if(g==='f' || g==='ж') return 'f';
+  if(g==='m' || g==='м') return 'm';
+  return 'n';
+}
+function ruPast(verbBase, gender){
+  // verbBase like 'поблагодарил', 'покормил'
+  if(!verbBase) return '';
+  if(gender==='f') return verbBase + 'а';
+  if(gender==='m') return verbBase;
+  return verbBase + '(а)';
+}
+function ruDeclineName(name, caseName, gender){
+  const n=ruNormName(name);
+  if(!n) return '';
+  // keep multi-word as-is for safety except simple cases
+  if(/\s/.test(n)) return n;
+  const lower=n.toLowerCase();
+  // common exceptions
+  const exceptions={
+    'павел':{gen:'Павла',dat:'Павлу',acc:'Павла',ins:'Павлом',pre:'Павле'},
+    'лев':{gen:'Льва',dat:'Льву',acc:'Льва',ins:'Львом',pre:'Льве'},
+    'мария':{gen:'Марии',dat:'Марии',acc:'Марию',ins:'Марией',pre:'Марии'},
+    'марья':{gen:'Марьи',dat:'Марье',acc:'Марью',ins:'Марией',pre:'Марье'},
+    'дарья':{gen:'Дарьи',dat:'Дарье',acc:'Дарью',ins:'Дарьей',pre:'Дарье'},
+    'софия':{gen:'Софии',dat:'Софии',acc:'Софию',ins:'Софией',pre:'Софии'},
+    'софья':{gen:'Софьи',dat:'Софье',acc:'Софью',ins:'Софьей',pre:'Софье'},
+    'любовь':{gen:'Любови',dat:'Любови',acc:'Любовь',ins:'Любовью',pre:'Любови'},
+    'юлия':{gen:'Юлии',dat:'Юлии',acc:'Юлию',ins:'Юлией',pre:'Юлии'},
+    'ксения':{gen:'Ксении',dat:'Ксении',acc:'Ксению',ins:'Ксенией',pre:'Ксении'},
+    'алена':{gen:'Алёны',dat:'Алёне',acc:'Алёну',ins:'Алёной',pre:'Алёне'},
+    'алёна':{gen:'Алёны',dat:'Алёне',acc:'Алёну',ins:'Алёной',pre:'Алёне'}
+  };
+  if(exceptions[lower] && exceptions[lower][caseName]){
+    const res=exceptions[lower][caseName];
+    // preserve capitalization style roughly
+    return n[0]===n[0].toUpperCase() ? res : res.toLowerCase();
+  }
+  const isFem = gender==='f' || /[ая]$/i.test(n);
+  const isMasc = gender==='m' || /[йь]$/i.test(n) || /[^аяеёиоуыэюьй]$/i.test(n);
+  function cap(s){ return n[0]===n[0].toUpperCase() ? (s.charAt(0).toUpperCase()+s.slice(1)) : s; }
+  if(caseName==='nom') return n;
+  if(isFem){
+    if(/ия$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen'||caseName==='dat'||caseName==='pre') return cap(base+'и');
+      if(caseName==='acc') return cap(base+'ю');
+      if(caseName==='ins') return cap(base+'ей');
+    }
+    if(/ья$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen'||caseName==='dat'||caseName==='pre') return cap(base+'и');
+      if(caseName==='acc') return cap(base+'ю');
+      if(caseName==='ins') return cap(base+'ей');
+    }
+    if(/а$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen') return cap(base+'ы');
+      if(caseName==='dat'||caseName==='pre') return cap(base+'е');
+      if(caseName==='acc') return cap(base+'у');
+      if(caseName==='ins') return cap(base+'ой');
+    }
+    if(/я$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen'||caseName==='dat'||caseName==='pre') return cap(base+'и');
+      if(caseName==='acc') return cap(base+'ю');
+      if(caseName==='ins') return cap(base+'ей');
+    }
+    if(/ь$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen'||caseName==='dat'||caseName==='pre') return cap(base+'и');
+      if(caseName==='acc') return n;
+      if(caseName==='ins') return cap(base+'ью');
+    }
+  }
+  if(isMasc){
+    if(/й$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen'||caseName==='acc') return cap(base+'я');
+      if(caseName==='dat') return cap(base+'ю');
+      if(caseName==='ins') return cap(base+'ем');
+      if(caseName==='pre') return cap(base+'е');
+    }
+    if(/ь$/i.test(n)){
+      const base=n.slice(0,-1);
+      if(caseName==='gen'||caseName==='acc') return cap(base+'я');
+      if(caseName==='dat') return cap(base+'ю');
+      if(caseName==='ins') return cap(base+'ем');
+      if(caseName==='pre') return cap(base+'е');
+    }
+    // consonant-ending masculine
+    if(caseName==='gen'||caseName==='acc') return cap(n+'а');
+    if(caseName==='dat') return cap(n+'у');
+    if(caseName==='ins') return cap(n+'ом');
+    if(caseName==='pre') return cap(n+'е');
+  }
+  return n;
+}
+function ruPetNameCase(name, caseName, gender){
+  // treat pet names similar to personal names/nouns heuristically
+  return ruDeclineName(name, caseName, gender);
+}
+function ruPetCarePhrase(actorName, actorGender, petName, petGender, action){
+  const verbs={feed:'покормил', play:'поиграл с', toilet:'сводил', walk:'выгулял', pet:'погладил'};
+  const emo={feed:'😋', play:'😄', toilet:'😊', walk:'😄', pet:'😄'};
+  const vbase = verbs[action] || 'позаботился о';
+  const v2 = (actorGender==='f'||actorGender==='m') ? ruPast(vbase.split(' ')[0], actorGender) + (vbase.includes(' ')?(' '+vbase.split(' ').slice(1).join(' ')):'') : (vbase.replace(/^(\S+)/, '$1(а)'));
+  const petAcc = ruPetNameCase(petName, 'acc', petGender);
+  let text;
+  if(action==='toilet') text = actorName + ' ' + v2 + ' ' + petAcc + ' в туалет';
+  else if(action==='play') text = actorName + ' ' + v2 + ' ' + petAcc;
+  else text = actorName + ' ' + v2 + ' ' + petAcc;
+  return text + '! ' + (emo[action]||'😄');
+}
+function ruPetCarePhraseSafe(actorUid, ownerUid, action){
+  const actor=ALL_USERS[actorUid]||{};
+  const owner=ALL_USERS[ownerUid]||{};
+  const actorName=(typeof displayNameOf==='function'?displayNameOf(actor, actor&&actor.name||'Кто-то'):(actor&&actor.name||'Кто-то'));
+  const oa=owner.anketa||{};
+  const petName=(oa.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===oa.totem)||{}).name||'питомца');
+  return ruPetCarePhrase(actorName, ruGenderOfUser(actor), petName, ruPetGenderOfUser(owner), action);
+}
+function ruThanksPhrase(thankerUid, ownerUid){
+  const t=ALL_USERS[thankerUid]||{};
+  const o=ALL_USERS[ownerUid]||{};
+  const tn=(typeof displayNameOf==='function'?displayNameOf(t, t&&t.name||'Кто-то'):(t&&t.name||'Кто-то'));
+  const oa=o.anketa||{};
+  const petName=(oa.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===oa.totem)||{}).name||'питомца');
+  const petPre=ruPetNameCase(petName,'pre',ruPetGenderOfUser(o));
+  const verb=ruPast('поблагодарил', ruGenderOfUser(t));
+  const verb2=(ruGenderOfUser(t)==='f'||ruGenderOfUser(t)==='m')?verb:'поблагодарил(а)';
+  return tn + ' ' + verb2 + ' за заботу о ' + petPre + '! 💖';
+}
+
 // ===== УВЕДОМЛЕНИЯ =====
 let _notifFreshTimer=null;
 let _notifFreshKeys=null; // ключи, подсвеченные как «новые» при входе (5 сек)
@@ -8508,6 +8653,18 @@ function openNotifScreen(){
     if(currentScreenId==='notifScreen') renderNotifs();
   }, 5000);
 }
+
+function thankPetCare(fromUid, notifKey){
+  if(!currentUser || !fromUid || fromUid===currentUser.uid) return;
+  try{ if(notifKey) db.ref('notifs/'+currentUser.uid+'/'+notifKey+'/thanked').set(true).catch(()=>{}); }catch(e){}
+  try{
+    const text = ruThanksPhrase(currentUser.uid, currentUser.uid);
+    notifyUser(fromUid, 'pet_thanks', '💖 Благодарность', text, {from: currentUser.uid, kind:'pet_thanks'});
+    toast('💖 Поблагодарили', true);
+    try{ renderNotifs(); }catch(e){}
+  }catch(e){ toast('Не удалось отправить благодарность'); }
+}
+
 function renderNotifs(){
   const l=document.getElementById('notifList');if(!l||!currentUser)return;
   const items=lastNotifs?Object.entries(lastNotifs):[];
@@ -8554,7 +8711,8 @@ function renderNotifs(){
     const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':n.type==='post'?'📝':'🔔';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
     const safeText = (n.type==='chat') ? '💬 Новое сообщение' : (n.text||'');
-    d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(safeText)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
+    const thankBtn = (n.type==='pet' && n.kind==='petcare' && n.from && n.from!==currentUser.uid && !n.thanked) ? '<div style="margin-top:6px"><button class="btn btn-sm btn-primary" style="width:auto;padding:6px 10px;font-size:12px" onclick="event.stopPropagation();thankPetCare(\''+escA(n.from)+'\',\''+escA(key)+'\')">💖 Поблагодарить!</button></div>' : (n.thanked?'<div style="margin-top:6px;color:var(--text3);font-size:12px">💖 Благодарность отправлена</div>':'');
+    d.innerHTML='<span style="font-size:22px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:14px">'+esc(safeText)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div>'+thankBtn+'</div>';
     d.onclick=()=>{ _markNotifKeysRead([key],true);
       if(n.newsId){showScreen('newsScreen');renderNews();setTimeout(()=>{toggleComments('news',n.newsId);const el=document.getElementById('news_'+n.newsId);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},300);}
       else if(n.postId){const p=lastUserPosts&&lastUserPosts[n.postId];
@@ -8572,8 +8730,10 @@ function renderNotifs(){
 // ===== ПРОФИЛЬ =====
 function anketaHtml(i){const a=i&&i.anketa;const r=[];
   if(a){const t=totemOf(i);
-    if(t)r.push('<div>'+t.emoji+' <b>Тотемное животное:</b> '+esc(a.totemName||t.name)+(a.totemName?' ('+t.name+')':'')+'</div>');
+    const petG=a.petGender==='f'?'самка':(a.petGender==='m'?'самец':'');
+    if(t)r.push('<div>'+t.emoji+' <b>Тотемное животное:</b> '+esc(a.totemName||t.name)+(a.totemName?' ('+t.name+')':'')+(petG?' <span style="color:var(--text3)">('+petG+')</span>':'')+'</div>');
     if(a.fio)r.push('<div>👤 <b>ФИО:</b> '+esc(a.fio)+'</div>');
+    if(a.gender)r.push('<div>⚧ <b>Пол:</b> '+esc(a.gender==='f'?'Женский':'Мужской')+'</div>');
     if(a.birth){const ag=ageFromIso(a.birth);r.push('<div>🎂 <b>ДР:</b> '+fmtBirth(a.birth)+(ag!==null?' <span style="color:var(--primary);font-weight:700">('+ag+' '+ageWord(ag)+')</span>':'')+'</div>');}
     const geo=[a.country,a.city].filter(Boolean).join(', ');
     if(geo)r.push('<div>🌍 <b>Где:</b> '+esc(geo)+'</div>');
@@ -8796,11 +8956,10 @@ async function petAction(ownerUid, action){
       const actorName=(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то');
       const ownerInfo=ALL_USERS[ownerUid]||{}; const oa=ownerInfo.anketa||{};
       const petName=(oa.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===oa.totem)||{}).name||'питомца');
-      const verbs={feed:'покормил(а)', play:'поиграл(а) с', toilet:'сводил(а) в туалет', walk:'выгулял(а)', pet:'погладил(а)'};
-      const emo={feed:'😋', play:'😄', toilet:'😊', walk:'😄', pet:'😄'};
+      const text=ruPetCarePhrase(actorName, ruGenderOfUser(ALL_USERS[currentUser.uid]||currentUser), petName, ruPetGenderOfUser(ownerInfo), action);
       const ev={type:'petcare', action, from:currentUser.uid, fromName:actorName, petName:String(petName).slice(0,60), ts:now};
       db.ref('profileEvents/'+ownerUid).push(ev).catch(()=>{});
-      try{ if(typeof notifyUser==='function') notifyUser(ownerUid,'pet','🐾 Питомец', actorName+' '+(verbs[action]||'позаботился(ась) о')+' '+petName+'! '+(emo[action]||'😄'), {from:currentUser.uid, kind:'petcare', action}); }catch(e){}
+      try{ if(typeof notifyUser==='function') notifyUser(ownerUid,'pet','🐾 Питомец', text, {from:currentUser.uid, kind:'petcare', action, petName:String(petName).slice(0,60)}); }catch(e){}
     }
   }catch(e){ toast('Не удалось (проверь права/сеть)'); }
 }
@@ -8982,9 +9141,11 @@ function renderProfileEdit(){
   const i=ALL_USERS[currentUser.uid]||currentUser;const a=i.anketa||{};
   document.getElementById('editNameInput').value=i.name||'';
   document.getElementById('totemNameInput').value=a.totemName||'';
+  const pg=document.getElementById('petGenderInput'); if(pg) pg.value=a.petGender||'';
   const t=totemOf(i);
   document.getElementById('totemBtn').innerHTML=t?(t.emoji+' '+esc(a.totemName||t.name)+' — сменить'):'🐾 Выбрать тотемное животное';
   document.getElementById('ankFio').value=a.fio||'';
+  const ag=document.getElementById('ankGender'); if(ag) ag.value=a.gender||'';
   // Дата рождения: показываем нормализованный вид + возраст над полем.
   // Выставить можно один раз; редактировать может только админ (см. saveProfileAll).
   const birthEl=document.getElementById('ankBirth');
@@ -9039,7 +9200,11 @@ function saveProfileAll(){
   } else if(cur.birth&&raw===''&&!isAdminUser()){
     birth=cur.birth;                                        // нельзя стереть не админу
   }
-  const a={fio:document.getElementById('ankFio').value.trim(),birth:birth,country:document.getElementById('ankCountry').value.trim(),city:document.getElementById('ankCity').value.trim(),street:document.getElementById('ankStreet').value.trim(),profession:((document.getElementById('ankProfession')||{}).value||'').trim(),spell:((document.getElementById('ankSpell')||{}).value||'').trim(),totem:cur.totem||'',totemName:document.getElementById('totemNameInput').value.trim(),books:document.getElementById('ankBooks').value.trim(),movies:document.getElementById('ankMovies').value.trim(),mood:document.getElementById('ankMood').value.trim()};
+  const gender=((document.getElementById('ankGender')||{}).value||'').trim();
+  const petGender=((document.getElementById('petGenderInput')||{}).value||'').trim();
+  if(!gender){ toast('Укажи свой пол в анкете'); return; }
+  const a={fio:document.getElementById('ankFio').value.trim(),gender:gender,birth:birth,country:document.getElementById('ankCountry').value.trim(),city:document.getElementById('ankCity').value.trim(),street:document.getElementById('ankStreet').value.trim(),profession:((document.getElementById('ankProfession')||{}).value||'').trim(),spell:((document.getElementById('ankSpell')||{}).value||'').trim(),totem:cur.totem||'',totemName:document.getElementById('totemNameInput').value.trim(),petGender:petGender,books:document.getElementById('ankBooks').value.trim(),movies:document.getElementById('ankMovies').value.trim(),mood:document.getElementById('ankMood').value.trim()};
+  if((a.totem||a.totemName) && !petGender){ toast('Укажи пол питомца'); return; }
   const thoughts=((document.getElementById('editThoughtsInput')||{}).value||'').trim();
   db.ref('users/'+currentUser.uid).update({name:name,thoughts:thoughts});
   db.ref('users/'+currentUser.uid+'/anketa').set(a).then(()=>{toast('💾 Сохранено',true);showScreen('profileScreen');});
