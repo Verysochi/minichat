@@ -2004,7 +2004,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 03:25';
+const BUILD='17.11.2026 03:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7089,15 +7089,13 @@ function renderChatList(){
 }
 function dmItem(cid,i){const ou=i.otherUid,info=ALL_USERS[ou],n=nameOf(ou,i.otherName);
   const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(cid,ou);
-  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span style="color:'+colorOf(info)+'">'+esc(n)+'</span>'+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last">'+esc(i.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(i.lastTs)+'</div>'+((i.unread>0)?'<div class="chat-badge" style="margin-top:3px">'+i.unread+'</div>':'')+'</div>';
-  d.querySelectorAll('.avatar').forEach(a=>{a.onclick=e=>{e.stopPropagation();};a.style.cursor='default';});
+  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span class="clickable" style="color:'+colorOf(info)+';cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+escA(ou)+'\')">'+esc(n)+'</span>'+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last">'+esc(i.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(i.lastTs)+'</div>'+((i.unread>0)?'<div class="chat-badge" style="margin-top:3px">'+i.unread+'</div>':'')+'</div>';
   return d;}
 // Пустой чат: друг есть, сообщений ещё не было — пишем первым
 function dmEmptyItem(cid,ou){
   const info=ALL_USERS[ou],n=nameOf(ou);
   const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(cid,ou);
-  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span style="color:'+colorOf(info)+'">'+esc(n)+'</span>'+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last" style="opacity:.7">💬 Чат пуст — напиши первым</div></div><div style="text-align:right"><div class="chat-time" style="opacity:.5">новый</div></div>';
-  d.querySelectorAll('.avatar').forEach(a=>{a.onclick=e=>{e.stopPropagation();};a.style.cursor='default';});
+  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span class="clickable" style="color:'+colorOf(info)+';cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+escA(ou)+'\')">'+esc(n)+'</span>'+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last" style="opacity:.7">💬 Чат пуст — напиши первым</div></div><div style="text-align:right"><div class="chat-time" style="opacity:.5">новый</div></div>';
   return d;}
 function groupItem(gid,g,un){const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(gid,null);
   d.innerHTML=groupAvatarHtml(g)+'<div class="chat-info"><div class="chat-name">'+esc(g.name||'Группа')+'</div><div class="chat-last">'+esc(g.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(g.lastTs)+'</div>'+((un>0)?'<div class="chat-badge" style="margin-top:3px">'+un+'</div>':'')+'</div>';
@@ -7381,12 +7379,11 @@ function renderFind(){
   let es=Object.entries(ALL_USERS).filter(([uid,i])=>uid===currentUser.uid||isFriend(uid)||!isHiddenUser(i));
   if(q)es=es.filter(([uid,i])=>(i.name||'').toLowerCase().includes(q));
   es.sort((a,b)=>displayNameOf(a[1]).localeCompare(displayNameOf(b[1]),'ru'));
-  box.innerHTML='';
-  if(!es.length){box.innerHTML='<div style="padding:12px;color:var(--text3);font-size:13px">Никого не нашли</div>';return;}
   es.forEach(([uid,i])=>{const fr=isFriend(uid),me=uid===currentUser.uid;
-    const d=document.createElement('div');d.className='user-item';
-    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+(me?' <span style="font-size:11px;color:var(--text3)">(ты)</span>':'')+(fr&&!me?' <span style="font-size:11px;color:var(--green)">✓ друг</span>':'')+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+(isOnline(i)?'':'')+presenceHtml(i)+'</div><span style="color:var(--text3);font-size:18px">›</span>';
-    d.onclick=()=>openMini(uid);box.appendChild(d);});
+    const d=document.createElement('div');d.className='user-item';d.style.cursor='pointer';
+    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+(me?' <span style="font-size:11px;color:var(--text3)">(ты)</span>':'')+(fr&&!me?' <span style="font-size:11px;color:var(--green)">✓ друг</span>':'')+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+(isOnline(i)?'':'')+presenceHtml(i)+'</div><span style="color:var(--text3);font-size:18px">›</span>';
+    d.onclick=(e)=>{ if(e.target.closest('button')||e.target.closest('select')) return; openUserProfile(uid); };
+    box.appendChild(d);});
 }
 function renderPeople(){
   paintVisibilitySwitches();
