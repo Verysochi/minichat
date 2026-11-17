@@ -1077,7 +1077,23 @@ img,video,canvas{max-width:100%}
   body.desktop-split.chat-open-desktop #desktopChatPlaceholder{display:none !important}
   /* При открытом чате на ПК mainScreen остаётся видимым (левая панель) */
   body.desktop-split.chat-open-desktop #mainScreen{display:flex !important}
-  body.desktop-split .bottom-nav{left:0;right:0;width:100%;transform:none;max-width:none;border-radius:0}
+  body.desktop-split .bottom-nav{top:0;bottom:0;left:0;right:auto;width:72px;height:auto;flex-direction:column;justify-content:flex-start;align-items:stretch;padding:10px 6px;gap:6px;border-top:none;border-right:1px solid var(--surface2);border-radius:0;transform:none;max-width:none;overflow-y:auto;z-index:51}
+  body.desktop-split .bottom-nav .nav-btn{flex:0 0 auto;min-height:72px;border-radius:12px;font-size:10px;width:auto;padding:8px 4px}
+  body.desktop-split .bottom-nav .nav-btn .nav-icon{font-size:22px}
+  body.desktop-split .bottom-nav .nav-btn .mini-badge{top:6px;right:8px}
+  body.desktop-split .bottom-nav .nav-btn span:not(.nav-icon):not(.mini-badge):not(.nav-friends-count){display:none}
+  body.desktop-split .bottom-nav .nav-btn.active{background:var(--surface2);color:var(--primary);border-right:3px solid var(--primary)}
+  body.desktop-split .bottom-nav .rail-extra{border-top:1px solid var(--surface2);margin-top:auto;padding-top:10px;display:flex !important;flex-direction:column;gap:6px}
+  body.desktop-split .bottom-nav .rail-btn{flex:0 0 auto;min-height:64px;border-radius:12px;font-size:10px;width:auto;padding:8px 4px}
+  body.desktop-split .bottom-nav .rail-btn .nav-icon{font-size:20px}
+  body.desktop-split .bottom-nav .rail-btn .mini-badge{top:6px;right:8px}
+  body.desktop-split .bottom-nav .rail-btn span:not(.nav-icon):not(.mini-badge){display:none}
+  body.desktop-split .bottom-nav .rail-btn.active{background:var(--surface2);color:var(--primary);border-right:3px solid var(--primary)}
+  body.desktop-split .bottom-nav .rail-admin{margin-top:4px}
+  body.desktop-split .bottom-nav .rail-admin{color:var(--text2)}
+  body.desktop-split .bottom-nav .rail-admin.active{color:var(--primary)}
+  body.desktop-split #mainScreen{left:72px;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
+  body.desktop-split #chatScreen{left:432px;right:0;width:auto;z-index:2}
   /* Контент чата на всю правую панель */
   body.desktop-split #chatScreen .messages,
   body.desktop-split #chatScreen .header,
@@ -1999,12 +2015,21 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <button class="nav-btn" data-screen="myColumnScreen" onclick="showScreen('myColumnScreen')"><span class="nav-icon">📝</span><span>Колонка</span></button>
   <button class="nav-btn" data-screen="friendsScreen" onclick="showScreen('friendsScreen')"><span class="nav-icon">🤝</span><span>Друзья</span><span class="mini-badge" id="peopleBadge"></span><span class="nav-friends-count" id="friendsCountNav"></span></button>
   <button class="nav-btn" data-screen="adminScreen" id="adminNavBtn" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadge"></span></button>
+
+  <!-- Desktop left rail: extra actions under the main nav -->
+  <div class="rail-extra" style="display:none">
+    <button class="nav-btn rail-btn" onclick="showScreen('notifScreen')"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="mini-badge js-notif-badge" id="notifBadgeRail"></span></button>
+    <button class="nav-btn rail-btn" onclick="showScreen('profileScreen')"><span class="nav-icon">👤</span><span>Профиль</span></button>
+    <button class="nav-btn rail-btn rail-admin js-admin-only" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadgeRail"></span></button>
+    <button class="nav-btn rail-btn rail-admin js-admin-only" style="display:none" onclick="showScreen('sessionsScreen')"><span class="nav-icon">🔐</span><span>Сессии</span></button>
+  </div>
+
 </div>
 
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 04:15';
+const BUILD='17.11.2026 05:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7435,11 +7460,14 @@ function copyMyCode(){const c=(ALL_USERS[currentUser.uid]||{}).userCode;if(!c)re
 function openMyProfile(){showScreen('profileScreen');}
 function openProfileEdit(){showScreen('profileEditScreen');}
 function scrollToColumn(){const el=document.getElementById('vpColumnCard');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
-function openUserProfile(uid){
+async function openUserProfile(uid){
   try{ uid=String(uid||''); }catch(e){}
   viewProfileUid=uid;profileReturn=(document.querySelector('.screen.active')||{}).id||'friendsScreen';
-  const i=ALL_USERS[uid];
-  if(!i){ toast('Профиль пока не загружен, попробуй ещё раз'); return; }
+  let i=ALL_USERS[uid];
+  if(!i){
+    try{ const snap=await db.ref('users/'+uid).once('value'); const v=snap.val(); if(v){ i={uid,...v}; ALL_USERS[uid]=i; } }catch(e){}
+    if(!i){ toast('Профиль пока не загружен, попробуй ещё раз'); return; }
+  }
   const fr=currentUser.isAdmin||canSeeFull(uid);
   document.getElementById('vpTitle').textContent=displayNameOf(i);
   try{ const sb=document.getElementById('vpStickyBar'); const sa=document.getElementById('vpStickyAvatar'); const sn=document.getElementById('vpStickyName'); if(sb&&sa&&sn){ sa.innerHTML=avatarHtml(i,'sm',i.name); sn.innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'; sb.style.display=window.innerWidth<900?'flex':'none'; } }catch(e){}
@@ -9070,17 +9098,20 @@ function initProfileCollapse(){
     if(wrap._pcolBound) return;
     wrap._pcolBound=true;
     wrap._pcolCur = 0; wrap._pcolTarget = 0; wrap._pcolRaf = 0;
+    const ease=(t)=>1-(1-t)*(1-t);
     const tick=()=>{
       wrap._pcolRaf = 0;
       if(!document.body.contains(wrap)) return;
       if(window.innerWidth>=900){ screen.style.removeProperty('--pcol'); wrap._pcolCur=0; wrap._pcolTarget=0; return; }
       const cur = wrap._pcolCur || 0;
       const target = wrap._pcolTarget || 0;
-      const next = cur + (target - cur) * 0.14;
-      const finalv = Math.abs(target-next) < 0.0008 ? target : next;
+      const diff = Math.abs(target-cur);
+      const step = diff > 0.02 ? (target-cur) * 0.22 : (target-cur) * 0.5;
+      const next = cur + step;
+      const finalv = Math.abs(target-next) < 0.001 ? target : next;
       wrap._pcolCur = finalv;
-      screen.style.setProperty('--pcol', String(finalv));
-      if(Math.abs(target-finalv) >= 0.0008){
+      screen.style.setProperty('--pcol', String(ease(Math.max(0,Math.min(1,finalv)))));
+      if(Math.abs(target-finalv) >= 0.001){
         wrap._pcolRaf = requestAnimationFrame(tick);
       }
     };
