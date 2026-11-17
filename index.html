@@ -1215,7 +1215,6 @@ img,video,canvas{max-width:100%}
     margin:0;
     transform:translateX(-50%) scale(calc(1 - (0.55 * var(--pcol,0))));
     transform-origin:center bottom;
-    transition:transform .05s linear;
     will-change:transform;
     z-index:2;
   }
@@ -1995,7 +1994,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 00:05';
+const BUILD='17.11.2026 00:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7389,14 +7388,16 @@ function renderPeople(){
   const fw=document.getElementById('friendReqWrap'),fl=document.getElementById('friendReqList');
   if(lastFriendReq&&Object.keys(lastFriendReq).length){fw.style.display='block';fl.innerHTML='';
     Object.entries(lastFriendReq).forEach(([uid,r])=>{const d=document.createElement('div');d.className='req-card';
-      d.innerHTML='<div style="display:flex;gap:10px;align-items:center">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">хочет в друзья</div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="acceptFriend(\''+uid+'\')">✅ Принять</button><button class="btn btn-outline btn-sm" onclick="declineFriend(\''+uid+'\')">❌</button></div>';
+      d.innerHTML='<div style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;cursor:pointer">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1;min-width:0"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">хочет в друзья</div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();acceptFriend(\''+uid+'\')">✅ Принять</button><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();declineFriend(\''+uid+'\')">❌</button></div>';
+      d.style.cursor='pointer'; d.onclick=(e)=>{ if(e.target.closest('button')) return; openUserProfile(uid); };
       fl.appendChild(d);});
   } else {fw.style.display='none';fl.innerHTML='';}
   // Запросы «кто я тебе» от других людей
   const rw=document.getElementById('relReqWrap'),rl=document.getElementById('relReqList');
   if(lastRelReqs&&Object.keys(lastRelReqs).length){rw.style.display='block';rl.innerHTML='';
     Object.entries(lastRelReqs).forEach(([uid,r])=>{const d=document.createElement('div');d.className='req-card';
-      d.innerHTML='<div style="display:flex;gap:10px;align-items:center">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">назвал тебя: <b style="color:var(--primary)">'+esc(r&&r.rel||'')+'</b></div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="acceptRel(\''+uid+'\')">✅ Подтвердить</button><button class="btn btn-outline btn-sm" onclick="declineRel(\''+uid+'\')">❌</button></div>';
+      d.innerHTML='<div style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;cursor:pointer">'+avatarHtml(ALL_USERS[uid],'sm',r&&r.name)+'<div style="flex:1;min-width:0"><div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid],r&&r.name))+'</span>'+totemChip(ALL_USERS[uid])+'</div><div style="color:var(--text3);font-size:12px">назвал тебя: <b style="color:var(--primary)">'+esc(r&&r.rel||'')+'</b></div></div></div><div class="row"><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();acceptRel(\''+uid+'\')">✅ Подтвердить</button><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();declineRel(\''+uid+'\')">❌</button></div>';
+      d.style.cursor='pointer'; d.onclick=(e)=>{ if(e.target.closest('button')) return; openUserProfile(uid); };
       rl.appendChild(d);});
   } else rw.style.display='none';
   const gw=document.getElementById('groupInvWrap'),gl=document.getElementById('groupInvList');
@@ -7409,8 +7410,9 @@ function renderPeople(){
   const cut=Date.now()-7*86400000;
   const newbies=Object.entries(ALL_USERS).filter(([uid,i])=>uid!==currentUser.uid&&i.createdAt&&i.createdAt>=cut&&!isFriend(uid)&&!isHiddenUser(i));
   if(newbies.length){nw.style.display='block';nl.innerHTML='';
-    newbies.forEach(([uid,i])=>{const d=document.createElement('div');d.className='user-item';
-      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto" onclick="sendFriendRequest(\''+uid+'\')">➕</button>';
+    newbies.forEach(([uid,i])=>{const d=document.createElement('div');d.className='user-item';d.style.cursor='pointer';
+      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto;flex-shrink:0" onclick="event.stopPropagation();sendFriendRequest(\''+uid+'\')">➕</button>';
+      d.onclick=(e)=>{ if(e.target.closest('button')) return; openUserProfile(uid); };
       nl.appendChild(d);});
   } else nw.style.display='none';
 }
@@ -7424,8 +7426,10 @@ function openMyProfile(){showScreen('profileScreen');}
 function openProfileEdit(){showScreen('profileEditScreen');}
 function scrollToColumn(){const el=document.getElementById('vpColumnCard');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
 function openUserProfile(uid){
+  try{ uid=String(uid||''); }catch(e){}
   viewProfileUid=uid;profileReturn=(document.querySelector('.screen.active')||{}).id||'friendsScreen';
-  const i=ALL_USERS[uid];if(!i)return;
+  const i=ALL_USERS[uid];
+  if(!i){ toast('Профиль пока не загружен, попробуй ещё раз'); return; }
   const fr=currentUser.isAdmin||canSeeFull(uid);
   document.getElementById('vpTitle').textContent=displayNameOf(i);
   document.getElementById('vpCoverBand').innerHTML=coverHtmlFor(fr?i:null,'cover-band');
@@ -8322,18 +8326,19 @@ function renderNews(){
   if(!items.length){list.innerHTML='<div class="empty-state"><div class="icon">📰</div><div>Новостей нет</div></div>';return;}
   items.forEach(([id,n])=>{if(!(n.views&&n.views[currentUser.uid]))db.ref('news/'+id+'/views/'+currentUser.uid).set(true);});
   items.sort((a,b)=>newsSortDesc?(b[1].ts-a[1].ts):(a[1].ts-b[1].ts));
-  items.forEach(([id,n])=>{
+  items.forEach(([id,n])=>{ try{
+    if(!n) return;
     n._id=id;
     if(n.mediaList)n.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});else maybeLoad(n);
     if(n.comments)Object.values(n.comments).forEach(cc=>maybeLoad(cc));
     const div=document.createElement('div');div.className='news-card';div.id='news_'+id;
-    if(freshSeenBefore&&n.ts>freshSeenBefore&&!freshShown[id]){div.classList.add('news-fresh');freshShown[id]=1;
+    if(typeof freshSeenBefore!=='undefined' && typeof freshShown!=='undefined' && freshSeenBefore&&n.ts>freshSeenBefore&&!freshShown[id]){div.classList.add('news-fresh');freshShown[id]=1;
       setTimeout(()=>{const e2=document.getElementById('news_'+id);if(e2)e2.classList.remove('news-fresh');},3500);}
     const mh=inlineMediaHtml(n,'');
     const vC=n.views?Object.keys(n.views).length:0;
-    const ctl=currentUser.isAdmin?('<button class="news-ctl" onclick="editNews(\''+id+'\')">✏️</button><button class="news-ctl" onclick="deleteNews(\''+id+'\')">🗑</button>'):'';
+    const ctl=(currentUser&&currentUser.isAdmin)?('<button class="news-ctl" onclick="editNews(\''+id+'\')">✏️</button><button class="news-ctl" onclick="deleteNews(\''+id+'\')">🗑</button>'):'';
     const isWeatherPost = !!(n.weatherSlot || n.weatherDate || n.authorUid==='weatherbot');
-    const weatherHead = isWeatherPost ? '<div class="news-weather-head" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;margin:0 0 8px;border-radius:12px;background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(251,191,36,.14));border:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--text);font-weight:700;letter-spacing:.2px">🌤️ Погода · <span style="font-variant-numeric:tabular-nums">'+fmtClockEmoji(n.ts)+'</span><span style="color:var(--text2);font-weight:600">('+fmtNewsTime(n.ts)+')</span></div>' : '';
+    const weatherHead = isWeatherPost ? '<div class="news-weather-head" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;margin:0 0 8px;border-radius:12px;background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(251,191,36,.14));border:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--text);font-weight:700;letter-spacing:.2px">🌤️ Погода · <span style="font-variant-numeric:tabular-nums">'+(typeof fmtClockEmoji==='function'?fmtClockEmoji(n.ts):fmtFull(n.ts))+'</span><span style="color:var(--text2);font-weight:600">('+(typeof fmtNewsTime==='function'?fmtNewsTime(n.ts):fmtFull(n.ts))+')</span></div>' : '';
     const titleHtml=n.title?'<div class="news-title">'+esc(n.title)+'</div>':'';
     const rockHtml=rockButtonHtml(n.reactions||{},n.reactions&&n.reactions[currentUser.uid],'news',id,'news');
     div.innerHTML='<div class="news-views">👁 '+vC+'</div>'+
@@ -8342,12 +8347,11 @@ function renderNews(){
       titleHtml+
       (n.text?'<div class="news-text">'+esc(n.text)+'</div>':'')+
       rockHtml+
-      // Автор новости кликабельный — открывает его страницу.
-// Раньше имя было просто текстом, перейти к человеку было некуда.
-'<div class="news-date">'+(n.authorUid&&ALL_USERS[n.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+n.authorUid+'\')">'+esc(n.author||'Админ')+'</span>':esc(n.author||'Админ'))+' • '+fmtNewsTime(n.ts)+ctl+'</div>'+
+      '<div class="news-date">'+(n.authorUid&&ALL_USERS&&ALL_USERS[n.authorUid]?'<span class="clickable" style="cursor:pointer;font-weight:600" onclick="openUserProfile(\''+n.authorUid+'\')">'+esc(n.author||'Админ')+'</span>':esc(n.author||'Админ'))+' • '+(typeof fmtNewsTime==='function'?fmtNewsTime(n.ts):fmtFull(n.ts))+ctl+'</div>'+
       '<div class="news-actions">'+shareBtnHtml('news',id)+commentsBlock('news',n,id)+'</div>'+cmtSlot(id)+
       '<div>'+whoListHtml('news',id,n)+'</div>';
-    list.appendChild(div);});
+    list.appendChild(div);
+  }catch(e){ console.warn('renderNews item',id,e); } });
   keepScroll.set();
   reviveVideos(list);
   restoreVideos(vidSnap);
@@ -8882,7 +8886,7 @@ function _enterProfileWatch(targetUid, isOwnerOpen){
   }
 }
 
-// Mobile profile collapsing hero
+// Mobile profile collapsing hero (smooth/inertial)
 function initProfileCollapse(){
   try{
     const screen=document.getElementById('profileScreen');
@@ -8890,10 +8894,25 @@ function initProfileCollapse(){
     if(!wrap) return;
     if(wrap._pcolBound) return;
     wrap._pcolBound=true;
+    wrap._pcolCur = 0; wrap._pcolTarget = 0; wrap._pcolRaf = 0;
+    const tick=()=>{
+      wrap._pcolRaf = 0;
+      if(!document.body.contains(wrap)) return;
+      if(window.innerWidth>=900){ screen.style.removeProperty('--pcol'); wrap._pcolCur=0; wrap._pcolTarget=0; return; }
+      const cur = wrap._pcolCur || 0;
+      const target = wrap._pcolTarget || 0;
+      const next = cur + (target - cur) * 0.14;
+      const finalv = Math.abs(target-next) < 0.0008 ? target : next;
+      wrap._pcolCur = finalv;
+      screen.style.setProperty('--pcol', String(finalv));
+      if(Math.abs(target-finalv) >= 0.0008){
+        wrap._pcolRaf = requestAnimationFrame(tick);
+      }
+    };
     const onScroll=()=>{
-      if(window.innerWidth>=900){ screen.style.removeProperty('--pcol'); return; }
-      const t = Math.max(0, Math.min(1, (wrap.scrollTop||0)/140));
-      screen.style.setProperty('--pcol', String(t));
+      if(window.innerWidth>=900){ screen.style.removeProperty('--pcol'); wrap._pcolCur=0; wrap._pcolTarget=0; return; }
+      wrap._pcolTarget = Math.max(0, Math.min(1, (wrap.scrollTop||0)/140));
+      if(!wrap._pcolRaf) wrap._pcolRaf = requestAnimationFrame(tick);
     };
     wrap.addEventListener('scroll', onScroll, {passive:true});
     window.addEventListener('resize', onScroll);
