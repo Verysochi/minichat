@@ -1251,6 +1251,13 @@ img,video,canvas{max-width:100%}
 .poll-create-opt{display:flex;gap:6px;margin-bottom:6px}
 .poll-create-opt input{flex:1}
 
+
+/* view profile sticky mini header (mobile) */
+.vp-sticky-bar{position:sticky;top:0;z-index:6;display:none;align-items:center;gap:10px;padding:6px 10px;margin:-8px -8px 8px;background:var(--surface);border-bottom:1px solid var(--surface3)}
+.vp-sticky-av .avatar,.vp-sticky-av img{width:28px;height:28px;border-radius:50%;object-fit:cover;font-size:12px}
+.vp-sticky-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:900px){ .vp-sticky-bar{display:none !important;} }
+
 </style>
 </head>
 <body class="login-active booting">
@@ -1631,6 +1638,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
   </div>
   <div class="profile-wrap">
+    <div id="vpStickyBar" class="vp-sticky-bar" style="display:none"><div id="vpStickyAvatar" class="vp-sticky-av"></div><div id="vpStickyName" class="vp-sticky-name"></div></div>
     <div class="cover-slot">
       <div id="vpCoverBand"></div>
       <div class="cover-avatar">
@@ -1994,7 +2002,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 00:55';
+const BUILD='17.11.2026 01:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2496,7 +2504,7 @@ function showScreen(id,fromBack){
   if(id==='groupInfoScreen'){renderGroupInfo();if(watchGroupJoinReqs)watchGroupJoinReqs(currentIsGroup?currentChatId:null);}
   else if(watchGroupJoinReqs)watchGroupJoinReqs(null);
   if(id==='notifScreen')openNotifScreen();
-  if(id==='viewProfileScreen'){renderViewColumn();const w=document.querySelector('#viewProfileScreen .profile-wrap');if(w)w.scrollTop=0;}
+  if(id==='viewProfileScreen'){renderViewColumn();const w=document.querySelector('#viewProfileScreen .profile-wrap');if(w)w.scrollTop=0; try{ const sb=document.getElementById('vpStickyBar'); if(sb) sb.style.display=window.innerWidth<900?'flex':'none'; }catch(e){} }
 }
 
 function mskNow(){return new Date(Date.now()+(3*60+new Date().getTimezoneOffset())*60000);}
@@ -7432,6 +7440,7 @@ function openUserProfile(uid){
   if(!i){ toast('Профиль пока не загружен, попробуй ещё раз'); return; }
   const fr=currentUser.isAdmin||canSeeFull(uid);
   document.getElementById('vpTitle').textContent=displayNameOf(i);
+  try{ const sb=document.getElementById('vpStickyBar'); const sa=document.getElementById('vpStickyAvatar'); const sn=document.getElementById('vpStickyName'); if(sb&&sa&&sn){ sa.innerHTML=avatarHtml(i,'sm',i.name); sn.innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'; sb.style.display=window.innerWidth<900?'flex':'none'; } }catch(e){}
   document.getElementById('vpCoverBand').innerHTML=coverHtmlFor(fr?i:null,'cover-band');
   document.getElementById('vpAvatarWrap').innerHTML=profilePhotoHtml(i,i.name);
   document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('Обновлено: '+fmtFull(i.avatarTs)):'';
@@ -8916,6 +8925,8 @@ function initProfileCollapse(){
     };
     wrap.addEventListener('scroll', onScroll, {passive:true});
     window.addEventListener('resize', onScroll);
+    // also toggle view-profile sticky bar on resize
+    if(!window._vpStickyResizeBound){ window._vpStickyResizeBound=true; window.addEventListener('resize',()=>{ try{ const sb=document.getElementById('vpStickyBar'); if(sb) sb.style.display=(window.innerWidth<900 && document.getElementById('viewProfileScreen')?.classList.contains('active'))?'flex':'none'; }catch(e){} }); }
     onScroll();
   }catch(e){}
 }
@@ -9281,58 +9292,78 @@ function avatarFile(f){
 let ae={img:null,layers:[],sel:-1,drag:null,target:'avatar',w:512,h:512,baseSrc:'',fit:{mode:'cover',zoom:1,dx:0,dy:0}};
 function aeSvgData(svg){ try{return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));}catch(e){return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);} }
 function aeStickerPack(){
-  const colors=['#ff4757','#ff7f50','#ffa502','#2ed573','#1e90ff','#3742fa','#a55eea','#ffffff','#111111','#00cec9','#fd79a8','#f1c40f'];
   const items=[];
-  const cap=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M10 38c0-14 10-24 22-24s22 10 22 24" fill="${c}"/><rect x="6" y="36" width="52" height="8" rx="4" fill="${c}" opacity=".9"/><rect x="26" y="38" width="32" height="6" rx="3" fill="#111" opacity=".25"/></svg>`;
-  const beanie=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M12 40c0-15 9-26 20-26s20 11 20 26z" fill="${c}"/><rect x="10" y="38" width="44" height="8" rx="4" fill="${c}" opacity=".85"/><circle cx="32" cy="14" r="4" fill="${c}"/></svg>`;
-  const crown=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M10 44l6-22 10 10 6-16 6 16 10-10 6 22z" fill="${c}" stroke="#b8860b" stroke-width="2"/><rect x="10" y="42" width="44" height="8" rx="2" fill="${c}"/></svg>`;
-  colors.slice(0,8).forEach((c,i)=>{ items.push({name:'Кепка '+(i+1),src:aeSvgData(cap(c))}); });
-  colors.slice(0,6).forEach((c,i)=>{ items.push({name:'Шапка '+(i+1),src:aeSvgData(beanie(c))}); });
-  ['#ffd700','#c0c0c0','#ff6b81','#74b9ff'].forEach((c,i)=>items.push({name:'Корона '+(i+1),src:aeSvgData(crown(c))}));
-  const shades=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="6" y="24" width="20" height="14" rx="4" fill="${c}"/><rect x="38" y="24" width="20" height="14" rx="4" fill="${c}"/><rect x="26" y="29" width="12" height="4" fill="#333"/><rect x="2" y="29" width="6" height="3" fill="#333"/><rect x="56" y="29" width="6" height="3" fill="#333"/></svg>`;
-  const roundG=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="20" cy="32" r="10" fill="none" stroke="${c}" stroke-width="3"/><circle cx="44" cy="32" r="10" fill="none" stroke="${c}" stroke-width="3"/><path d="M30 32h4M2 32h8M54 32h8" stroke="${c}" stroke-width="3" fill="none"/></svg>`;
-  const pixelG=()=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="8" y="24" width="18" height="14" fill="#111"/><rect x="38" y="24" width="18" height="14" fill="#111"/><rect x="26" y="29" width="12" height="4" fill="#111"/><rect x="12" y="28" width="4" height="4" fill="#fff"/><rect x="42" y="28" width="4" height="4" fill="#fff"/></svg>`;
-  const heartG=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M20 24c-5 0-8 6-2 12l8 8 8-8c6-6 3-12-2-12-3 0-5 2-6 4-1-2-3-4-6-4z" fill="${c}" opacity=".85"/><path d="M44 24c-5 0-8 6-2 12l8 8 8-8c6-6 3-12-2-12-3 0-5 2-6 4-1-2-3-4-6-4z" fill="${c}" opacity=".85"/><rect x="32" y="31" width="2" height="3" fill="#333"/></svg>`;
-  ['#111','#e74c3c','#0984e3','#00b894','#fdcb6e','#e84393','#fff'].forEach((c,i)=>items.push({name:'Очки '+(i+1),src:aeSvgData(shades(c))}));
-  ['#111','#e17055','#0984e3','#6c5ce7'].forEach((c,i)=>items.push({name:'Круглые очки '+(i+1),src:aeSvgData(roundG(c))}));
-  items.push({name:'Пиксельные очки',src:aeSvgData(pixelG())});
-  ['#ff7675','#fd79a8','#a29bfe'].forEach((c,i)=>items.push({name:'Сердечки '+(i+1),src:aeSvgData(heartG(c))}));
-  items.push({name:'Солнышко',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#f9ca24"/><g stroke="#f9ca24" stroke-width="3" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${32+Math.cos(r)*18}" y1="${32+Math.sin(r)*18}" x2="${32+Math.cos(r)*26}" y2="${32+Math.sin(r)*26}"/>`;}).join('')}</g></svg>`)});
-  items.push({name:'Луна',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M40 10a22 22 0 1 0 0 44a18 18 0 1 1 0-44z" fill="#ffeaa7"/></svg>`)});
-  const cloud=(c,op)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="${c}" opacity="${op||1}"><circle cx="22" cy="36" r="10"/><circle cx="34" cy="30" r="13"/><circle cx="46" cy="36" r="9"/><rect x="14" y="34" width="38" height="12" rx="6"/></g></svg>`;
-  const rainCloud=(c)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="${c}"><circle cx="22" cy="36" r="10"/><circle cx="34" cy="30" r="13"/><circle cx="46" cy="36" r="9"/><rect x="14" y="34" width="38" height="12" rx="6"/></g><path d="M24 48l-3 8M34 48l-3 8M44 48l-3 8" stroke="#74b9ff" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
-  items.push({name:'Облачко',src:aeSvgData(cloud('#dfe6e9',1))});
-  items.push({name:'Облачко 2',src:aeSvgData(cloud('#ffffff',.95))});
-  items.push({name:'Тучка',src:aeSvgData(rainCloud('#636e72'))});
-  items.push({name:'Звезда',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="32,6 39,25 59,25 43,37 49,56 32,44 15,56 21,37 5,25 25,25" fill="#fdcb6e"/></svg>`)});
-  items.push({name:'Маска анонима',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 20c4-8 28-8 36 0 4 6 2 22-4 28-6 6-22 6-28 0-6-6-8-22-4-28z" fill="#f5f6fa" stroke="#2d3436" stroke-width="2"/><path d="M18 18c6 4 22 4 28 0" fill="#2d3436"/><path d="M20 30c4-2 8-2 10 0M34 30c4-2 8-2 10 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M22 41c6 4 14 4 20 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M24 40h4v4h-4zM36 40h4v4h-4z" fill="#2d3436"/></svg>`)});
-  items.push({name:'Наушники',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 34a18 18 0 0 1 36 0" fill="none" stroke="#2d3436" stroke-width="4"/><rect x="8" y="32" width="10" height="16" rx="4" fill="#0984e3"/><rect x="46" y="32" width="10" height="16" rx="4" fill="#0984e3"/></svg>`)});
-  // extra stickers
-  items.push({name:'Сердце',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 54S8 39 8 22a13 13 0 0 1 24-6 13 13 0 0 1 24 6c0 17-24 32-24 32z" fill="#ff4757"/></svg>`)});
-  items.push({name:'Огонь',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 6c4 10 14 14 14 26 0 9-6 18-14 18S18 41 18 32c0-8 6-13 8-18 2 6 6 8 6 8s-2-8 0-16z" fill="#ff7f50"/><path d="M32 54c-5 0-9-6-9-12 0-5 4-8 5-11 1 4 4 5 4 5s-1-5 0-10c3 6 9 9 9 16 0 6-4 12-9 12z" fill="#ffd32a"/></svg>`)});
-  items.push({name:'Молния',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="36,4 18,34 30,34 26,60 48,26 34,26" fill="#f1c40f" stroke="#f39c12" stroke-width="1"/></svg>`)});
-  items.push({name:'Корона',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M8 48h48v6H8z" fill="#f39c12"/><path d="M10 48l4-26 10 12 8-18 8 18 10-12 4 26z" fill="#fdcb6e"/><circle cx="14" cy="22" r="3" fill="#ff7675"/><circle cx="32" cy="14" r="3" fill="#74b9ff"/><circle cx="50" cy="22" r="3" fill="#55efc4"/></svg>`)});
-  items.push({name:'Очки',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="20" cy="32" r="12" fill="none" stroke="#111" stroke-width="3"/><circle cx="44" cy="32" r="12" fill="none" stroke="#111" stroke-width="3"/><line x1="32" y1="32" x2="32" y2="32" stroke="#111" stroke-width="3"/><path d="M32 32h0M8 32h0M56 32h0" stroke="#111" stroke-width="3"/><line x1="32" y1="30" x2="32" y2="34" stroke="#111" stroke-width="3"/><line x1="8" y1="32" x2="8" y2="32" stroke="#111" stroke-width="3"/><path d="M8 30c2 2 2 4 0 4M56 30c-2 2-2 4 0 4M32 29v6" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`)});
-  items.push({name:'Крутые очки',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M8 26h22l-4 14H12z" fill="#111"/><path d="M34 26h22l-4 14H38z" fill="#111"/><rect x="30" y="28" width="4" height="3" fill="#111"/><line x1="4" y1="28" x2="8" y2="28" stroke="#111" stroke-width="3"/><line x1="56" y1="28" x2="60" y2="28" stroke="#111" stroke-width="3"/></svg>`)});
-  items.push({name:'Нимб',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="22" rx="20" ry="7" fill="none" stroke="#fdcb6e" stroke-width="4"/><ellipse cx="32" cy="22" rx="20" ry="7" fill="none" stroke="#fff59d" stroke-width="1.5" opacity=".8"/></svg>`)});
-  items.push({name:'Рожки',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 44c2-14 4-24 10-34 2 10 0 18-4 26M50 44c-2-14-4-24-10-34-2 10 0 18 4 26" fill="#d63031" stroke="#b71c1c" stroke-width="1"/></svg>`)});
-  items.push({name:'Ушки кота',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M10 44 L18 14 L30 34 Z" fill="#636e72"/><path d="M54 44 L46 14 L34 34 Z" fill="#636e72"/><path d="M14 40 L19 22 L27 35 Z" fill="#fab1a0"/><path d="M50 40 L45 22 L37 35 Z" fill="#fab1a0"/></svg>`)});
-  items.push({name:'Искры',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="#ffeaa7"><path d="M32 6l3 10 10 1-8 6 3 10-8-6-8 6 3-10-8-6 10-1z"/><circle cx="12" cy="18" r="3"/><circle cx="52" cy="20" r="2.5"/><circle cx="14" cy="46" r="2.5"/><circle cx="50" cy="48" r="3"/></g></svg>`)});
-  items.push({name:'Музыка',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M26 14v30a6 6 0 1 1-4-5.6V20l22-6v24a6 6 0 1 1-4-5.6V14z" fill="#a29bfe"/></svg>`)});
-  items.push({name:'Лайк',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 28h10v26H14z" fill="#74b9ff"/><path d="M24 28l8-18c4 0 6 3 5 8l-2 8h13c3 0 5 3 4 6l-4 16c-1 3-3 4-6 4H24z" fill="#0984e3"/></svg>`)});
-  items.push({name:'OK',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#00b894"/><path d="M18 33l9 9 19-20" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`)});
-  items.push({name:'100',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="6" y="14" width="52" height="36" rx="8" fill="#e84393"/><text x="32" y="39" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="Arial,sans-serif">100</text></svg>`)});
-  items.push({name:'Праздник',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M20 54l6-26 12 10 6-24 6 40z" fill="#fd79a8"/><circle cx="14" cy="18" r="4" fill="#ffeaa7"/><circle cx="48" cy="12" r="3" fill="#74b9ff"/><circle cx="52" cy="28" r="3.5" fill="#55efc4"/><rect x="16" y="26" width="4" height="4" fill="#a29bfe" transform="rotate(20 18 28)"/></svg>`)});
-  items.push({name:'Радуга',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M8 44a24 24 0 0 1 48 0" fill="none" stroke="#ff7675" stroke-width="4"/><path d="M14 44a18 18 0 0 1 36 0" fill="none" stroke="#fdcb6e" stroke-width="4"/><path d="M20 44a12 12 0 0 1 24 0" fill="none" stroke="#55efc4" stroke-width="4"/><path d="M26 44a6 6 0 0 1 12 0" fill="none" stroke="#74b9ff" stroke-width="4"/></svg>`)});
-  items.push({name:'Призрак',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M14 30a18 18 0 0 1 36 0v22l-6-5-6 5-6-5-6 5-6-5-6 5z" fill="#dfe6e9"/><circle cx="25" cy="28" r="3" fill="#2d3436"/><circle cx="39" cy="28" r="3" fill="#2d3436"/><ellipse cx="32" cy="36" rx="4" ry="5" fill="#b2bec3"/></svg>`)});
-  items.push({name:'Инопланетянин',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="34" rx="18" ry="22" fill="#55efc4"/><ellipse cx="24" cy="30" rx="6" ry="8" fill="#111"/><ellipse cx="40" cy="30" rx="6" ry="8" fill="#111"/><ellipse cx="26" cy="28" rx="2" ry="3" fill="#fff"/><ellipse cx="42" cy="28" rx="2" ry="3" fill="#fff"/><path d="M28 44c2 2 6 2 8 0" stroke="#00b894" stroke-width="2" fill="none"/></svg>`)});
-  items.push({name:'Робот',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="14" y="18" width="36" height="30" rx="6" fill="#b2bec3"/><rect x="20" y="24" width="10" height="8" rx="2" fill="#74b9ff"/><rect x="34" y="24" width="10" height="8" rx="2" fill="#74b9ff"/><rect x="24" y="38" width="16" height="4" rx="2" fill="#636e72"/><line x1="32" y1="10" x2="32" y2="18" stroke="#636e72" stroke-width="3"/><circle cx="32" cy="8" r="3" fill="#ff7675"/><rect x="8" y="26" width="6" height="12" rx="2" fill="#636e72"/><rect x="50" y="26" width="6" height="12" rx="2" fill="#636e72"/></svg>`)});
-  items.push({name:'Пицца',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 8 L56 52 A28 28 0 0 1 8 52 Z" fill="#fdcb6e" stroke="#e17055" stroke-width="2"/><circle cx="28" cy="34" r="4" fill="#d63031"/><circle cx="40" cy="38" r="4" fill="#d63031"/><circle cx="32" cy="46" r="3.5" fill="#d63031"/><circle cx="24" cy="44" r="2.5" fill="#00b894"/><circle cx="38" cy="28" r="2.5" fill="#00b894"/></svg>`)});
-  items.push({name:'Кофе',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M16 22h28v22a10 10 0 0 1-10 10H26a10 10 0 0 1-10-10z" fill="#dfe6e9" stroke="#b2bec3" stroke-width="2"/><path d="M44 26h6a6 6 0 0 1 0 12h-6" fill="none" stroke="#b2bec3" stroke-width="2"/><path d="M20 26h20v6a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8z" fill="#6d4c41"/><path d="M24 14c0-4 4-4 4 0M32 14c0-4 4-4 4 0" stroke="#b2bec3" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`)});
-  items.push({name:'Алмаз',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><polygon points="18,22 46,22 54,32 32,56 10,32" fill="#74b9ff"/><polygon points="18,22 32,22 32,56 10,32" fill="#0984e3" opacity=".35"/><polygon points="10,32 54,32 32,22" fill="#dfe6ff" opacity=".55"/><line x1="18" y1="22" x2="32" y2="56" stroke="#fff" opacity=".3"/><line x1="46" y1="22" x2="32" y2="56" stroke="#fff" opacity=".3"/></svg>`)});
-  items.push({name:'Бабл',src:aeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="30" rx="22" ry="18" fill="#fff" stroke="#dfe6e9" stroke-width="2"/><path d="M20 46l-6 10 14-8" fill="#fff" stroke="#dfe6e9" stroke-width="2" stroke-linejoin="round"/></svg>`)});
+  const svg=(name,content)=>items.push({name,src:aeSvgData('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'+content+'</svg>')});
+
+  // Пара головных уборов (каски/шапки) — оставлено немного
+  svg('Кепка', '<path d="M10 38c0-14 10-24 22-24s22 10 22 24" fill="#0984e3"/><rect x="6" y="36" width="52" height="8" rx="4" fill="#0984e3"/><rect x="26" y="38" width="32" height="6" rx="3" fill="#111" opacity=".25"/>');
+  svg('Шлем', '<path d="M14 40c0-15 8-26 18-26s18 11 18 26" fill="#636e72"/><rect x="12" y="38" width="40" height="8" rx="4" fill="#2d3436"/><rect x="22" y="18" width="20" height="10" rx="3" fill="#b2bec3" opacity=".7"/>');
+
+  // Животные
+  svg('Кот', '<path d="M14 42l6-22 10 10h4l10-10 6 22c-2 8-10 12-18 12s-16-4-18-12z" fill="#fdcb6e"/><path d="M18 38l4-12 6 6M46 38l-4-12-6 6" fill="#ffeaa7"/><circle cx="24" cy="36" r="2.2" fill="#2d3436"/><circle cx="40" cy="36" r="2.2" fill="#2d3436"/><path d="M30 42c1.5 1.5 2.5 1.5 4 0" stroke="#2d3436" stroke-width="2" fill="none"/><path d="M10 34h8M46 34h8M12 40h7M45 40h7" stroke="#2d3436" stroke-width="2" stroke-linecap="round"/>');
+  svg('Собака', '<path d="M12 30c0-8 8-14 20-14s20 6 20 14v10c0 8-8 12-20 12S12 48 12 40z" fill="#d35400"/><ellipse cx="12" cy="30" rx="5" ry="10" fill="#a04000"/><ellipse cx="52" cy="30" rx="5" ry="10" fill="#a04000"/><circle cx="24" cy="30" r="2.5" fill="#111"/><circle cx="40" cy="30" r="2.5" fill="#111"/><ellipse cx="32" cy="38" rx="5" ry="4" fill="#2d3436"/><path d="M27 44c3 3 7 3 10 0" stroke="#2d3436" stroke-width="2" fill="none"/>');
+  svg('Лиса', '<path d="M12 40l8-24 12 10 12-10 8 24c-4 10-12 14-20 14s-16-4-20-14z" fill="#e17055"/><path d="M20 20l6 10 6-4 6 4 6-10-12 8z" fill="#fab1a0"/><circle cx="24" cy="36" r="2" fill="#111"/><circle cx="40" cy="36" r="2" fill="#111"/><path d="M32 40l-2 3h4z" fill="#111"/>');
+  svg('Волк', '<path d="M10 42l8-24 14 10 14-10 8 24c-4 10-14 14-22 14S14 52 10 42z" fill="#636e72"/><path d="M22 38l4-10 6 4 6-4 4 10" fill="#b2bec3"/><circle cx="24" cy="36" r="2" fill="#f1c40f"/><circle cx="40" cy="36" r="2" fill="#f1c40f"/><path d="M32 42v4M28 46h8" stroke="#2d3436" stroke-width="2" stroke-linecap="round"/>');
+  svg('Медведь', '<circle cx="18" cy="18" r="7" fill="#8d6e63"/><circle cx="46" cy="18" r="7" fill="#8d6e63"/><circle cx="32" cy="34" r="22" fill="#a1887f"/><circle cx="24" cy="30" r="2.5" fill="#111"/><circle cx="40" cy="30" r="2.5" fill="#111"/><ellipse cx="32" cy="40" rx="7" ry="5" fill="#d7ccc8"/><circle cx="32" cy="38" r="2" fill="#111"/>');
+  svg('Панда', '<circle cx="18" cy="18" r="7" fill="#2d3436"/><circle cx="46" cy="18" r="7" fill="#2d3436"/><circle cx="32" cy="34" r="22" fill="#fff"/><ellipse cx="24" cy="30" rx="6" ry="5" fill="#2d3436"/><ellipse cx="40" cy="30" rx="6" ry="5" fill="#2d3436"/><circle cx="24" cy="30" r="2" fill="#fff"/><circle cx="40" cy="30" r="2" fill="#fff"/><circle cx="32" cy="38" r="2.2" fill="#2d3436"/>');
+  svg('Заяц', '<ellipse cx="22" cy="14" rx="5" ry="14" fill="#dfe6e9"/><ellipse cx="42" cy="14" rx="5" ry="14" fill="#dfe6e9"/><circle cx="32" cy="36" r="18" fill="#f5f6fa"/><circle cx="25" cy="33" r="2" fill="#111"/><circle cx="39" cy="33" r="2" fill="#111"/><path d="M32 38v3M29 42c2 2 4 2 6 0" stroke="#111" stroke-width="2" fill="none"/>');
+  svg('Дракончик', '<path d="M12 44c4-14 12-24 20-24s16 10 20 24c-6 8-14 10-20 10s-14-2-20-10z" fill="#00b894"/><path d="M22 18l-6-8 10 6M42 18l6-8-10 6" fill="#00b894"/><circle cx="25" cy="36" r="2.5" fill="#fff"/><circle cx="39" cy="36" r="2.5" fill="#fff"/><circle cx="25" cy="36" r="1.2" fill="#111"/><circle cx="39" cy="36" r="1.2" fill="#111"/><path d="M26 44c4 4 8 4 12 0" stroke="#00695c" stroke-width="2" fill="none"/><path d="M32 54c4-4 6-4 10 0" stroke="#ff7675" stroke-width="3" fill="none"/>');
+  svg('Сова', '<ellipse cx="32" cy="36" rx="18" ry="20" fill="#8d6e63"/><circle cx="24" cy="30" r="7" fill="#fff"/><circle cx="40" cy="30" r="7" fill="#fff"/><circle cx="24" cy="30" r="3" fill="#111"/><circle cx="40" cy="30" r="3" fill="#111"/><path d="M32 34l-3 5h6z" fill="#f39c12"/><path d="M18 20l6 4M46 20l-6 4" stroke="#6d4c41" stroke-width="3"/>');
+  svg('Единорог', '<path d="M32 6l4 14h-8z" fill="#fd79a8"/><path d="M12 40c2-14 10-22 20-22s18 8 20 22c-4 10-12 14-20 14s-16-4-20-14z" fill="#f5f6fa" stroke="#dfe6e9" stroke-width="2"/><circle cx="24" cy="36" r="2" fill="#6c5ce7"/><circle cx="40" cy="36" r="2" fill="#6c5ce7"/><path d="M28 44c2 2 6 2 8 0" stroke="#b2bec3" stroke-width="2" fill="none"/><path d="M46 24c6-2 10 2 8 8" stroke="#a29bfe" stroke-width="3" fill="none"/>');
+  svg('Феникс', '<path d="M32 10c8 8 14 14 14 22 0 10-6 18-14 22-8-4-14-12-14-22 0-8 6-14 14-22z" fill="#ff7675"/><path d="M32 18c5 6 8 10 8 14 0 6-3 10-8 14-5-4-8-8-8-14 0-4 3-8 8-14z" fill="#fdcb6e"/><path d="M10 34c8-2 12 0 14 6M54 34c-8-2-12 0-14 6" stroke="#e17055" stroke-width="3" fill="none"/>');
+
+  // Магия
+  svg('Магический шар', '<circle cx="32" cy="34" r="18" fill="#6c5ce7"/><circle cx="26" cy="28" r="6" fill="#a29bfe" opacity=".7"/><path d="M18 50c4 4 24 4 28 0" fill="#2d3436"/><path d="M24 22l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1z" fill="#ffeaa7"/>');
+  svg('Волшебная палочка', '<rect x="12" y="40" width="34" height="4" rx="2" transform="rotate(-35 12 40)" fill="#8d6e63"/><path d="M44 14l2 6 6 1-5 4 2 6-5-3-5 3 2-6-5-4 6-1z" fill="#ffeaa7"/>');
+  svg('Зелье', '<path d="M26 10h12v8l8 22a10 10 0 0 1-10 14h-8a10 10 0 0 1-10-14l8-22z" fill="#74b9ff" stroke="#0984e3" stroke-width="2"/><path d="M22 34h20l-3 10a6 6 0 0 1-6 4h-2a6 6 0 0 1-6-4z" fill="#a29bfe"/><circle cx="28" cy="40" r="2" fill="#fff"/><circle cx="36" cy="44" r="1.5" fill="#fff"/>');
+  svg('Руны', '<circle cx="32" cy="32" r="22" fill="none" stroke="#00cec9" stroke-width="3"/><path d="M32 14v36M18 24l28 16M18 40l28-16" stroke="#81ecec" stroke-width="2"/><circle cx="32" cy="32" r="4" fill="#00cec9"/>');
+  svg('Магия огня', '<path d="M32 8c6 10 14 14 14 24 0 10-6 18-14 18s-14-8-14-18c0-10 8-14 14-24z" fill="#ff7675"/><path d="M32 18c4 6 8 9 8 14 0 6-4 10-8 10s-8-4-8-10c0-5 4-8 8-14z" fill="#ffeaa7"/><circle cx="16" cy="20" r="2" fill="#fdcb6e"/><circle cx="48" cy="24" r="2.5" fill="#fdcb6e"/>');
+  svg('Магия льда', '<path d="M32 8v48M12 20l40 24M12 44l40-24M20 12l24 40M44 12L20 52" stroke="#74b9ff" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="32" r="5" fill="#dfe6ff"/>');
+  svg('Книга заклинаний', '<path d="M14 12h28a6 6 0 0 1 6 6v34H20a6 6 0 0 1-6-6z" fill="#6c5ce7"/><path d="M20 12v34a6 6 0 0 0-6 6V18a6 6 0 0 1 6-6z" fill="#4834d4"/><path d="M28 24l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z" fill="#ffeaa7"/>');
+
+  // Аниме / эмоции-стиль
+  svg('Аниме глаза', '<ellipse cx="22" cy="32" rx="10" ry="12" fill="#fff" stroke="#2d3436" stroke-width="2"/><ellipse cx="42" cy="32" rx="10" ry="12" fill="#fff" stroke="#2d3436" stroke-width="2"/><circle cx="24" cy="34" r="5" fill="#0984e3"/><circle cx="44" cy="34" r="5" fill="#0984e3"/><circle cx="26" cy="32" r="2" fill="#fff"/><circle cx="46" cy="32" r="2" fill="#fff"/>');
+  svg('Неко ушки', '<path d="M10 44 L18 12 L30 34 Z" fill="#2d3436"/><path d="M54 44 L46 12 L34 34 Z" fill="#2d3436"/><path d="M14 40 L19 20 L27 35 Z" fill="#fd79a8"/><path d="M50 40 L45 20 L37 35 Z" fill="#fd79a8"/>');
+  svg('Чиби звезда', '<path d="M32 8l6 14 15 2-11 10 3 15-13-8-13 8 3-15-11-10 15-2z" fill="#ffeaa7" stroke="#fdcb6e" stroke-width="2"/>');
+  svg('Кавай сердце', '<path d="M32 52S10 38 10 22a12 12 0 0 1 22-5 12 12 0 0 1 22 5c0 16-22 30-22 30z" fill="#ff7675"/><circle cx="24" cy="24" r="2" fill="#fff"/><circle cx="40" cy="24" r="2" fill="#fff"/><path d="M28 32c2 2 6 2 8 0" stroke="#fff" stroke-width="2" fill="none"/>');
+  svg('Сенпай искры', '<path d="M32 10l3 9 9 1-7 6 2 9-7-5-7 5 2-9-7-6 9-1z" fill="#fd79a8"/><circle cx="14" cy="18" r="3" fill="#ffeaa7"/><circle cx="50" cy="22" r="2.5" fill="#74b9ff"/><circle cx="18" cy="46" r="2.5" fill="#55efc4"/><circle cx="48" cy="46" r="3" fill="#a29bfe"/>');
+
+  // Фэнтези
+  svg('Меч', '<rect x="29" y="8" width="6" height="34" rx="2" fill="#b2bec3"/><rect x="22" y="40" width="20" height="4" rx="2" fill="#8d6e63"/><rect x="30" y="44" width="4" height="12" rx="1" fill="#6d4c41"/><circle cx="32" cy="56" r="3" fill="#fdcb6e"/>');
+  svg('Щит', '<path d="M32 8l18 8v14c0 14-10 22-18 26-8-4-18-12-18-26V16z" fill="#0984e3" stroke="#74b9ff" stroke-width="2"/><path d="M32 18v28M22 32h20" stroke="#dfe6ff" stroke-width="3"/>');
+  svg('Эльф', '<path d="M10 34c6-2 10 2 10 8M54 34c-6-2-10 2-10 8" stroke="#55efc4" stroke-width="3" fill="none"/><circle cx="32" cy="34" r="16" fill="#ffeaa7"/><circle cx="26" cy="32" r="2" fill="#2d3436"/><circle cx="38" cy="32" r="2" fill="#2d3436"/><path d="M28 40c2 2 6 2 8 0" stroke="#d35400" stroke-width="2" fill="none"/><path d="M20 26l6-8M44 26l-6-8" stroke="#00b894" stroke-width="2"/>');
+  svg('Корона фэнтези', '<path d="M10 46h44v6H10z" fill="#f39c12"/><path d="M12 46l4-22 10 10 6-16 6 16 10-10 4 22z" fill="#fdcb6e"/><circle cx="16" cy="24" r="3" fill="#e84393"/><circle cx="32" cy="16" r="3.5" fill="#74b9ff"/><circle cx="48" cy="24" r="3" fill="#55efc4"/>');
+  svg('Кристалл', '<polygon points="32,6 50,22 44,52 20,52 14,22" fill="#a29bfe"/><polygon points="32,6 32,52 14,22" fill="#6c5ce7" opacity=".5"/><polygon points="14,22 50,22 32,36" fill="#dfe6ff" opacity=".5"/>');
+  svg('Замок', '<rect x="14" y="28" width="36" height="26" fill="#636e72"/><rect x="10" y="20" width="10" height="34" fill="#2d3436"/><rect x="44" y="20" width="10" height="34" fill="#2d3436"/><path d="M10 20l5-6 5 6M44 20l5-6 5 6" fill="#636e72"/><rect x="28" y="40" width="8" height="14" fill="#8d6e63"/>');
+  svg('Свиток', '<rect x="18" y="14" width="28" height="36" rx="3" fill="#ffeaa7"/><ellipse cx="18" cy="32" rx="4" ry="20" fill="#f1c40f"/><ellipse cx="46" cy="32" rx="4" ry="20" fill="#f1c40f"/><path d="M24 24h16M24 32h16M24 40h10" stroke="#d35400" stroke-width="2"/>');
+
+  // Игры
+  svg('Джойстик', '<rect x="12" y="28" width="40" height="18" rx="9" fill="#2d3436"/><circle cx="24" cy="37" r="6" fill="#636e72"/><circle cx="24" cy="37" r="3" fill="#0984e3"/><circle cx="42" cy="34" r="2.5" fill="#ff7675"/><circle cx="46" cy="38" r="2.5" fill="#55efc4"/><circle cx="38" cy="38" r="2.5" fill="#ffeaa7"/><circle cx="42" cy="42" r="2.5" fill="#74b9ff"/>');
+  svg('Пиксель сердце', '<g fill="#e84393"><rect x="14" y="18" width="8" height="8"/><rect x="22" y="14" width="8" height="8"/><rect x="34" y="14" width="8" height="8"/><rect x="42" y="18" width="8" height="8"/><rect x="10" y="26" width="44" height="8"/><rect x="14" y="34" width="36" height="8"/><rect x="18" y="42" width="28" height="6"/><rect x="24" y="48" width="16" height="6"/></g>');
+  svg('Монета', '<circle cx="32" cy="32" r="20" fill="#fdcb6e" stroke="#f39c12" stroke-width="3"/><text x="32" y="39" text-anchor="middle" font-size="20" font-weight="800" fill="#e67e22" font-family="Arial,sans-serif">G</text>');
+  svg('Меч из игры', '<path d="M30 8h4v28h-4z" fill="#74b9ff"/><path d="M32 8l6 10h-12z" fill="#dfe6ff"/><rect x="22" y="34" width="20" height="5" rx="2" fill="#fdcb6e"/><rect x="30" y="39" width="4" height="14" rx="1" fill="#8d6e63"/><circle cx="32" cy="55" r="3" fill="#0984e3"/>');
+  svg('Зелье маны', '<path d="M26 10h12v8l8 22a10 10 0 0 1-10 14h-8a10 10 0 0 1-10-14l8-22z" fill="#0984e3" stroke="#74b9ff" stroke-width="2"/><path d="M22 34h20l-3 10a6 6 0 0 1-6 4h-2a6 6 0 0 1-6-4z" fill="#00cec9"/><path d="M30 26l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1z" fill="#fff" opacity=".8"/>');
+  svg('Кубик D20', '<polygon points="32,6 54,20 54,44 32,58 10,44 10,20" fill="#6c5ce7" stroke="#a29bfe" stroke-width="2"/><text x="32" y="38" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Arial,sans-serif">20</text>');
+  svg('Призрак Pac', '<path d="M14 30a18 18 0 0 1 36 0v22l-6-5-6 5-6-5-6 5-6-5-6 5z" fill="#00cec9"/><circle cx="25" cy="28" r="4" fill="#fff"/><circle cx="39" cy="28" r="4" fill="#fff"/><circle cx="26" cy="28" r="2" fill="#0984e3"/><circle cx="40" cy="28" r="2" fill="#0984e3"/>');
+
+  // Книги
+  svg('Книга', '<path d="M12 14h16a6 6 0 0 1 6 6v30H18a6 6 0 0 1-6-6z" fill="#e17055"/><path d="M52 14H36a6 6 0 0 0-6 6v30h16a6 6 0 0 0 6-6z" fill="#d63031"/><path d="M32 20v30" stroke="#fab1a0" stroke-width="2"/>');
+  svg('Открытая книга', '<path d="M8 18c8-4 16-4 24 0v30c-8-4-16-4-24 0z" fill="#ffeaa7"/><path d="M56 18c-8-4-16-4-24 0v30c8-4 16-4 24 0z" fill="#fff3bf"/><path d="M14 26h12M14 32h12M14 38h8M38 26h12M38 32h12M38 38h8" stroke="#d35400" stroke-width="2" stroke-linecap="round"/>');
+  svg('Перо и чернила', '<path d="M46 10c-10 6-20 18-26 34l6 2c6-14 16-26 28-32z" fill="#6c5ce7"/><path d="M20 44l-6 10 10-6z" fill="#2d3436"/><ellipse cx="46" cy="46" rx="8" ry="5" fill="#2d3436"/><ellipse cx="46" cy="44" rx="5" ry="3" fill="#0984e3"/>');
+  svg('Закладка', '<path d="M20 10h24v44l-12-10-12 10z" fill="#e84393"/><path d="M28 22h8M28 30h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>');
+
+  // Универсальные приятные
+  svg('Звезда', '<polygon points="32,6 39,24 58,24 43,36 49,54 32,43 15,54 21,36 6,24 25,24" fill="#fdcb6e"/>');
+  svg('Сердце', '<path d="M32 54S8 39 8 22a13 13 0 0 1 24-6 13 13 0 0 1 24 6c0 17-24 32-24 32z" fill="#ff4757"/>');
+  svg('Луна', '<path d="M40 10a22 22 0 1 0 0 44a18 18 0 1 1 0-44z" fill="#ffeaa7"/>');
+  svg('Облачко', '<g fill="#dfe6e9"><circle cx="22" cy="36" r="10"/><circle cx="34" cy="30" r="13"/><circle cx="46" cy="36" r="9"/><rect x="14" y="34" width="38" height="12" rx="6"/></g>');
+  svg('Радуга', '<path d="M8 44a24 24 0 0 1 48 0" fill="none" stroke="#ff7675" stroke-width="4"/><path d="M14 44a18 18 0 0 1 36 0" fill="none" stroke="#fdcb6e" stroke-width="4"/><path d="M20 44a12 12 0 0 1 24 0" fill="none" stroke="#55efc4" stroke-width="4"/><path d="M26 44a6 6 0 0 1 12 0" fill="none" stroke="#74b9ff" stroke-width="4"/>');
+  svg('Нимб', '<ellipse cx="32" cy="22" rx="20" ry="7" fill="none" stroke="#fdcb6e" stroke-width="4"/><ellipse cx="32" cy="22" rx="20" ry="7" fill="none" stroke="#fff59d" stroke-width="1.5" opacity=".8"/>');
+  svg('Очки', '<rect x="8" y="24" width="18" height="14" rx="4" fill="#111"/><rect x="38" y="24" width="18" height="14" rx="4" fill="#111"/><rect x="26" y="29" width="12" height="4" fill="#333"/><rect x="2" y="29" width="6" height="3" fill="#333"/><rect x="56" y="29" width="6" height="3" fill="#333"/>');
+
   return items;
 }
+
 function aeRender(){
   const c=document.getElementById('aeCanvas'); if(!c||!ae.img) return;
   const ctx=c.getContext('2d'); ctx.clearRect(0,0,ae.w,ae.h);
@@ -9532,7 +9563,7 @@ function openAvatarEditor(dataUrl, target, opts){
   img.onload=async()=>{
     ae.img=img; aeBindCanvas();
     document.getElementById('avatarEditor').classList.add('active');
-    aeShowPanel('stickers');
+    aeShowPanel(ae.target==='avatar' ? 'fit' : 'stickers');
     if(opts.layers && opts.layers.length){
       try{ ae.layers=await _aeRestoreLayers(opts.layers); }catch(e){ ae.layers=[]; }
       aeStatus('Слои восстановлены — можно убирать/добавлять стикеры и текст');
