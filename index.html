@@ -2004,7 +2004,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 03:05';
+const BUILD='17.11.2026 03:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8931,9 +8931,7 @@ function refreshPetRows(ownerUid){
 async function petAction(ownerUid, action){
   if(!currentUser||!ownerUid) return;
   const isOwner = currentUser.uid===ownerUid;
-  const isFriend = !!(lastFriends && lastFriends[ownerUid]);
-  if(!isOwner && !isFriend){ toast('Только друзья могут ухаживать за питомцем'); return; }
-  if(!isOwner && action!=='walk' && action!=='pet'){ toast('Друзья могут гладить и выгуливать питомца'); return; }
+  if(!isOwner && !currentUser.uid){ toast('Нужно войти в аккаунт'); return; }
   const ref = db.ref('pets/'+ownerUid);
   try{
     const snap = await ref.once('value');
@@ -8998,7 +8996,7 @@ function renderPetRow(targetUid, elId){
   const mood = petMood(st);
   const isOwner = currentUser && currentUser.uid===targetUid;
   const isFriend = !!(currentUser && lastFriends && lastFriends[targetUid]);
-  const canCare = isOwner || isFriend;
+  const canCare = isOwner || !!currentUser; // друзья и друзья друзей могут ухаживать
   loadPetState(targetUid);
   const ask = petNeedsText(st);
   const actions = isOwner
@@ -9007,9 +9005,12 @@ function renderPetRow(targetUid, elId){
       +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'play\')">🎾 Играть</button>'
       +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'toilet\')">🚽 Туалет</button>'
       +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
-    : (isFriend
-      ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
-        +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
+    : (canCare
+    ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'feed\')">🍖 Кормить</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'play\')">🎾 Играть</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'toilet\')">🚽 Туалет</button>'
+      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
       : '');
   const petFace = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:22px;line-height:1">'+petEmoji+'</span>';
   const petFaceSmall = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:18px">'+petEmoji+'</span>';
@@ -9028,7 +9029,7 @@ function renderPetRow(targetUid, elId){
     + '</div>'
     + (actions?('<div class="pet-actions">'+actions+'</div>'):'')
     + (ask?('<div class="pet-ask">💬 '+esc(ask)+'</div>'):'')
-    + (!canCare?'<div class="pet-ask" style="color:var(--text3)">Добавьте в друзья, чтобы выгуливать питомца</div>':'')
+    + (!currentUser?'<div class="pet-ask" style="color:var(--text3)">Войдите, чтобы ухаживать за питомцем</div>':'')
     + '</div>';
 }
 function _enterProfileWatch(targetUid, isOwnerOpen){
