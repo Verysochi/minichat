@@ -1067,9 +1067,9 @@ img,video,canvas{max-width:100%}
   body.desktop-split{background:var(--bg);overflow:hidden}
   body.desktop-split .screen{max-width:none;margin:0;left:auto;right:auto;border:none;box-shadow:none}
   body.desktop-split #mainScreen,
-  body.desktop-split #chatScreen{position:fixed;top:0;bottom:68px;height:auto;background:var(--bg)}
-  body.desktop-split #mainScreen{left:0;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
-  body.desktop-split #chatScreen{left:360px;right:0;width:auto;z-index:2}
+  body.desktop-split #chatScreen{position:fixed;top:0;bottom:0;height:auto;background:var(--bg)}
+  body.desktop-split #mainScreen{left:72px;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
+  body.desktop-split #chatScreen{left:432px;right:0;width:auto;z-index:2}
   body.desktop-split #chatScreen.active{display:flex !important}
   body.desktop-split:not(.chat-open-desktop) #chatScreen{display:flex !important}
   body.desktop-split:not(.chat-open-desktop) #chatScreen > *:not(#desktopChatPlaceholder){display:none !important}
@@ -1084,7 +1084,7 @@ img,video,canvas{max-width:100%}
   body.desktop-split #chatScreen .input-bar,
   body.desktop-split #chatScreen .typing{max-width:none;margin-left:0;margin-right:0;width:100%}
   /* Не-чатовые экраны на десктопе в split-режиме: показываем как обычно поверх */
-  body.desktop-split .screen.active:not(#mainScreen):not(#chatScreen){position:fixed;inset:0 0 68px 0;z-index:20;max-width:none;margin:0;display:flex}
+  body.desktop-split .screen.active:not(#mainScreen):not(#chatScreen){position:fixed;top:0;right:0;bottom:0;left:72px;z-index:20;max-width:none;margin:0;display:flex}
 }
 /* ===== Анимации кнопок: ПК — при наведении, телефон — при нажатии ===== */
 .header-btn{transition:background .2s ease,color .2s ease,transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease}
@@ -2002,7 +2002,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 01:35';
+const BUILD='17.11.2026 02:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7364,13 +7364,13 @@ function renderFriends(){
     const i=ALL_USERS[uid];if(!i)return;
     const rel=relOf(uid);
     const outgoing=outgoingRel(uid);
-    const d=document.createElement('div');d.className='user-item';
-    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+
+      const d=document.createElement('div');d.className='user-item';d.style.cursor='pointer';
+      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+
       (rel?' <span style="font-size:11px;background:var(--accent-soft);color:var(--primary);border-radius:8px;padding:1px 6px">'+esc(rel)+'</span>':'')+
       (outgoing?' <span style="font-size:11px;color:var(--text3);border-radius:8px;padding:1px 6px">⏳ '+esc(outgoing)+'</span>':'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div>'+
       // Выбор связи больше не ставится молча — уходит запросом, второй человек подтверждает.
-      '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
-    d.onclick=e=>{if(e.target.tagName==='SELECT'||e.target.tagName==='OPTION')return;openUserProfile(uid);};
+        '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px;flex-shrink:0" onclick="event.stopPropagation()" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
+      d.onclick=e=>{ if(e.target.closest('select')) return; openUserProfile(uid); };
     l.appendChild(d);});
 }
 function renderFind(){
@@ -8793,8 +8793,14 @@ async function petAction(ownerUid, action){
     try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, (labels[action]||'🐾').slice(0,2)); }catch(e){}
     // событие для владельца/наблюдателей
     if(ownerUid!==currentUser.uid){
-      const ev={type:'petcare', action, from:currentUser.uid, fromName:(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то'), ts:now};
+      const actorName=(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то');
+      const ownerInfo=ALL_USERS[ownerUid]||{}; const oa=ownerInfo.anketa||{};
+      const petName=(oa.totemName||((typeof TOTEMS!=='undefined'?TOTEMS:[]).find(t=>t.id===oa.totem)||{}).name||'питомца');
+      const verbs={feed:'покормил(а)', play:'поиграл(а) с', toilet:'сводил(а) в туалет', walk:'выгулял(а)', pet:'погладил(а)'};
+      const emo={feed:'😋', play:'😄', toilet:'😊', walk:'😄', pet:'😄'};
+      const ev={type:'petcare', action, from:currentUser.uid, fromName:actorName, petName:String(petName).slice(0,60), ts:now};
       db.ref('profileEvents/'+ownerUid).push(ev).catch(()=>{});
+      try{ if(typeof notifyUser==='function') notifyUser(ownerUid,'pet','🐾 Питомец', actorName+' '+(verbs[action]||'позаботился(ась) о')+' '+petName+'! '+(emo[action]||'😄'), {from:currentUser.uid, kind:'petcare', action}); }catch(e){}
     }
   }catch(e){ toast('Не удалось (проверь права/сеть)'); }
 }
