@@ -2004,7 +2004,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 03:45';
+const BUILD='17.11.2026 04:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7376,12 +7376,15 @@ function renderFriends(){
 function renderFind(){
   const box=document.getElementById('findList');if(!box||!currentUser)return;
   const q=(document.getElementById('findInput').value||'').trim().toLowerCase();
-  let es=Object.entries(ALL_USERS).filter(([uid,i])=>uid===currentUser.uid||isFriend(uid)||!isHiddenUser(i));
+  box.innerHTML='';
+  let es=Object.entries(ALL_USERS).filter(([uid,i])=>uid!==currentUser.uid&&!isFriend(uid)&&!isHiddenUser(i));
+  const seen=new Set();
+  es=es.filter(([uid,i])=>{const nm=(displayNameOf(i)||'').trim().toLowerCase();if(seen.has(nm))return false;seen.add(nm);return true;});
   if(q)es=es.filter(([uid,i])=>(i.name||'').toLowerCase().includes(q));
   es.sort((a,b)=>displayNameOf(a[1]).localeCompare(displayNameOf(b[1]),'ru'));
   es.forEach(([uid,i])=>{const fr=isFriend(uid),me=uid===currentUser.uid;
     const d=document.createElement('div');d.className='user-item';d.style.cursor='pointer';
-    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+(me?' <span style="font-size:11px;color:var(--text3)">(ты)</span>':'')+(fr&&!me?' <span style="font-size:11px;color:var(--green)">✓ друг</span>':'')+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+(isOnline(i)?'':'')+presenceHtml(i)+'</div><span style="color:var(--text3);font-size:18px">›</span>';
+    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+(fr?' <span style="font-size:11px;color:var(--green)">✓ друг</span>':'')+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+(isOnline(i)?'':'')+presenceHtml(i)+'</div><span style="color:var(--text3);font-size:18px">›</span>';
     d.onclick=(e)=>{ if(e.target.closest('button')||e.target.closest('select')) return; openUserProfile(uid); };
     box.appendChild(d);});
 }
