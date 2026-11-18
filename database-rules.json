@@ -115,7 +115,7 @@
     },
     "userPosts": {
       ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
-      ".write": "auth != null && root.child('approvals').child(auth.uid).exists()"
+      ".write": "auth != null"
     },
     "files": {
       "$key": {
