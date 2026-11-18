@@ -1070,6 +1070,8 @@ img,video,canvas{max-width:100%}
   body.desktop-split #chatScreen{position:fixed;top:0;bottom:0;height:auto;background:var(--bg)}
   body.desktop-split #mainScreen{left:72px;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
   body.desktop-split #chatScreen{left:432px;right:0;width:auto;z-index:2}
+  body.desktop-split .screen{left:72px !important}
+  body.desktop-split .header{left:72px;right:0;width:auto;max-width:none}
   body.desktop-split #chatScreen.active{display:flex !important}
   body.desktop-split:not(.chat-open-desktop) #chatScreen{display:flex !important}
   body.desktop-split:not(.chat-open-desktop) #chatScreen > *:not(#desktopChatPlaceholder){display:none !important}
@@ -2032,7 +2034,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 05:25';
+const BUILD='17.11.2026 06:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8905,61 +8907,205 @@ function petTotem(targetUid){
   }
 }
 // ===== Живой питомец =====
-const PET_DECAY = { hunger: 6, fun: 5, toilet: 4, affection: 3 }; // в час
+// ===== Живой питомец (Тамагочи) =====
+// Страсти: яйцо -> младенец -> ребёнок -> подросток -> взрослый.
+// Время ускорено: 1 реальная минута = 10 игровых минут (1 игровой час = 6 реальных минут).
+const PET_STAGES = ['egg','baby','child','teen','adult'];
+const PET_STAGE_LABEL = { egg:'Яйцо', baby:'Младенец', child:'Ребёнок', teen:'Подросток', adult:'Взрослый', dead:'Ушёл', runaway:'Сбежал' };
+const PET_STAGE_EMOJI = { egg:'🥚', baby:'🐣', child:'🐥', teen:'🦮', adult:'🐕', dead:'💀', runaway:'👋' };
+// Сколько игровых минут длится каждая стадия (до эволюции)
+const PET_STAGE_DURATION = { egg:60, baby:120, child:180, teen:240, adult:0 };
+// Ускорение времени: реальных миллисекунд на 1 игровую минуту
+const PET_TIME_SCALE = 6000; // 6 сек реально = 1 игровая минута
+// Пороги шкал (из 100)
+const PET_CRITICAL = 25;   // ниже этого — питомец зовит на помощь
+const PET_LOW = 45;        // ниже этого — нужно присмотреть
+// Скорость падения шкал (в час игрового времени)
+const PET_DECAY_PER_HOUR = { hunger: 8, fun: 7, toilet: 6, affection: 5, discipline: 2, health: 3 };
+
 function petDefaultState(){
-  return { hunger:70, fun:70, toilet:70, affection:70, happiness:70, avatar:null, lastUpdated:Date.now(), lastFed:Date.now(), lastPlayed:Date.now(), lastToilet:Date.now(), lastWalked:Date.now(), lastPetted:Date.now() };
+  return {
+    stage:'egg',
+    age:0,                          // игровые минуты
+    stageTime:0,                    // сколько провел на текущей стадии
+    hunger:100, fun:100, toilet:100, affection:100, discipline:50, health:100,
+    lastUpdated:Date.now(),
+    lastFed:Date.now(), lastPlayed:Date.now(), lastToilet:Date.now(), lastPetted:Date.now(),
+    lastDisciplined:Date.now(),
+    calls:0,                        // сколько раз звал на помощь (игровых минут)
+    lastCall:0,                     // последняя игровая минута звонка
+    totem:'cat', totemName:'', petGender:'m',
+    avatar:null, dead:false, runaway:false, hatchTime:null, evolveTime:null,
+    disciplineActions:0,            // сколько раз принуждали к дисциплине
+  };
 }
 function petClamp(v){ return Math.max(0, Math.min(100, Math.round(v))); }
+function gameMinutesFrom(ms){ return Math.floor(ms / PET_TIME_SCALE); }
+
+// Рассчитать текущее состояние питомца с учётом ускоренного времени
 function petCompute(state){
   const s0 = Object.assign(petDefaultState(), state||{});
   const now = Date.now();
-  const hours = Math.max(0, (now - (s0.lastUpdated||now)) / 3600000);
-  const hunger = petClamp((s0.hunger!=null?s0.hunger:70) - hours*PET_DECAY.hunger);
-  const fun = petClamp((s0.fun!=null?s0.fun:70) - hours*PET_DECAY.fun);
-  const toilet = petClamp((s0.toilet!=null?s0.toilet:70) - hours*PET_DECAY.toilet);
-  const affection = petClamp((s0.affection!=null?s0.affection:70) - hours*PET_DECAY.affection);
-  const happiness = petClamp((hunger + fun + toilet + affection) / 4);
-  return Object.assign({}, s0, { hunger, fun, toilet, affection, happiness, avatar: s0.avatar || null, lastUpdated: now });
-}
-function petMood(p){
-  const h = p.happiness!=null?p.happiness:70;
-  if(p.hunger < 25) return {emoji:'🍖', text:'Хочу кушать!'};
-  if(p.toilet < 25) return {emoji:'🚽', text:'Хочу в туалет!'};
-  if(p.fun < 25) return {emoji:'🎾', text:'Хочу играть!'};
-  if(p.affection < 25) return {emoji:'🤗', text:'Погладь меня!'};
-  if(h >= 80) return {emoji:'😄', text:'Счастлив!'};
-  if(h >= 60) return {emoji:'🙂', text:'Всё хорошо'};
-  if(h >= 40) return {emoji:'😐', text:'Так себе'};
-  if(h >= 20) return {emoji:'😟', text:'Мне грустно'};
-  return {emoji:'😭', text:'Мне очень плохо'};
-}
-function petNeedsText(p){
-  const needs=[];
-  if(p.hunger<35) needs.push('покормить');
-  if(p.fun<35) needs.push('поиграть');
-  if(p.toilet<35) needs.push('в туалет');
-  if(p.affection<35) needs.push('погладить');
-  return needs.length?('Просится: '+needs.join(', ')):'';
-}
-const _petStateCache = {};
-const _petRefs = {};
-function loadPetState(ownerUid, cb){
-  if(!ownerUid) return;
-  if(_petRefs[ownerUid]) return; // already listening
-  const ref = db.ref('pets/'+ownerUid);
-  _petRefs[ownerUid]=ref;
-  ref.on('value', snap=>{
-    const raw = snap.val();
-    const st = petCompute(raw || petDefaultState());
-    _petStateCache[ownerUid]=st;
-    try{ cb && cb(st); }catch(e){}
-    try{ refreshPetRows(ownerUid); }catch(e){}
+  const realElapsed = Math.max(0, now - (s0.lastUpdated||now));
+  const gameElapsed = gameMinutesFrom(realElapsed); // игровые минуты прошло
+  const hours = gameElapsed / 60;                   // игровые часы
+
+  // Самое 먼저 — проверяем, жив ли и не сбежал
+  if(s0.stage==='dead'||s0.stage==='runaway') return Object.assign({}, s0, { lastUpdated: now });
+
+  let stage = s0.stage;
+  let stageTime = s0.stageTime + gameElapsed;
+  let age = s0.age + gameElapsed;
+
+  // Падение шкал за прошедшие игровые часы
+  let hunger = petClamp((s0.hunger!=null?s0.hunger:100) - hours*PET_DECAY_PER_HOUR.hunger);
+  let fun = petClamp((s0.fun!=null?s0.fun:100) - hours*PET_DECAY_PER_HOUR.fun);
+  let toilet = petClamp((s0.toilet!=null?s0.toilet:100) - hours*PET_DECAY_PER_HOUR.toilet);
+  let affection = petClamp((s0.affection!=null?s0.affection:100) - hours*PET_DECAY_PER_HOUR.affection);
+  let discipline = petClamp((s0.discipline!=null?s0.discipline:50) - hours*PET_DECAY_PER_HOUR.discipline);
+  let health = petClamp((s0.health!=null?s0.health:100) - hours*PET_DECAY_PER_HOUR.health);
+
+  // Здоровье падает быстрее, если критически низкие потребности
+  const critCount = [hunger,fun,toilet,affection].filter(v=>v<PET_CRITICAL).length;
+  if(critCount>=2){ health = petClamp(health - hours*2); }
+  if(critCount>=3){ health = petClamp(health - hours*3); }
+
+  // Если здоровье на нуле — питомец уходит
+  if(health<=0){
+    stage='dead';
+    health=0;
+  }
+
+  // Эволюция стадий (если не мертв и не сбежал)
+  if(stage!=='dead' && stage!=='runaway'){
+    const dur = PET_STAGE_DURATION[stage] || 0;
+    if(dur>0 && stageTime>=dur){
+      const idx = PET_STAGES.indexOf(stage);
+      if(idx>=0 && idx<PET_STAGES.length-1){
+        stage = PET_STAGES[idx+1];
+        stageTime = 0;
+        s0.evolveTime = now;
+      }
+    }
+    // Шанс сбежать при критически низком здоровье и длительном忽视
+    if(health<30 && gameElapsed>60 && Math.random()<0.02){
+      stage='runaway';
+    }
+  }
+
+  return Object.assign({}, s0, {
+    stage, age, stageTime,
+    hunger, fun, toilet, affection, discipline, health,
+    lastUpdated: now,
+    avatar: s0.avatar || null,
   });
 }
-function refreshPetRows(ownerUid){
-  try{ renderPetRow(ownerUid, 'profilePetRow'); }catch(e){}
-  try{ renderPetRow(ownerUid, 'vpPetRow'); }catch(e){}
+
+function petMood(p){
+  if(p.stage==='egg') return {emoji:'🥚', text:'Яйцо скоро вылупится...'};
+  if(p.stage==='dead') return {emoji:'💀', text:'Питомец ушёл...'};
+  if(p.stage==='runaway') return {emoji:'👋', text:'Питомец сбежал...'};
+  const h = p.health!=null?p.health:100;
+  const happy = (p.hunger+p.fun+p.toilet+p.affection+p.discipline+p.health)/6;
+  if(p.hunger<PET_CRITICAL) return {emoji:'🍖', text:'Мне очень голодно!'};
+  if(p.toilet<PET_CRITICAL) return {emoji:'🚽', text:'Мне в туалет!'};
+  if(p.fun<PET_CRITICAL) return {emoji:'🎾', text:'Мне скучно!'};
+  if(p.affection<PET_CRITICAL) return {emoji:'🤗', text:'Погладь меня!'};
+  if(h<PET_CRITICAL) return {emoji:'🤒', text:'Мне плохо, подлечи'};
+  if(happy>=85) return {emoji:'😄', text:'Счастлив!'};
+  if(happy>=65) return {emoji:'🙂', text:'Всё хорошо'};
+  if(happy>=45) return {emoji:'😐', text:'Так себе'};
+  if(happy>=25) return {emoji:'😟', text:'Мне грустно'};
+  return {emoji:'😭', text:'Мне очень плохо'};
 }
+
+function petNeedsText(p){
+  if(p.stage==='egg') return 'Скоро вылупится из яйца';
+  if(p.stage==='dead'||p.stage==='runaway') return '';
+  const needs=[];
+  if(p.hunger<PET_LOW) needs.push('покормить');
+  if(p.fun<PET_LOW) needs.push('поиграть');
+  if(p.toilet<PET_LOW) needs.push('в туалет');
+  if(p.affection<PET_LOW) needs.push('погладить');
+  if(p.discipline<PET_LOW) needs.push('воспитать');
+  if(p.health<PET_LOW) needs.push('вылечить');
+  return needs.length?('Просится: '+needs.join(', ')):'';
+}
+
+// Трехкнопочное управление (A-Menu, B-Confirm, C-Cancel)
+window._tamMenu = window._tamMenu || { ownerUid: null, idx: 0, open: false };
+const TAM_OPTIONS = [
+  {key:'feed', label:'🍖 Кормить', action:'feed'},
+  {key:'play', label:'🎾 Играть', action:'play'},
+  {key:'toilet', label:'🚽 Туалет', action:'toilet'},
+  {key:'walk', label:'🚶 Выгулять', action:'walk'},
+  {key:'pet', label:'🐾 Погладить', action:'pet'},
+  {key:'discipline', label:'📚 Дисциплина', action:'discipline'},
+  {key:'sleep', label:'😴 Уложить спать', action:'sleep'},
+  {key:'check', label:'🔍 Осмотреть', action:'check'},
+];
+
+function tamMenuOpen(ownerUid){
+  window._tamMenu = { ownerUid, idx: 0, open: true };
+  try{ renderPetRow(ownerUid, 'profilePetRow'); renderPetRow(ownerUid, 'vpPetRow'); }catch(e){}
+}
+function tamMenuClose(){
+  window._tamMenu = { ownerUid: null, idx: 0, open: false };
+}
+function tamMenuMove(delta){
+  if(!window._tamMenu || !window._tamMenu.open) return;
+  window._tamMenu.idx = (window._tamMenu.idx + delta + TAM_OPTIONS.length) % TAM_OPTIONS.length;
+  try{ renderPetRow(window._tamMenu.ownerUid, 'profilePetRow'); renderPetRow(window._tamMenu.ownerUid, 'vpPetRow'); }catch(e){}
+}
+async function tamMenuConfirm(){
+  if(!window._tamMenu || !window._tamMenu.open) return;
+  const opt = TAM_OPTIONS[window._tamMenu.idx];
+  await petAction(window._tamMenu.ownerUid, opt.action);
+  tamMenuClose();
+}
+async function tamMenuCancel(){
+  tamMenuClose();
+}
+
+// Клавиатурные сокращения для управления питомцем (A=Menu, B=Выполнить, C=Закрыть)
+window.addEventListener('keydown',(e)=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(!window._tamMenu||!window._tamMenu.open)return;
+  if(e.key==='a'||e.key==='A'){e.preventDefault();tamMenuMove(-1);}
+  else if(e.key==='d'||e.key==='D'){e.preventDefault();tamMenuMove(1);}
+  else if(e.key==='Enter'||e.key==='b'||e.key==='B'){e.preventDefault();tamMenuConfirm();}
+  else if(e.key==='Escape'||e.key==='c'||e.key==='C'){e.preventDefault();tamMenuCancel();}
+},true);
+
+// Вылупить питомца из яйца при выборе тотема в анкете (еслиまだ нет питомца)
+window.hatchPet = hatchPet;
+
+
+
+// Запуск питомца (вылупление из яйца)
+function hatchPet(ownerUid, totem, totemName, petGender){
+  const now = Date.now();
+  const initial = Object.assign({}, petDefaultState(), {
+    stage:'egg', totem, totemName:totemName||'Безымянный', petGender,
+    hatchTime: now, lastUpdated: now,
+  });
+  return db.ref('pets/'+ownerUid).set(initial).then(()=>initial);
+}
+
+// Сигнал внимания: питомец зовит, если нужды критичны
+function petAttentionCheck(p){
+  if(p.stage==='egg'||p.stage==='dead'||p.stage==='runaway') return null;
+  const crit = p.hunger<PET_CRITICAL||p.fun<PET_CRITICAL||p.toilet<PET_CRITICAL||p.affection<PET_CRITICAL||p.health<PET_CRITICAL;
+  if(!crit) return null;
+  const nowGame = gameMinutesFrom(Date.now());
+  const last = p.lastCall||0;
+  // Звать раз в 5 игровых минут, если нужда всё ещё crítica
+  if(nowGame - last >= 5){
+    return {emoji:'🔔', text:'Зову на помощь! '+(p.hunger<PET_CRITICAL?'голодно ':'')+(p.fun<PET_CRITICAL?'скучно ':'')+(p.toilet<PET_CRITICAL?'в туалет ':'')+(p.affection<PET_CRITICAL?'нужна ласка ':'')+(p.health<PET_CRITICAL?'плохое здоровье ':'')};
+  }
+  return null;
+}
+
 async function petAction(ownerUid, action){
   if(!currentUser||!ownerUid) return;
   const isOwner = currentUser.uid===ownerUid;
@@ -8969,19 +9115,34 @@ async function petAction(ownerUid, action){
     const snap = await ref.once('value');
     const cur = petCompute(snap.val() || petDefaultState());
     const now = Date.now();
-    if(action==='feed'){ cur.hunger = petClamp(cur.hunger + 35); cur.lastFed = now; }
-    else if(action==='play'){ cur.fun = petClamp(cur.fun + 35); cur.lastPlayed = now; }
-    else if(action==='toilet'){ cur.toilet = petClamp(cur.toilet + 40); cur.lastToilet = now; }
-    else if(action==='walk'){ cur.fun = petClamp(cur.fun + 25); cur.toilet = petClamp(cur.toilet + 20); cur.happiness = petClamp(cur.happiness + 10); cur.lastWalked = now; }
-    else if(action==='pet'){ cur.affection = petClamp(cur.affection + 20); cur.lastPetted = now; }
-    cur.happiness = petClamp((cur.hunger + cur.fun + cur.toilet + cur.affection)/4);
+
+    if(cur.stage==='dead'||cur.stage==='runaway'){
+      toast(cur.stage==='dead'?'Питомец больше не жив':'Питомец сбежал', true);
+      return;
+    }
+    if(cur.stage==='egg'){
+      toast('Яйцо ещё не вылупилось', true);
+      return;
+    }
+
+    if(action==='feed'){ cur.hunger = petClamp(cur.hunger + 40); cur.lastFed = now; cur.health = petClamp(cur.health + 5); }
+    else if(action==='play'){ cur.fun = petClamp(cur.fun + 40); cur.lastPlayed = now; cur.health = petClamp(cur.health + 5); }
+    else if(action==='toilet'){ cur.toilet = petClamp(cur.toilet + 50); cur.lastToilet = now; cur.health = petClamp(cur.health + 3); }
+    else if(action==='walk'){ cur.fun = petClamp(cur.fun + 25); cur.toilet = petClamp(cur.toilet + 20); cur.happiness = petClamp((cur.hunger+cur.fun+cur.toilet+cur.affection)/4); cur.lastWalked = now; cur.health = petClamp(cur.health + 5); }
+    else if(action==='pet'){ cur.affection = petClamp(cur.affection + 30); cur.lastPetted = now; cur.health = petClamp(cur.health + 5); }
+    else if(action==='discipline'){ cur.discipline = petClamp(cur.discipline + 25); cur.lastDisciplined = now; cur.disciplineActions=(cur.disciplineActions||0)+1; cur.affection = petClamp(cur.affection - 5); }
+    else if(action==='sleep'){ cur.hunger = petClamp(cur.hunger - 5); cur.fun = petClamp(cur.fun + 20); cur.health = petClamp(cur.health + 10); }
+
+    cur.happiness = petClamp((cur.hunger + cur.fun + cur.toilet + cur.affection + cur.discipline + cur.health)/6);
     cur.lastUpdated = now;
     if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
     await ref.set(cur);
-    const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)'};
+
+    const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)', discipline:'📚 Воспитал(а)', sleep:'😴 Уложил(а) спать', check:'🔍 Осмотрел(а)'};
     toast(labels[action]||'Готово', true);
     try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, (labels[action]||'🐾').slice(0,2)); }catch(e){}
-    // событие для владельца/наблюдателей
+
+    // событие для владельца
     if(ownerUid!==currentUser.uid){
       const actorName=(typeof displayNameOf==='function'?displayNameOf(currentUser,'Кто-то'):'Кто-то');
       const ownerInfo=ALL_USERS[ownerUid]||{}; const oa=ownerInfo.anketa||{};
@@ -8993,6 +9154,7 @@ async function petAction(ownerUid, action){
     }
   }catch(e){ toast('Не удалось (проверь права/сеть)'); }
 }
+
 function setPetAvatar(ownerUid){
   if(!currentUser||currentUser.uid!==ownerUid){ toast('Только владелец может менять аву питомца'); return; }
   const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
@@ -9026,44 +9188,54 @@ function renderPetRow(targetUid, elId){
   const petName=esc(petNameRaw);
   const st = petCompute(_petStateCache[targetUid] || petDefaultState());
   const mood = petMood(st);
+  const att = petAttentionCheck(st);
   const isOwner = currentUser && currentUser.uid===targetUid;
   const isFriend = !!(currentUser && lastFriends && lastFriends[targetUid]);
-  const canCare = isOwner || !!currentUser; // друзья и друзья друзей могут ухаживать
+  const canCare = isOwner || !!currentUser;
   loadPetState(targetUid);
-  const ask = petNeedsText(st);
-  const actions = isOwner
-    ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'feed\')">🍖 Кормить</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'play\')">🎾 Играть</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'toilet\')">🚽 Туалет</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
-    : (canCare
-    ? '<button class="btn btn-sm btn-outline" onclick="petTotem(\''+escA(targetUid)+'\');petAction(\''+escA(targetUid)+'\',\'pet\')">🐾 Погладить</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'feed\')">🍖 Кормить</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'play\')">🎾 Играть</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'toilet\')">🚽 Туалет</button>'
-      +'<button class="btn btn-sm btn-outline" onclick="petAction(\''+escA(targetUid)+'\',\'walk\')">🚶 Выгулять</button>'
-      : '');
-  const petFace = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:22px;line-height:1">'+petEmoji+'</span>';
-  const petFaceSmall = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:18px">'+petEmoji+'</span>';
-  el.innerHTML = '<div class="pet-panel">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-    +   '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px">'+petFace+'<span>'+petName+'</span>'+(isOwner?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="setPetAvatar(\''+escA(targetUid)+'\')" title="Аватар питомца">📷</button>':'')+'</div>'
-    +   '<div class="pet-mood-cloud"><span style="font-size:16px">'+mood.emoji+'</span><span>'+esc(mood.text)+'</span></div>'
-    + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);margin:4px 0 2px;display:flex;align-items:center;gap:6px">'+petFaceSmall+'<span>Счастье (HP): <b style="color:var(--text)">'+st.happiness+'</b>/100</span></div>'
-    + '<div class="pet-hp"><div class="pet-hp-fill" style="width:'+st.happiness+'%"></div></div>'
-    + '<div class="pet-stats">'
-    +   '<div>🍖 Сытость: '+st.hunger+'</div>'
-    +   '<div>🎾 Игра: '+st.fun+'</div>'
-    +   '<div>🚽 Туалет: '+st.toilet+'</div>'
-    +   '<div>🤗 Ласка: '+st.affection+'</div>'
-    + '</div>'
-    + (actions?('<div class="pet-actions">'+actions+'</div>'):'')
-    + (ask?('<div class="pet-ask">💬 '+esc(ask)+'</div>'):'')
-    + (!currentUser?'<div class="pet-ask" style="color:var(--text3)">Войдите, чтобы ухаживать за питомцем</div>':'')
-    + '</div>';
+
+  const stageEmoji = PET_STAGE_EMOJI[st.stage] || '🐾';
+  const stageLabel = PET_STAGE_LABEL[st.stage] || st.stage;
+  const isTamOpen = window._tamMenu && window._tamMenu.open && window._tamMenu.ownerUid===targetUid;
+  const curOpt = isTamOpen ? TAM_OPTIONS[window._tamMenu.idx] : null;
+
+  // Шкалы визуально
+  const bar = (v,color)=>'<div style="font-size:11px;color:var(--text2);margin:2px 0"><div style="display:flex;align-items:center;gap:6px"><span style="width:70px">'+v+'</span><div class="pet-hp" style="flex:1;height:6px;background:var(--surface3)"><div class="pet-hp-fill" style="width:'+v+'%;background:'+color+';border-radius:3px"></div></div></div></div>';
+
+  let actionsHtml='';
+  if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
+    if(isTamOpen){
+      // Трехкнопочное управление
+      const optList = TAM_OPTIONS.map((o,k)=>'<div style="padding:6px 8px;'+(k===window._tamMenu.idx?'background:var(--primary);color:#fff;border-radius:8px':'')+'" onclick="tamMenuConfirm()"><b>'+(k===0?'A':'')+'</b> '+o.label+'</div>').join('');
+      actionsHtml = '<div class="pet-actions tam-panel" style="margin-top:8px">'
+        + '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Управление питомцем (A/B/C):</div>'
+        + optList
+        + '<div style="margin-top:6px;font-size:11px;color:var(--text3)">B — выбрать · C — закрыть</div>'
+        + '</div>';
+    } else {
+      actionsHtml = '<div class="pet-actions" style="margin-top:6px">'
+        + '<button class="btn btn-sm btn-outline" onclick="tamMenuOpen('+escA(targetUid)+')">🎮 Меню питомца</button>'
+        + '</div>';
+    }
+  }
+
+  const petFace = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:30px;line-height:1">'+stageEmoji+'</span>';
+  const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
+
+  const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'):'';
+  const hpBar = bar(st.hunger,'#ff7675')+bar(st.fun,'#fdcb6e')+bar(st.toilet,'#00b894')+bar(st.affection,'#74b9ff')+bar(st.discipline,'#a29bfe')+bar(st.health,'#55efc4');
+
+  el.innerHTML = '<div class="pet-panel">' + attHtml +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+      '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px">'+petFace+' <span style="font-size:12px;opacity:.8">'+stageEmoji+' '+stageLabel+'</span><span>'+petName+'</span>'+(isOwner?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="setPetAvatar('+escA(targetUid)+')" title="Аватар питомца">📷</button>':'')+'</div>' +
+      '<div class="pet-mood-cloud"><span style="font-size:16px">'+mood.emoji+'</span><span>'+esc(mood.text)+esc(ageText)+'</span></div>' +
+    '</div>' +
+    hpBar +
+    (actionsHtml?actionsHtml:'') +
+    (!currentUser?'<div class="pet-ask" style="color:var(--text3)">Войдите, чтобы ухаживать за питомцем</div>':'') +
+    '</div>';
 }
+
 function _enterProfileWatch(targetUid, isOwnerOpen){
   if(!currentUser||!targetUid) return;
   _stopProfileWatch(); _profWatch.uid=targetUid;
