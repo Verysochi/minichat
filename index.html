@@ -1099,6 +1099,11 @@ img,video,canvas{max-width:100%}
   body.desktop-split #chatScreen .header,
   body.desktop-split #chatScreen .input-bar,
   body.desktop-split #chatScreen .typing{max-width:none;margin-left:0;margin-right:0;width:100%}
+  /* ПК: правые кнопки шапки дублируют левую стенку — прячем на всех страницах */
+  body.desktop-split .header .header-btn[onclick*="notifScreen"],
+  body.desktop-split .header .header-btn[onclick*="sessionsScreen"],
+  body.desktop-split .header .header-btn[onclick*="profileScreen"],
+  body.desktop-split .header .header-btn[onclick*="doLogoutConfirm"]{display:none !important}
   /* Не-чатовые экраны на десктопе в split-режиме: показываем как обычно поверх */
   body.desktop-split .screen.active:not(#mainScreen):not(#chatScreen){position:fixed;top:0;right:0;bottom:0;left:72px;z-index:20;max-width:none;margin:0;display:flex}
 }
@@ -1650,7 +1655,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="goBack()"><span class="hicon">←</span></button>
     <h2 id="vpTitle">Профиль</h2>
-    <button class="header-btn" id="vpWriteBtn" style="display:none" onclick="openChat(getChatId(currentUser.uid,viewProfileUid),viewProfileUid)"><span class="hicon">📝</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -2030,7 +2034,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 07:15';
+const BUILD='17.11.2026 07:50';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7494,7 +7498,6 @@ async function openUserProfile(uid){
   document.getElementById('vpAvatarWrap').innerHTML=profilePhotoHtml(i,i.name);
   document.getElementById('vpAvatarTs').textContent=(fr&&i.avatarTs)?('Обновлено: '+fmtFull(i.avatarTs)):'';
   document.getElementById('vpName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+rockBadgeHtml(uid);
-  try{ const wb=document.getElementById('vpWriteBtn'); if(wb){ const isFriend=!!(currentUser&&lastFriends&&lastFriends[uid]); wb.style.display=(uid!==currentUser.uid&&isFriend)?'flex':'none'; wb.onclick=(e)=>{e.stopPropagation();openChat(getChatId(currentUser.uid,uid),uid);}; } }catch(e){}
   document.getElementById('vpLogin').textContent=currentUser.isAdmin?('логин: '+(i.login||'')):'';
   document.getElementById('vpStatus').textContent=fr?(i.status||'без статуса'):'🔒 информация для друзей';
   const _vth=document.getElementById('vpThoughts'); if(_vth) _vth.innerHTML=(fr&&i.thoughts)?('☁️ '+esc(i.thoughts)):'';
@@ -9044,6 +9047,27 @@ function petNeedsText(p){
   if(p.discipline<PET_LOW) needs.push('воспитать');
   if(p.health<PET_LOW) needs.push('вылечить');
   return needs.length?('Просится: '+needs.join(', ')):'';
+}
+
+// Кэш и подписки на состояние питомцев
+const _petStateCache = {};
+const _petRefs = {};
+function loadPetState(ownerUid, cb){
+  if(!ownerUid) return;
+  if(_petRefs[ownerUid]) return;
+  const ref = db.ref('pets/'+ownerUid);
+  _petRefs[ownerUid]=ref;
+  ref.on('value', snap=>{
+    const raw = snap.val();
+    const st = petCompute(raw || petDefaultState());
+    _petStateCache[ownerUid]=st;
+    try{ cb && cb(st); }catch(e){}
+    try{ refreshPetRows(ownerUid); }catch(e){}
+  });
+}
+function refreshPetRows(ownerUid){
+  try{ renderPetRow(ownerUid, 'profilePetRow'); }catch(e){}
+  try{ renderPetRow(ownerUid, 'vpPetRow'); }catch(e){}
 }
 
 // Трехкнопочное управление (A-Menu, B-Confirm, C-Cancel)
