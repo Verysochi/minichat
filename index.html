@@ -1094,10 +1094,6 @@ img,video,canvas{max-width:100%}
   body.desktop-split .bottom-nav .rail-admin{margin-top:4px}
   body.desktop-split .bottom-nav .rail-admin{color:var(--text2)}
   body.desktop-split .bottom-nav .rail-admin.active{color:var(--primary)}
-  body.desktop-split #mainScreen{left:72px;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
-  body.desktop-split #chatScreen{left:432px;right:0;width:auto;z-index:2}
-  /* На остальных страницах (новости, колонка, друзья, профиль) контент упирается в левую стену навигации */
-  body.desktop-split .screen.active:not(#mainScreen):not(#chatScreen){padding-left:8px}
   /* Контент чата на всю правую панель */
   body.desktop-split #chatScreen .messages,
   body.desktop-split #chatScreen .header,
@@ -2034,7 +2030,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 07:00';
+const BUILD='17.11.2026 07:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
