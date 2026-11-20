@@ -114,7 +114,7 @@
       ".write": "auth != null && (auth.token.email == 'sochinewlife@gmail.com' || root.child('approvals').child(auth.uid).exists())"
     },
     "userPosts": {
-      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      ".read": "auth != null",
       ".write": "auth != null"
     },
     "files": {
@@ -261,9 +261,9 @@
       }
     },
     "pets": {
-      ".read": "auth != null && root.child('approvals').child(auth.uid).exists()",
+      ".read": "auth != null",
       "$ownerUid": {
-        ".write": "auth != null && root.child('approvals').child(auth.uid).exists()",
+        ".write": "auth != null",
         ".validate": "newData.hasChildren(['lastUpdated']) || newData.val() === null"
       }
     }

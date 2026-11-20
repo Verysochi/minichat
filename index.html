@@ -1068,12 +1068,12 @@ img,video,canvas{max-width:100%}
   body.desktop-split .screen{max-width:none;margin:0;left:auto;right:auto;border:none;box-shadow:none}
   body.desktop-split #mainScreen,
   body.desktop-split #chatScreen{position:fixed;top:0;bottom:0;height:auto;background:var(--bg)}
-  body.desktop-split #mainScreen{left:72px;width:360px;border-right:1px solid var(--surface2);z-index:3;display:flex !important;flex-direction:column}
-  body.desktop-split #chatScreen{left:432px;right:0;width:auto;z-index:2}
+  body.desktop-split #mainScreen{left:72px;width:360px;border-right:1px solid var(--surface2);z-index:3;display:none;flex-direction:column}
+  body.desktop-split #mainScreen.active{display:flex}
+  body.desktop-split #chatScreen{left:432px;right:0;width:auto;z-index:2;display:none}
+  body.desktop-split #chatScreen.active{display:flex}
   body.desktop-split .screen{left:72px !important}
   body.desktop-split .header{left:72px;right:0;width:auto;max-width:none}
-  body.desktop-split #chatScreen.active{display:flex !important}
-  body.desktop-split:not(.chat-open-desktop) #chatScreen{display:flex !important}
   body.desktop-split:not(.chat-open-desktop) #chatScreen > *:not(#desktopChatPlaceholder){display:none !important}
   body.desktop-split:not(.chat-open-desktop) #desktopChatPlaceholder{display:flex !important;flex:1;align-items:center;justify-content:center;color:var(--text3);font-size:16px;padding:24px;text-align:center;background:var(--bg)}
   body.desktop-split.chat-open-desktop #desktopChatPlaceholder{display:none !important}
@@ -2034,7 +2034,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 06:30';
+const BUILD='17.11.2026 07:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7386,6 +7386,24 @@ function updateFriendsNavCount(){
   const online=fr.filter(uid=>isOnline(ALL_USERS[uid])).length;
   el.textContent=fr.length===0?'(0 всего)':'('+online+' в сети)';
 }
+function closeFriendMenu(){ const m=document.getElementById('friendRowMenu'); if(m) m.remove(); }
+function openFriendMenu(uid,ev){
+  if(ev) ev.stopPropagation();
+  closeFriendMenu();
+  const i=ALL_USERS[uid]; if(!i) return;
+  const menu=document.createElement('div');
+  menu.id='friendRowMenu';
+  menu.style.cssText='position:fixed;z-index:800;background:var(--surface);border:1px solid var(--surface3);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.5);padding:8px;min-width:190px';
+  const x=Math.min(window.innerWidth-210, Math.max(8, (ev&&ev.clientX?ev.clientX:window.innerWidth/2)-95));
+  const y=Math.min(window.innerHeight-180, Math.max(8, (ev&&ev.clientY?ev.clientY:window.innerHeight/2)-10));
+  menu.style.left=x+'px'; menu.style.top=y+'px';
+  menu.innerHTML='<div style="font-weight:700;padding:6px 10px;color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</div>'
+    +'<button class="btn btn-sm btn-outline" style="width:100%;margin:4px 0" onclick="closeFriendMenu();openChat(getChatId(currentUser.uid,\''+uid+'\'),\''+uid+'\')">💬 Написать</button>'
+    +'<button class="btn btn-sm btn-outline" style="width:100%;margin:4px 0" onclick="closeFriendMenu();openUserProfile(\''+uid+'\')">👤 Открыть профиль</button>'
+    +'<button class="btn btn-sm btn-outline" style="width:100%;margin:4px 0;color:var(--red)" onclick="closeFriendMenu()">✕ Закрыть</button>';
+  document.body.appendChild(menu);
+  setTimeout(()=>{ try{ document.addEventListener('click',closeFriendMenu,{once:true}); }catch(e){} },0);
+}
 function renderFriends(){
   const l=document.getElementById('friendsList');if(!l||!currentUser)return;l.innerHTML='';
   const fr=lastFriends?Object.entries(lastFriends):[];
@@ -7400,7 +7418,7 @@ function renderFriends(){
       (outgoing?' <span style="font-size:11px;color:var(--text3);border-radius:8px;padding:1px 6px">⏳ '+esc(outgoing)+'</span>':'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div>'+
       // Выбор связи больше не ставится молча — уходит запросом, второй человек подтверждает.
         '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px;flex-shrink:0" onclick="event.stopPropagation()" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
-      d.onclick=e=>{ if(e.target.closest('select')) return; openUserProfile(uid); };
+      d.onclick=e=>{ if(e.target.closest('select')) return; openFriendMenu(uid,e); };
     l.appendChild(d);});
 }
 function renderFind(){

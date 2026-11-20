@@ -2,11 +2,11 @@
 // Зачем: обычные Notification без воркера теряются, если вкладка выгружена,
 // по клику ничего не открывается, и нельзя поставить цифру на иконку.
 // С воркером уведомление переживает вкладку, клик открывает нужный чат.
-const CACHE = 'minichat-v2';
+const CACHE = 'minichat-v3';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./','./index.html']).catch(() => {})));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(() => {})));
 });
 
 self.addEventListener('activate', e => {
@@ -15,6 +15,22 @@ self.addEventListener('activate', e => {
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+
+// HTML-навигация — всегда сначала из сети, чтобы не отдавать старую/сломанную версию.
+self.addEventListener('fetch', e => {
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        const copy = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request)));
 });
 
 // Клик по уведомлению: открываем приложение и сразу нужный чат.
