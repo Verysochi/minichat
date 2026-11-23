@@ -1099,6 +1099,11 @@ img,video,canvas{max-width:100%}
   body.desktop-split #chatScreen .header,
   body.desktop-split #chatScreen .input-bar,
   body.desktop-split #chatScreen .typing{max-width:none;margin-left:0;margin-right:0;width:100%}
+  /* Десктоп: дубли навигации и лишние отступы под нижнюю панель */
+  body.desktop-split .desk-nav-btn{display:none !important}
+  body.desktop-split #adminNavBtn{display:none !important}
+  body.desktop-split .screen{padding-bottom:0 !important}
+  body.desktop-split .bottom-nav .rail-btn.active{background:var(--surface2);color:var(--primary);border-right:3px solid var(--primary)}
   /* ПК: правые кнопки шапки дублируют левую стенку — прячем на всех страницах */
   body.desktop-split .header .header-btn[onclick*="notifScreen"],
   body.desktop-split .header .header-btn[onclick*="sessionsScreen"],
@@ -1332,7 +1337,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn desk-nav-btn" onclick="showScreen('newsScreen')" title="Новости"><span class="hicon">📰</span></button>
     <div class="header-col"><h2>💬 Чаты<span class="mini-badge active" id="globalBadge" style="position:static;display:none;margin-left:8px"></span></h2></div>
-    <button class="header-btn desk-nav-btn" onclick="showScreen('myColumnScreen')" title="Колонка"><span class="hicon">📝</span></button>
+    <button class="header-btn desk-nav-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge" id="notifBadgeMain"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
@@ -1424,7 +1429,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 
 <div id="friendsScreen" class="screen">
   <div class="header">
-    <button class="header-btn desk-nav-btn" onclick="showScreen('myColumnScreen')" title="Колонка"><span class="hicon">📝</span></button>
+    <button class="header-btn desk-nav-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
     <div class="header-col"><h2>🤝 Друзья</h2></div>
     <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
@@ -2017,16 +2022,15 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div class="bottom-nav">
   <button class="nav-btn" data-screen="newsScreen" onclick="showScreen('newsScreen')"><span class="nav-icon">📰</span><span>Новости</span><span class="mini-badge" id="newsBadge"></span></button>
   <button class="nav-btn active" data-screen="mainScreen" onclick="showScreen('mainScreen')"><span class="nav-icon">💬</span><span>Чаты</span><span class="mini-badge" id="chatBadge"></span></button>
-  <button class="nav-btn" data-screen="myColumnScreen" onclick="showScreen('myColumnScreen')"><span class="nav-icon">📝</span><span>Колонка</span></button>
   <button class="nav-btn" data-screen="friendsScreen" onclick="showScreen('friendsScreen')"><span class="nav-icon">🤝</span><span>Друзья</span><span class="mini-badge" id="peopleBadge"></span><span class="nav-friends-count" id="friendsCountNav"></span></button>
   <button class="nav-btn" data-screen="adminScreen" id="adminNavBtn" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadge"></span></button>
 
   <!-- Desktop left rail: extra actions under the main nav -->
   <div class="rail-extra" style="display:none">
-    <button class="nav-btn rail-btn" onclick="showScreen('notifScreen')"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="mini-badge js-notif-badge" id="notifBadgeRail"></span></button>
-    <button class="nav-btn rail-btn" onclick="showScreen('profileScreen')"><span class="nav-icon">👤</span><span>Профиль</span></button>
-    <button class="nav-btn rail-btn rail-admin js-admin-only" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadgeRail"></span></button>
-    <button class="nav-btn rail-btn rail-admin js-admin-only" style="display:none" onclick="showScreen('sessionsScreen')"><span class="nav-icon">🔐</span><span>Сессии</span></button>
+    <button class="nav-btn rail-btn" data-screen="notifScreen" onclick="showScreen('notifScreen')"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="mini-badge js-notif-badge" id="notifBadgeRail"></span></button>
+    <button class="nav-btn rail-btn" data-screen="profileScreen" onclick="showScreen('profileScreen')"><span class="nav-icon">👤</span><span>Профиль</span></button>
+    <button class="nav-btn rail-btn rail-admin js-admin-only" data-screen="adminScreen" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadgeRail"></span></button>
+    <button class="nav-btn rail-btn rail-admin js-admin-only" data-screen="sessionsScreen" style="display:none" onclick="showScreen('sessionsScreen')"><span class="nav-icon">🔐</span><span>Сессии</span></button>
   </div>
 
 </div>
@@ -2034,7 +2038,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='17.11.2026 07:50';
+const BUILD='23.11.2026 00:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2415,7 +2419,7 @@ function offAll(){[usersLRef,chatLRef,groupsLRef,newsLRef,pendLRef,notifLRef,frL
 // Раньше кнопка назад полагалась на историю браузера. Она ничего не знает о
 // наших экранах: на компьютере уводила с сайта, а на телефоне выкидывала из
 // приложения. Теперь ведём свой стек экранов и возвращаем по нему.
-const NAV_ROOTS=['mainScreen','newsScreen','myColumnScreen','friendsScreen','adminScreen'];
+const NAV_ROOTS=['mainScreen','newsScreen','friendsScreen','adminScreen'];
 let navStack=[],navLock=false;
 function isDesktop(){return window.innerWidth>=900;}
 function isChatSplitContext(id){return id==='mainScreen'||id==='chatScreen';}
@@ -2520,6 +2524,7 @@ function showScreen(id,fromBack){
   // подсветка «нового» гаснет сразу при уходе со страницы — ничего не висит
   if(id!=='newsScreen'&&typeof clearFreshGlow==='function')clearFreshGlow();
   if(id!=='notifScreen'){ try{clearTimeout(_notifFreshTimer);}catch(e){} _notifFreshTimer=null; }
+  try{
   if(id==='registerScreen')renderCaptcha();
   // Запись голосового не должна продолжаться, если ушёл на другой экран —
   // иначе плеер висит поверх чата и время тикает само по себе.
@@ -2537,6 +2542,7 @@ function showScreen(id,fromBack){
   else if(watchGroupJoinReqs)watchGroupJoinReqs(null);
   if(id==='notifScreen')openNotifScreen();
   if(id==='viewProfileScreen'){renderViewColumn();const w=document.querySelector('#viewProfileScreen .profile-wrap');if(w)w.scrollTop=0; try{ const sb=document.getElementById('vpStickyBar'); if(sb) sb.style.display=window.innerWidth<900?'flex':'none'; }catch(e){} }
+  }catch(e){ console.error('showScreen render',id,e); }
 }
 
 function mskNow(){return new Date(Date.now()+(3*60+new Date().getTimezoneOffset())*60000);}
@@ -3435,6 +3441,33 @@ function esc(s){if(!s)return '';const d=document.createElement('div');d.textCont
 function escA(s){return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function formatTime(ts){if(!ts)return '';const d=new Date(ts),n=new Date(),df=n-d;if(df<86400000&&d.getDate()===n.getDate())return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');if(df<172800000)return 'Вчера';return d.getDate().toString().padStart(2,'0')+'.'+(d.getMonth()+1).toString().padStart(2,'0');}
 function fmtFull(ts){if(!ts)return '—';const d=new Date(ts);return d.getDate().toString().padStart(2,'0')+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getFullYear()+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');}
+function fmtRelTime(ts){
+  if(!ts) return '—';
+  const now=Date.now(), d=new Date(ts), diff=now-ts;
+  if(diff<0) return fmtFull(ts);
+  const sec=Math.floor(diff/1000), min=Math.floor(sec/60), hr=Math.floor(min/60);
+  if(sec<45) return 'только что';
+  if(min<60){ const m=min%10, m10=min%100; const w=(m10>=11&&m10<=14)?'минут':(m===1?'минуту':(m>=2&&m<=4?'минуты':'минут')); return min+' '+w+' назад'; }
+  if(hr<24 && new Date(now).toDateString()===d.toDateString()){
+    const h=hr%10,h10=hr%100; const w=(h10>=11&&h10<=14)?'часов':(h===1?'час':(h>=2&&h<=4?'часа':'часов')); return hr+' '+w+' назад';
+  }
+  const yesterday=new Date(now); yesterday.setDate(yesterday.getDate()-1);
+  const hh=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  if(yesterday.toDateString()===d.toDateString()) return 'вчера в '+hh;
+  if(hr<168){ // within 7 days show day+time
+    const days=['вс','пн','вт','ср','чт','пт','сб'];
+    return days[d.getDay()]+' '+hh;
+  }
+  return fmtFull(ts);
+}
+function fmtNewsTime(ts){ return fmtRelTime(ts); }
+function fmtClockEmoji(ts){
+  if(!ts) return '🕒';
+  const d=new Date(ts), h=d.getHours()%12, m=d.getMinutes();
+  const clocks=['🕛','🕐','🕑','🕒','🕓','🕔','🕕','🕖','🕗','🕘','🕙','🕚'];
+  const half=['🕧','🕜','🕝','🕞','🕟','🕠','🕡','🕢','🕣','🕤','🕥','🕦'];
+  return (m>=15&&m<45?half[h]:clocks[(m>=45?(h+1)%12:h)]);
+}
 function fmtBirth(iso){const p=(iso||'').split('-');return p.length===3?(p[2]+'.'+p[1]+'.'+p[0]):(iso||'');}
 // ===== дата рождения: текст → нормализованный 01.01.1990 =====
 // Понимает: 01011990 · 1101990 · 01.01.1990 · 1.1.1990 · 01.01.90 · 1.1.90 · 01-01-1990 · 01/01/1990
@@ -6127,7 +6160,7 @@ function jumpToShared(kind,id){
   }
   const p=(lastUserPosts&&lastUserPosts[id])||null;
   if(!p){toast('Пост не найден — возможно, удалён');return;}
-  if(p.authorUid===currentUser.uid){showScreen('myColumnScreen');colTab='my';renderMyColumn();}
+  if(p.authorUid===currentUser.uid){showScreen('profileScreen'); setTimeout(()=>{ const el=document.getElementById('profileColCard')||document.getElementById('profileColList'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },220); }
   else openUserProfile(p.authorUid);
   setTimeout(()=>{
     const el=document.querySelector('[data-pid="'+id+'"]');
@@ -7417,8 +7450,9 @@ function renderFriends(){
       (rel?' <span style="font-size:11px;background:var(--accent-soft);color:var(--primary);border-radius:8px;padding:1px 6px">'+esc(rel)+'</span>':'')+
       (outgoing?' <span style="font-size:11px;color:var(--text3);border-radius:8px;padding:1px 6px">⏳ '+esc(outgoing)+'</span>':'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div>'+
       // Выбор связи больше не ставится молча — уходит запросом, второй человек подтверждает.
-        '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px;flex-shrink:0" onclick="event.stopPropagation()" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>';
-      d.onclick=e=>{ if(e.target.closest('select')) return; openFriendMenu(uid,e); };
+        '<select style="width:auto;font-size:12px;background:var(--surface2);border:1px solid var(--surface3);border-radius:8px;color:var(--text);padding:4px;max-width:140px;flex-shrink:0" onclick="event.stopPropagation()" onchange="proposeRel(\''+uid+'\',this.value)">'+RELS.map(r=>'<option value="'+esc(r)+'"'+((r===rel||(!rel&&r===''&&!outgoing))?' selected':'')+'>'+(r||'— кто? —')+'</option>').join('')+'</select>'+
+        '<button class="btn btn-sm btn-outline" style="width:auto;flex-shrink:0;padding:6px 10px" onclick="event.stopPropagation();openChat(getChatId(currentUser.uid,\''+uid+'\'),\''+uid+'\')">💬</button>';
+      d.onclick=e=>{ if(e.target.closest('select')||e.target.closest('button')) return; openUserProfile(uid); };
     l.appendChild(d);});
 }
 function renderFind(){
@@ -8425,9 +8459,10 @@ function renderNews(){
 function clearFreshGlow(){document.querySelectorAll('.news-fresh').forEach(e=>e.classList.remove('news-fresh'));}
 
 // ===== КОЛОНКИ =====
-function setColTab(t){colTab=t;renderMyColumn();}
+function setColTab(t){colTab=t;try{document.getElementById('colTabMy').classList.toggle('active',t==='my');document.getElementById('colTabFriends').classList.toggle('active',t==='friends');}catch(e){}renderMyColumn();}
 function renderMyColumn(){
   const list=document.getElementById('myColumnList');if(!list||!currentUser)return;
+  try{document.getElementById('colTabMy').classList.toggle('active',colTab==='my');document.getElementById('colTabFriends').classList.toggle('active',colTab==='friends');}catch(e){}
   stashVideos(list);
   const vidSnap=snapVideos();
   const keepScroll=scrollKeeper(list);list.innerHTML='';
@@ -8952,7 +8987,7 @@ function petDefaultState(){
     calls:0,                        // сколько раз звал на помощь (игровых минут)
     lastCall:0,                     // последняя игровая минута звонка
     totem:'cat', totemName:'', petGender:'m',
-    avatar:null, dead:false, runaway:false, hatchTime:null, evolveTime:null,
+    avatar:null, dead:false, runaway:false, waitingHatch:false, hatchTime:null, evolveTime:null,
     disciplineActions:0,            // сколько раз принуждали к дисциплине
   };
 }
@@ -8967,8 +9002,14 @@ function petCompute(state){
   const gameElapsed = gameMinutesFrom(realElapsed); // игровые минуты прошло
   const hours = gameElapsed / 60;                   // игровые часы
 
-  // Самое 먼저 — проверяем, жив ли и не сбежал
-  if(s0.stage==='dead'||s0.stage==='runaway') return Object.assign({}, s0, { lastUpdated: now });
+  // Если питомец умер/сбежал — превращаем в яйцо, которое вылупится только по тапу
+  if(s0.stage==='dead'||s0.stage==='runaway'){
+    return Object.assign({}, s0, { stage:'egg', waitingHatch:true, dead:false, runaway:false, hunger:100, fun:100, toilet:100, affection:100, discipline:50, health:100, stageTime:0, lastUpdated: now });
+  }
+  // Яйцо, ожидающее тапа после смерти — не стареет и не вылупляется само
+  if(s0.stage==='egg' && s0.waitingHatch){
+    return Object.assign({}, s0, { stage:'egg', waitingHatch:true, dead:false, runaway:false, lastUpdated: now });
+  }
 
   let stage = s0.stage;
   let stageTime = s0.stageTime + gameElapsed;
@@ -8987,10 +9028,13 @@ function petCompute(state){
   if(critCount>=2){ health = petClamp(health - hours*2); }
   if(critCount>=3){ health = petClamp(health - hours*3); }
 
-  // Если здоровье на нуле — питомец уходит
+  // Если здоровье на нуле — питомец превращается в яйцо до тапа
   if(health<=0){
-    stage='dead';
-    health=0;
+    return Object.assign({}, s0, {
+      stage:'egg', waitingHatch:true, dead:false, runaway:false,
+      hunger:100, fun:100, toilet:100, affection:100, discipline:50, health:100,
+      age, stageTime:0, lastUpdated: now
+    });
   }
 
   // Эволюция стадий (если не мертв и не сбежал)
@@ -9004,9 +9048,13 @@ function petCompute(state){
         s0.evolveTime = now;
       }
     }
-    // Шанс сбежать при критически низком здоровье и длительном忽视
+    // Шанс сбежать при критически низком здоровье — превращаем в яйцо до тапа
     if(health<30 && gameElapsed>60 && Math.random()<0.02){
-      stage='runaway';
+      return Object.assign({}, s0, {
+        stage:'egg', waitingHatch:true, dead:false, runaway:false,
+        hunger:100, fun:100, toilet:100, affection:100, discipline:50, health:100,
+        age, stageTime:0, lastUpdated: now
+      });
     }
   }
 
@@ -9019,9 +9067,9 @@ function petCompute(state){
 }
 
 function petMood(p){
-  if(p.stage==='egg') return {emoji:'🥚', text:'Яйцо скоро вылупится...'};
-  if(p.stage==='dead') return {emoji:'💀', text:'Питомец ушёл...'};
-  if(p.stage==='runaway') return {emoji:'👋', text:'Питомец сбежал...'};
+  if(p.stage==='egg') return p.waitingHatch ? {emoji:'🥚', text:'Ткни по яйцу, чтобы родился!'} : {emoji:'🥚', text:'Яйцо скоро вылупится...'};
+  if(p.stage==='dead') return {emoji:'🥚', text:'Ткни по яйцу, чтобы родился!'};
+  if(p.stage==='runaway') return {emoji:'🥚', text:'Ткни по яйцу, чтобы родился!'};
   const h = p.health!=null?p.health:100;
   const happy = (p.hunger+p.fun+p.toilet+p.affection+p.discipline+p.health)/6;
   if(p.hunger<PET_CRITICAL) return {emoji:'🍖', text:'Мне очень голодно!'};
@@ -9037,8 +9085,8 @@ function petMood(p){
 }
 
 function petNeedsText(p){
-  if(p.stage==='egg') return 'Скоро вылупится из яйца';
-  if(p.stage==='dead'||p.stage==='runaway') return '';
+  if(p.stage==='egg') return p.waitingHatch ? 'Ткни по яйцу, чтобы питомец родился' : 'Скоро вылупится из яйца';
+  if(p.stage==='dead'||p.stage==='runaway') return 'Ткни по яйцу, чтобы питомец родился';
   const needs=[];
   if(p.hunger<PET_LOW) needs.push('покормить');
   if(p.fun<PET_LOW) needs.push('поиграть');
@@ -9159,6 +9207,17 @@ async function petAction(ownerUid, action){
       return;
     }
     if(cur.stage==='egg'){
+      if(cur.waitingHatch && (action==='hatch'||action==='tap'||action==='pet'||action==='check')){
+        cur.stage='baby';
+        cur.waitingHatch=false; cur.dead=false; cur.runaway=false;
+        cur.hunger=100; cur.fun=100; cur.toilet=100; cur.affection=100; cur.discipline=50; cur.health=100;
+        cur.stageTime=0; cur.lastUpdated=now; cur.hatchTime=now;
+        if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
+        await ref.set(cur);
+        toast('🥚 Питомец родился!', true);
+        try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, '🐣'); }catch(e){}
+        return;
+      }
       toast('Яйцо ещё не вылупилось', true);
       return;
     }
@@ -9241,7 +9300,11 @@ function renderPetRow(targetUid, elId){
   const bar = (v,color)=>'<div style="font-size:11px;color:var(--text2);margin:2px 0"><div style="display:flex;align-items:center;gap:6px"><span style="width:70px">'+v+'</span><div class="pet-hp" style="flex:1;height:6px;background:var(--surface3)"><div class="pet-hp-fill" style="width:'+v+'%;background:'+color+';border-radius:3px"></div></div></div></div>';
 
   let actionsHtml='';
-  if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
+  if(st.stage==='egg' && st.waitingHatch){
+    actionsHtml = '<div class="pet-actions" style="margin-top:8px">'
+      + '<button class="btn btn-sm btn-primary" onclick="petAction('+escA(targetUid)+',\'hatch\')">🥚 Ткнуть по яйцу — родить</button>'
+      + '</div>';
+  } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
     if(isTamOpen){
       // Трехкнопочное управление
       const optList = TAM_OPTIONS.map((o,k)=>'<div style="padding:6px 8px;'+(k===window._tamMenu.idx?'background:var(--primary);color:#fff;border-radius:8px':'')+'" onclick="tamMenuConfirm()"><b>'+(k===0?'A':'')+'</b> '+o.label+'</div>').join('');
