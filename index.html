@@ -1038,6 +1038,66 @@ img,video,canvas{max-width:100%}
   body.diag-off-sticky #profileScreen .profile-identity-col{position:static !important;transform:none !important;will-change:auto !important}
   #profileScreen .profile-card{width:100%;max-width:none;margin-left:0;margin-right:0;box-sizing:border-box}
   #profileScreen .cover-slot{max-width:none}
+
+  /* View-profile (друг) — как свой профиль */
+  #viewProfileScreen .profile-wrap{
+    display:grid;
+    grid-template-columns:minmax(280px,360px) minmax(0,1fr);
+    gap:16px;
+    align-items:start;
+    max-width:1280px;
+    margin:0 auto;
+    padding:16px 20px 24px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  #viewProfileScreen .profile-identity-col,
+  #viewProfileScreen .profile-cards-col{min-width:0}
+  #viewProfileScreen .profile-identity-col{
+    position:sticky;
+    top:8px;
+    min-width:0;
+    background:none;
+    border:none;
+    border-radius:0;
+    padding:0;
+    align-self:start;
+    max-height:calc(100dvh - 54px - 68px - 16px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    will-change:transform;
+    transform:translateZ(0);
+  }
+  #viewProfileScreen .profile-identity-card{
+    background:var(--surface);
+    border:1px solid var(--surface2);
+    border-radius:16px;
+    padding:10px 12px;
+    overflow:visible;
+  }
+  #viewProfileScreen .profile-identity-col .profile-name,
+  #viewProfileScreen .profile-identity-col .profile-login,
+  #viewProfileScreen .profile-identity-col .profile-status,
+  #viewProfileScreen .profile-identity-col #vpPresence,
+  #viewProfileScreen .profile-identity-col #vpGeo{text-align:center}
+  #viewProfileScreen .cover-band{height:140px}
+  #viewProfileScreen .cover-avatar{margin:-38px auto 0}
+  #viewProfileScreen .profile-photo{width:84px;height:84px}
+  #viewProfileScreen div.profile-photo{font-size:32px}
+  #viewProfileScreen .avatar-ts{margin-top:4px;font-size:11px}
+  #viewProfileScreen .profile-name{font-size:18px;margin-top:6px;line-height:1.2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  #viewProfileScreen .profile-login{font-size:13px;margin-top:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  #viewProfileScreen .profile-status{font-size:13px;margin:4px 0 8px;max-width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  #viewProfileScreen #vpThoughts{font-size:12px;margin:0 0 4px;line-height:1.3;text-align:center}
+  #viewProfileScreen #vpMoodMarquee{margin:0 0 6px}
+  #viewProfileScreen #vpPresence{font-size:12px;margin-bottom:6px}
+  #viewProfileScreen #vpAvatarRockRow,
+  #viewProfileScreen #vpPetRow{margin:0 0 4px;gap:6px}
+  #viewProfileScreen .profile-cards-col{display:flex;flex-direction:column;gap:0;contain:paint;position:relative}
+  #viewProfileScreen .profile-card{width:100%;max-width:none;margin-left:0;margin-right:0;box-sizing:border-box}
+  #viewProfileScreen .cover-slot{max-width:none}
+
   /* Композер "Моя колонка" — по ширине как соседние контейнеры */
   #myColComposer{max-width:860px;width:100%;margin:0 auto 14px;box-sizing:border-box}
   #myColComposer .card{margin-left:0;margin-right:0}
@@ -1667,46 +1727,54 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   </div>
   <div class="profile-wrap">
     <div id="vpStickyBar" class="vp-sticky-bar" style="display:none"><div id="vpStickyAvatar" class="vp-sticky-av"></div><div id="vpStickyName" class="vp-sticky-name"></div></div>
-    <div class="cover-slot">
-      <div id="vpCoverBand"></div>
-      <div class="cover-avatar">
-        <div id="vpAvatarWrap"></div>
-        <div class="avatar-ts" id="vpAvatarTs"></div>
+    <div class="profile-identity-col">
+      <div class="profile-identity-card">
+        <div class="cover-slot">
+          <div id="vpCoverBand"></div>
+          <div class="cover-avatar">
+            <div id="vpAvatarWrap"></div>
+            <div class="avatar-ts" id="vpAvatarTs"></div>
+          </div>
+          <button class="scroll-col-btn" onclick="scrollToColumn()">📜 Колонка</button>
+        </div>
+        <div class="profile-name" id="vpName"></div>
+        <div class="profile-login" id="vpLogin"></div>
+        <div class="profile-status" id="vpStatus"></div>
+        <div id="vpThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35;text-align:center"></div>
+        <div id="vpMoodMarquee" class="mood-marquee" style="display:none" aria-label="Настроение"></div>
+        <div id="vpAvatarRockRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:2px 0 8px"></div>
+        <div id="vpPetRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
+        <div id="vpPresence" style="font-size:13px;margin-bottom:8px"></div>
+        <div id="vpGeo" style="font-size:12px;color:var(--text2);margin-bottom:8px"></div>
+        <div class="sw-row" id="vpVisRow" style="display:none;max-width:520px;margin:10px auto 4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:14px;padding:10px 14px">
+          <div class="sw-lbl"><b>Показывать меня другим</b><span id="vpVisState">—</span></div>
+          <label class="sw" title="Видимый / невидимый"><input type="checkbox" id="vpVisSw" onchange="setVisibility(this.checked)"><span class="sw-track"></span></label>
+        </div>
       </div>
-      <button class="scroll-col-btn" onclick="scrollToColumn()">📜 Колонка</button>
     </div>
-    <div class="profile-name" id="vpName"></div>
-    <div class="profile-login" id="vpLogin"></div>
-    <div class="profile-status" id="vpStatus"></div>
-    <div id="vpThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35;text-align:center"></div>
-    <div id="vpMoodMarquee" class="mood-marquee" style="display:none" aria-label="Настроение"></div>
-    <div id="vpAvatarRockRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:2px 0 8px"></div>
-    <div id="vpPetRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:0 0 8px"></div>
-    <div id="vpPresence" style="font-size:13px;margin-bottom:8px"></div>
-    <!-- Переключатель видимости: сразу под шапкой профиля, чтобы не искать внизу -->
-    <div class="sw-row" id="vpVisRow" style="display:none;max-width:520px;margin:10px auto 4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:14px;padding:10px 14px">
-      <div class="sw-lbl"><b>Показывать меня другим</b><span id="vpVisState">—</span></div>
-      <label class="sw" title="Видимый / невидимый"><input type="checkbox" id="vpVisSw" onchange="setVisibility(this.checked)"><span class="sw-track"></span></label>
-    </div>
-    <div id="vpGeo" style="font-size:12px;color:var(--text2);margin-bottom:8px"></div>
-    <div class="profile-card" id="vpAnketaCard">
-      <div class="card-title">📋 Анкета</div>
-      <div class="anketa-view" id="vpAnketaView"></div>
-    </div>
-    <div class="profile-card" id="vpColumnCard">
-      <div class="card-title" id="vpColumnTitle">📝 Колонка</div>
-      <div id="vpColumnList"></div>
-    </div>
-    <div class="profile-card" id="vpRelCard" style="display:none">
-      <div class="card-title">🤝 Кто он тебе</div>
-      <div id="vpRelBox"></div>
-    </div>
-    <div class="profile-card">
-      <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
-      <button class="btn btn-primary" id="vpWriteBtn" style="min-height:40px" onclick="writeToUser()">💬 Написать</button>
-      <button class="btn btn-outline" id="vpGiftBtn" style="display:none;margin-top:8px" onclick="throwHolidayGift(viewProfileUid,event)">☃️ Запустить снежком</button>
-      <button class="btn btn-outline" style="margin-top:8px" id="vpUnfriendBtn" onclick="removeFriend(viewProfileUid)">💔 Убрать из друзей</button>
-      <button class="btn btn-danger" style="margin-top:8px" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
+    <div class="profile-cards-col">
+      <div class="profile-card" style="display:flex;flex-direction:column;gap:8px">
+        <div class="card-title" style="margin-bottom:2px">⚡ Действия</div>
+        <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
+        <button class="btn btn-primary" id="vpWriteBtn" style="min-height:44px" onclick="writeToUser()">💬 Написать</button>
+        <button class="btn btn-outline" id="vpGiftBtn" style="display:none" onclick="throwHolidayGift(viewProfileUid,event)">☃️ Запустить снежком</button>
+        <div class="row" style="gap:8px;margin-top:2px">
+          <button class="btn btn-outline" style="flex:1" id="vpUnfriendBtn" onclick="removeFriend(viewProfileUid)">💔 Убрать из друзей</button>
+          <button class="btn btn-danger" style="flex:1" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
+        </div>
+      </div>
+      <div class="profile-card" id="vpAnketaCard">
+        <div class="card-title">📋 Анкета</div>
+        <div class="anketa-view" id="vpAnketaView"></div>
+      </div>
+      <div class="profile-card" id="vpColumnCard">
+        <div class="card-title" id="vpColumnTitle">📝 Колонка</div>
+        <div id="vpColumnList"></div>
+      </div>
+      <div class="profile-card" id="vpRelCard" style="display:none">
+        <div class="card-title">🤝 Кто он тебе</div>
+        <div id="vpRelBox"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2038,7 +2106,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='23.11.2026 00:55';
+const BUILD='23.11.2026 01:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
