@@ -2038,7 +2038,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='23.11.2026 00:30';
+const BUILD='23.11.2026 00:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9067,9 +9067,9 @@ function petCompute(state){
 }
 
 function petMood(p){
-  if(p.stage==='egg') return p.waitingHatch ? {emoji:'🥚', text:'Ткни по яйцу, чтобы родился!'} : {emoji:'🥚', text:'Яйцо скоро вылупится...'};
-  if(p.stage==='dead') return {emoji:'🥚', text:'Ткни по яйцу, чтобы родился!'};
-  if(p.stage==='runaway') return {emoji:'🥚', text:'Ткни по яйцу, чтобы родился!'};
+  if(p.stage==='egg') return p.waitingHatch ? {emoji:'🥚', text:'Нажми на яйцо, чтобы появился малыш!'} : {emoji:'🥚', text:'Яйцо скоро вылупится...'};
+  if(p.stage==='dead') return {emoji:'🥚', text:'Нажми на яйцо, чтобы появился малыш!'};
+  if(p.stage==='runaway') return {emoji:'🥚', text:'Нажми на яйцо, чтобы появился малыш!'};
   const h = p.health!=null?p.health:100;
   const happy = (p.hunger+p.fun+p.toilet+p.affection+p.discipline+p.health)/6;
   if(p.hunger<PET_CRITICAL) return {emoji:'🍖', text:'Мне очень голодно!'};
@@ -9085,8 +9085,8 @@ function petMood(p){
 }
 
 function petNeedsText(p){
-  if(p.stage==='egg') return p.waitingHatch ? 'Ткни по яйцу, чтобы питомец родился' : 'Скоро вылупится из яйца';
-  if(p.stage==='dead'||p.stage==='runaway') return 'Ткни по яйцу, чтобы питомец родился';
+  if(p.stage==='egg') return p.waitingHatch ? 'Нажми на яйцо, чтобы появился малыш' : 'Скоро вылупится из яйца';
+  if(p.stage==='dead'||p.stage==='runaway') return 'Нажми на яйцо, чтобы появился малыш';
   const needs=[];
   if(p.hunger<PET_LOW) needs.push('покормить');
   if(p.fun<PET_LOW) needs.push('поиграть');
@@ -9302,7 +9302,7 @@ function renderPetRow(targetUid, elId){
   let actionsHtml='';
   if(st.stage==='egg' && st.waitingHatch){
     actionsHtml = '<div class="pet-actions" style="margin-top:8px">'
-      + '<button class="btn btn-sm btn-primary" onclick="petAction('+escA(targetUid)+',\'hatch\')">🥚 Ткнуть по яйцу — родить</button>'
+      + '<button class="btn btn-sm btn-primary" onclick="petAction('+escA(targetUid)+',\'hatch\')">🥚 Помочь малышу вылупиться</button>'
       + '</div>';
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
     if(isTamOpen){
