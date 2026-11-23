@@ -1383,6 +1383,29 @@ img,video,canvas{max-width:100%}
 .vp-sticky-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (min-width:900px){ .vp-sticky-bar{display:none !important;} }
 
+
+  /* ===== Анимированное яйцо питомца (вылупление) ===== */
+  .pet-egg-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-direction:column;padding:10px;cursor:pointer}
+  .pet-egg{width:92px;height:110px;background:#fff;background:linear-gradient(135deg,#fff 0%,#eef1f7 55%,#dbe2ee 100%);border-radius:52% 48% 48% 52% / 62% 62% 38% 38%;border:3px solid var(--surface3);box-shadow:0 10px 26px rgba(0,0,0,.35);position:relative;overflow:hidden;transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .4s ease}
+  .pet-egg::after{content:'';position:absolute;top:16%;left:20%;width:26%;height:26%;background:rgba(255,255,255,.6);border-radius:50%;filter:blur(6px)}
+  .pet-egg.crack{animation:eggShake .35s ease-in-out 3}
+  .pet-egg.crack::before{content:'';position:absolute;top:38%;left:16%;width:60%;height:16%;background:var(--surface3);border-radius:50%;transform:rotate(-10deg);opacity:.9}
+  .pet-egg.hatched{opacity:0;transform:scale(.55) rotate(-8deg);pointer-events:none}
+  .pet-hatch-light{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#fff,#ffd23d 38%,rgba(255,210,61,.35) 62%,transparent 80%);opacity:0;transition:opacity .5s ease;border-radius:52% 48% 48% 52% / 62% 62% 38% 38%}
+  .pet-egg.hatched~.pet-hatch-light{opacity:1}
+  .pet-hatch-pet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:0;transition:opacity .6s .35s,transform .5s .35s}
+  .pet-egg.hatched~.pet-hatch-pet{opacity:1;transform:scale(1.25)}
+  .pet-egg-buttons{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .pet-egg-btn{width:46px;height:46px;border-radius:50%;border:none;background:var(--surface);color:var(--text);cursor:pointer;font-size:22px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.35);transition:transform .18s ease,background .18s ease}
+  .pet-egg-btn:active{transform:scale(.9);background:var(--surface2)}
+  .pet-egg-btn.feed{color:#ff7675}
+  .pet-egg-btn.play{color:#fdcb6e}
+  .pet-egg-btn.toilet{color:#00b894}
+  .pet-egg-btn.pet{color:#74b9ff}
+  .pet-egg-btn.walk{color:#a29bfe}
+  .pet-egg-btn.discipline{color:#55efc4}
+  @keyframes eggShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px) rotate(-2deg)}75%{transform:translateX(6px) rotate(2deg)}}
+
 </style>
 </head>
 <body class="login-active booting">
@@ -2157,7 +2180,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='23.11.2026 01:50';
+const BUILD='23.11.2026 03:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9382,15 +9405,19 @@ async function petAction(ownerUid, action){
       return;
     }
     if(cur.stage==='egg'){
-      if(cur.waitingHatch && (action==='hatch'||action==='tap'||action==='pet'||action==='check')){
+      if(cur.waitingHatch && action==='hatch'){
         cur.stage='baby';
         cur.waitingHatch=false; cur.dead=false; cur.runaway=false;
         cur.hunger=100; cur.fun=100; cur.toilet=100; cur.affection=100; cur.discipline=50; cur.health=100;
         cur.stageTime=0; cur.lastUpdated=now; cur.hatchTime=now;
         if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
         await ref.set(cur);
-        toast('🥚 Питомец родился!', true);
+        toast('🐣 Питомец родился!', true);
         try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, '🐣'); }catch(e){}
+        return;
+      }
+      if(cur.waitingHatch){
+        toast('Заботимся о яйце, скоро вылупится!', true);
         return;
       }
       toast('Яйцо ещё не вылупилось', true);
@@ -9450,6 +9477,14 @@ function setPetAvatar(ownerUid){
   inp.click();
 }
 
+// Кнопки ухода вокруг яйца (3 слева, 3 справа по невидимому кругу)
+function renderEggButtons(targetUid){
+  const ha=[{k:'feed',e:'🍖'},{k:'play',e:'🎾'},{k:'toilet',e:'🚽'},{k:'pet',e:'🐾'},{k:'walk',e:'🚶'},{k:'discipline',e:'📚'}];
+  return '<div style="display:flex;flex-direction:column;align-items:center;gap:8px">'+
+    '<div class="pet-egg-buttons">'+ha.map(o=>'<button class="pet-egg-btn '+o.k+'" onclick="petAction(\''+escA(targetUid)+'\',\''+o.k+'\')">'+o.e+'</button>').join('')+'</div>'+
+    '<div style="font-size:11px;color:var(--text2);margin-top:4px">Ухаживайте за яйцом — и малыш скорее появится</div>'+
+    '</div>';
+}
 function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
   const i=ALL_USERS[targetUid]||{}; const a=i.anketa||{};
@@ -9476,9 +9511,7 @@ function renderPetRow(targetUid, elId){
 
   let actionsHtml='';
   if(st.stage==='egg' && st.waitingHatch){
-    actionsHtml = '<div class="pet-actions" style="margin-top:8px">'
-      + '<button class="btn btn-sm btn-primary" onclick="petAction('+escA(targetUid)+',\'hatch\')">🥚 Нажми, чтобы питомец скорее появился</button>'
-      + '</div>';
+    actionsHtml = renderEggButtons(targetUid);
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
     if(isTamOpen){
       // Трехкнопочное управление
@@ -9495,7 +9528,13 @@ function renderPetRow(targetUid, elId){
     }
   }
 
-  const petFace = st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--surface3);background:var(--surface)">' : '<span style="font-size:30px;line-height:1">'+stageEmoji+'</span>';
+  const petFace = (st.stage==='egg' && st.waitingHatch) ?
+    '<div class="pet-egg-wrap" onclick="petAction(\''+escA(targetUid)+'\',\'hatch\')">'+
+      '<div class="pet-egg" id="petEgg'+escA(targetUid)+'"></div>'+
+      '<div class="pet-hatch-light" id="petHatchLight'+escA(targetUid)+'"></div>'+
+      '<div class="pet-hatch-pet" id="petHatchPet'+escA(targetUid)+'">'+petEmoji+'</div>'+
+    '</div>' :
+    (st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--surface3);background:var(--surface);box-shadow:0 6px 16px rgba(0,0,0,.35)">' : '<span style="font-size:44px;line-height:1">'+stageEmoji+'</span>');
   const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
 
   const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'):'';
