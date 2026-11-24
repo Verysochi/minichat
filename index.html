@@ -1177,6 +1177,9 @@ img,video,canvas{max-width:100%}
   body.desktop-split #chatHeader .chat-actions .header-btn[onclick*="sessionsScreen"],
   body.desktop-split #chatHeader .chat-actions .header-btn[onclick*="profileScreen"],
   body.desktop-split #chatHeader .chat-actions .header-btn[onclick*="doLogoutConfirm"]{display:none !important}
+  /* На ПК чат-шапка чистая: только назад, имя, колокольчик. Лишние действия скрыты */
+  body.desktop-split #chatHeader .chat-actions{display:none !important}
+  body.desktop-split #chatHeader .chat-more-btn{display:none !important}
   /* Выдвижной список уведомлений (ПК) */
 .notif-dropdown{position:fixed;top:64px;right:10px;width:min(420px,calc(100vw - 20px));max-height:72vh;background:var(--surface);border:1px solid var(--surface3);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);z-index:950;display:flex;flex-direction:column;overflow:hidden}
 .notif-dropdown-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--surface2)}
@@ -2216,7 +2219,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 12:15';
+const BUILD='24.11.2026 12:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
