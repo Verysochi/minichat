@@ -1145,7 +1145,10 @@ img,video,canvas{max-width:100%}
   body.desktop-split .bottom-nav .nav-btn .mini-badge{top:6px;right:8px}
   body.desktop-split .bottom-nav .nav-btn span:not(.nav-icon):not(.mini-badge):not(.nav-friends-count){display:none}
   body.desktop-split .bottom-nav .nav-btn.active{background:var(--surface2);color:var(--primary);border-right:3px solid var(--primary)}
-  body.desktop-split .bottom-nav .rail-extra{border-top:1px solid var(--surface2);margin-top:auto;padding-top:10px;display:flex !important;flex-direction:column;gap:6px}
+  body.desktop-split .bottom-nav .rail-extra{border-top:1px solid var(--surface3);margin-top:auto;padding:12px 6px;display:flex !important;flex-direction:column;gap:8px}
+  body.desktop-split .bottom-nav .rail-btn{min-height:56px;border-radius:10px;font-size:10px;width:auto;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  body.desktop-split .bottom-nav .rail-btn .nav-icon{font-size:22px;line-height:1}
+  body.desktop-split .bottom-nav .rail-btn span{font-size:10px;line-height:1.1;max-width:44px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   body.desktop-split .bottom-nav .rail-btn{flex:0 0 auto;min-height:64px;border-radius:12px;font-size:10px;width:auto;padding:8px 4px}
   body.desktop-split .bottom-nav .rail-btn .nav-icon{font-size:20px}
   body.desktop-split .bottom-nav .rail-btn .mini-badge{top:6px;right:8px}
@@ -2202,7 +2205,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 
   <!-- Desktop left rail: extra actions under the main nav -->
   <div class="rail-extra" style="display:none">
-    <button class="nav-btn rail-btn" data-screen="notifScreen" onclick="openNotifDropdown()"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="mini-badge js-notif-badge" id="notifBadgeRail"></span></button>
     <button class="nav-btn rail-btn" data-screen="profileScreen" onclick="showScreen('profileScreen')"><span class="nav-icon">👤</span><span>Профиль</span></button>
     <button class="nav-btn rail-btn rail-admin js-admin-only" data-screen="adminScreen" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadgeRail"></span></button>
     <button class="nav-btn rail-btn rail-admin js-admin-only" data-screen="sessionsScreen" style="display:none" onclick="showScreen('sessionsScreen')"><span class="nav-icon">🔐</span><span>Сессии</span></button>
@@ -2213,7 +2215,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 11:00';
+const BUILD='24.11.2026 12:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
