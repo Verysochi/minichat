@@ -1384,27 +1384,29 @@ img,video,canvas{max-width:100%}
 @media (min-width:900px){ .vp-sticky-bar{display:none !important;} }
 
 
-  /* ===== Анимированное яйцо питомца (вылупление) ===== */
+  /* ===== Яйцо питомца — современная анимация вылупления ===== */
   .pet-egg-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-direction:column;padding:10px;cursor:pointer}
-  .pet-egg{width:92px;height:110px;background:#fff;background:linear-gradient(135deg,#fff 0%,#eef1f7 55%,#dbe2ee 100%);border-radius:52% 48% 48% 52% / 62% 62% 38% 38%;border:3px solid var(--surface3);box-shadow:0 10px 26px rgba(0,0,0,.35);position:relative;overflow:hidden;transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .4s ease}
-  .pet-egg::after{content:'';position:absolute;top:16%;left:20%;width:26%;height:26%;background:rgba(255,255,255,.6);border-radius:50%;filter:blur(6px)}
-  .pet-egg.crack{animation:eggShake .35s ease-in-out 3}
-  .pet-egg.crack::before{content:'';position:absolute;top:38%;left:16%;width:60%;height:16%;background:var(--surface3);border-radius:50%;transform:rotate(-10deg);opacity:.9}
-  .pet-egg.hatched{opacity:0;transform:scale(.55) rotate(-8deg);pointer-events:none}
-  .pet-hatch-light{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#fff,#ffd23d 38%,rgba(255,210,61,.35) 62%,transparent 80%);opacity:0;transition:opacity .5s ease;border-radius:52% 48% 48% 52% / 62% 62% 38% 38%}
-  .pet-egg.hatched~.pet-hatch-light{opacity:1}
-  .pet-hatch-pet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:0;transition:opacity .6s .35s,transform .5s .35s}
-  .pet-egg.hatched~.pet-hatch-pet{opacity:1;transform:scale(1.25)}
-  .pet-egg-buttons{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
-  .pet-egg-btn{width:46px;height:46px;border-radius:50%;border:none;background:var(--surface);color:var(--text);cursor:pointer;font-size:22px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.35);transition:transform .18s ease,background .18s ease}
-  .pet-egg-btn:active{transform:scale(.9);background:var(--surface2)}
+  .pet-egg{width:88px;height:108px;background:#fff;background:linear-gradient(135deg,#ffffff 0%,#f5f7fa 45%,#e3eaf2 100%);border-radius:50% 50% 42% 42% / 66% 66% 34% 34%;border:3px solid var(--surface3);box-shadow:0 14px 34px rgba(0,0,0,.45);position:relative;overflow:hidden;transition:transform .28s cubic-bezier(.2,1,.3,1),opacity .4s ease}
+  .pet-egg::after{content:'';position:absolute;top:14%;left:22%;width:22%;height:22%;background:rgba(255,255,255,.8);border-radius:50%;filter:blur(8px)}
+  .pet-egg.crack{animation:eggCrack .42s ease-in-out 3}
+  .pet-egg.crack::after{content:'';position:absolute;top:40%;left:12%;width:70%;height:14%;background:var(--surface3);border-radius:50%;transform:rotate(-6deg);opacity:.95}
+  .pet-egg.idle{animation:eggIdle 2.6s ease-in-out infinite}
+  .pet-egg.cracked{opacity:0;transform:scale(.45) rotate(-6deg);pointer-events:none}
+  .pet-hatch-shine{position:absolute;inset:0;background:radial-gradient(circle at 48% 36%,rgba(255,255,255,.9),rgba(255,215,64,.45) 34%,rgba(255,215,64,.18) 58%,transparent 80%);opacity:0;transition:opacity .45s ease;border-radius:50% 50% 42% 42% / 66% 66% 34% 34%}
+  .pet-egg.cracked~.pet-hatch-shine{opacity:1}
+  .pet-hatch-pet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:52px;opacity:0;transition:opacity .55s .45s,transform .55s .45s cubic-bezier(.2,1,.3,1)}
+  .pet-egg.cracked~.pet-hatch-pet{opacity:1;transform:scale(1.15)}
+  .pet-egg-btn-group{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+  .pet-egg-btn{width:52px;height:52px;border-radius:14px;border:none;background:var(--surface);color:var(--text);cursor:pointer;font-size:26px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.4);transition:transform .16s ease,background .16s ease}
+  .pet-egg-btn:active{transform:scale(.92);background:var(--surface2)}
   .pet-egg-btn.feed{color:#ff7675}
   .pet-egg-btn.play{color:#fdcb6e}
   .pet-egg-btn.toilet{color:#00b894}
   .pet-egg-btn.pet{color:#74b9ff}
   .pet-egg-btn.walk{color:#a29bfe}
   .pet-egg-btn.discipline{color:#55efc4}
-  @keyframes eggShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px) rotate(-2deg)}75%{transform:translateX(6px) rotate(2deg)}}
+  @keyframes eggIdle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1.2deg)}}
+  @keyframes eggCrack{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-5px) rotate(-5deg)}50%{transform:translateX(5px) rotate(6deg)}75%{transform:translateX(-4px) rotate(-4deg)}}
 
 </style>
 </head>
@@ -1460,7 +1462,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn desk-nav-btn" onclick="showScreen('newsScreen')" title="Новости"><span class="hicon">📰</span></button>
     <div class="header-col"><h2>💬 Чаты<span class="mini-badge active" id="globalBadge" style="position:static;display:none;margin-left:8px"></span></h2></div>
     <button class="header-btn desk-nav-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge" id="notifBadgeMain"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge" id="notifBadgeMain"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1477,7 +1479,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <div class="header-col"><h2>📰 Новости</h2></div>
     <button class="header-btn desk-nav-btn" onclick="showScreen('mainScreen')" title="Чаты"><span class="hicon">💬</span></button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1523,7 +1525,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn desk-nav-btn" onclick="showScreen('mainScreen')" title="Чаты"><span class="hicon">💬</span></button>
     <div class="header-col"><h2>📝 Моя колонка</h2></div>
     <button class="header-btn desk-nav-btn" onclick="showScreen('friendsScreen')" title="Друзья"><span class="hicon">🤝</span></button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1553,7 +1555,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn desk-nav-btn" onclick="showScreen('profileScreen')" title="Профиль"><span class="hicon">👤</span></button>
     <div class="header-col"><h2>🤝 Друзья</h2></div>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1595,7 +1597,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>🔔 Уведомления</h2></div>
     <button class="btn btn-outline btn-sm" style="width:auto;flex:none" onclick="markAllNotifsRead()" title="Отметить все уведомления прочитанными">✓ Прочитать все</button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1611,7 +1613,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   </div>
   <div class="notif-dropdown-body" id="notifDropdownList"></div>
   <div class="notif-dropdown-foot">
-    <button class="btn btn-outline" style="width:100%" onclick="closeNotifDropdown();showScreen('notifScreen')">Все уведомления →</button>
+    <button class="btn btn-outline" style="width:100%" onclick="closeNotifDropdown()">Все уведомления →</button>
   </div>
 </div>
 
@@ -1621,7 +1623,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn desk-nav-btn" onclick="showScreen('friendsScreen')" title="Друзья"><span class="hicon">🤝</span></button>
     <div class="header-col"><h2>🌐 Моё окружение</h2></div>
     <div class="header-more" id="profMore">
-      <button class="header-btn" onclick="showScreen('notifScreen')" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+      <button class="header-btn" onclick="openNotifDropdown()" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
       <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
       <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
     </div>
@@ -1709,7 +1711,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('profileScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>✏️ Редактор профиля</h2></div>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1779,7 +1781,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         <div id="pushDiagInfo" style="font-size:11px;color:var(--text3);line-height:1.6"></div>
         <div class="row" style="margin-top:8px">
           <button class="btn btn-outline btn-sm" style="flex:1" onclick="pushDiagTest()">🔔 Проверить</button>
-          <button class="btn btn-outline btn-sm" style="flex:1" onclick="showScreen('notifScreen')">Журнал</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="openNotifDropdown()">Журнал</button>
         </div>
       </div>
     </div>
@@ -1794,7 +1796,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="goBack()"><span class="hicon">←</span></button>
     <h2 id="vpTitle">Профиль</h2>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1868,7 +1870,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn" id="callVideoBtn" style="display:none" onclick="startCall(currentOtherUid,'video')"><span class="hicon">📹</span></button>
     <button class="header-btn" id="giBtn" onclick="showScreen('groupInfoScreen')" style="display:none"><span class="hicon">ℹ️</span></button>
     <button class="header-btn" id="delChatBtn" onclick="deleteChat()" style="display:none;background:var(--red)"><span class="hicon">🗑</span></button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1910,7 +1912,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <button class="header-btn back-btn" onclick="showScreen('chatScreen')"><span class="hicon">←</span></button>
     <h2 id="giTitle">Группа</h2>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1964,7 +1966,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <div id="adminScreen" class="screen">
   <div class="header">
     <div class="header-col"><h2>⚙️ Админ-панель</h2></div>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -2009,7 +2011,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <div class="header">
     <div class="header-col"><h2>🔐 Сессии: последние входы</h2></div>
     <button class="header-btn back-btn" onclick="showScreen('adminScreen')"><span class="hicon">←</span></button>
-    <button class="header-btn" onclick="showScreen('notifScreen')"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -2169,7 +2171,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 
   <!-- Desktop left rail: extra actions under the main nav -->
   <div class="rail-extra" style="display:none">
-    <button class="nav-btn rail-btn" data-screen="notifScreen" onclick="showScreen('notifScreen')"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="mini-badge js-notif-badge" id="notifBadgeRail"></span></button>
+    <button class="nav-btn rail-btn" data-screen="notifScreen" onclick="openNotifDropdown()"><span class="nav-icon">🔔</span><span>Уведомления</span><span class="mini-badge js-notif-badge" id="notifBadgeRail"></span></button>
     <button class="nav-btn rail-btn" data-screen="profileScreen" onclick="showScreen('profileScreen')"><span class="nav-icon">👤</span><span>Профиль</span></button>
     <button class="nav-btn rail-btn rail-admin js-admin-only" data-screen="adminScreen" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadgeRail"></span></button>
     <button class="nav-btn rail-btn rail-admin js-admin-only" data-screen="sessionsScreen" style="display:none" onclick="showScreen('sessionsScreen')"><span class="nav-icon">🔐</span><span>Сессии</span></button>
@@ -2180,7 +2182,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='23.11.2026 03:05';
+const BUILD='24.11.2026 10:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8888,6 +8890,7 @@ function openNotifScreen(){
 // Выдвижной список уведомлений на ПК
 function openNotifDropdown(){
   const d=document.getElementById("notifDropdown"); if(!d)return;
+  if(d.style.display==="flex"){ closeNotifDropdown(); return; }
   renderNotifsDropdown();
   d.style.display="flex";
   document.body.style.overflow="hidden";
@@ -9413,7 +9416,7 @@ async function petAction(ownerUid, action){
         if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
         await ref.set(cur);
         toast('🐣 Питомец родился!', true);
-        try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, '🐣'); }catch(e){}
+        try{ tamMenuOpen(ownerUid); }catch(e){}   // меню ухода открылось само после вылупления
         return;
       }
       if(cur.waitingHatch){
@@ -9439,7 +9442,6 @@ async function petAction(ownerUid, action){
 
     const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)', discipline:'📚 Воспитал(а)', sleep:'😴 Уложил(а) спать', check:'🔍 Осмотрел(а)'};
     toast(labels[action]||'Готово', true);
-    try{ if(typeof fxReactionAt==='function') fxReactionAt(window.innerWidth/2, window.innerHeight*0.4, (labels[action]||'🐾').slice(0,2)); }catch(e){}
 
     // событие для владельца
     if(ownerUid!==currentUser.uid){
