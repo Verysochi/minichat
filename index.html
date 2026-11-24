@@ -1396,17 +1396,45 @@ img,video,canvas{max-width:100%}
   .pet-egg.cracked~.pet-hatch-shine{opacity:1}
   .pet-hatch-pet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:52px;opacity:0;transition:opacity .55s .45s,transform .55s .45s cubic-bezier(.2,1,.3,1)}
   .pet-egg.cracked~.pet-hatch-pet{opacity:1;transform:scale(1.15)}
-  .pet-egg-btn-group{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
-  .pet-egg-btn{width:52px;height:52px;border-radius:14px;border:none;background:var(--surface);color:var(--text);cursor:pointer;font-size:26px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.4);transition:transform .16s ease,background .16s ease}
-  .pet-egg-btn:active{transform:scale(.92);background:var(--surface2)}
+  /* Ветви древа от яйца к кнопкам ухода */
+  .pet-egg-btn-group{position:relative;width:220px;height:120px;margin:16px auto 0}
+  .pet-egg-branch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;background:var(--surface3);transition:height .25s ease}
+  .pet-egg-btn-group .pet-egg-branch-left{left:calc(50% - 46px);width:56px;height:0;transform:none;background:transparent}
+  .pet-egg-branch-left::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--surface3)}
+  .pet-egg-branch-left::after{content:'';position:absolute;bottom:0;left:0;width:2px;height:100%;background:var(--surface3)}
+  .pet-egg-btn-group .pet-egg-branch-right{left:calc(50% + 46px);width:56px;height:0;transform:none;background:transparent}
+  .pet-egg-branch-right::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--surface3)}
+  .pet-egg-branch-right::after{content:'';position:absolute;bottom:0;left:50%;width:2px;height:100%;background:var(--surface3)}
+  .pet-egg-btn{position:absolute;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);color:var(--text);cursor:pointer;font-size:22px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.35);transition:transform .16s ease,background .16s ease}
+  .pet-egg-btn:active{transform:scale(.9);background:var(--surface2)}
   .pet-egg-btn.feed{color:#ff7675}
   .pet-egg-btn.play{color:#fdcb6e}
   .pet-egg-btn.toilet{color:#00b894}
   .pet-egg-btn.pet{color:#74b9ff}
   .pet-egg-btn.walk{color:#a29bfe}
   .pet-egg-btn.discipline{color:#55efc4}
+  /* левая ветвь: feed(нижняя), play(средняя), toilet(верхняя) */
+  .pet-egg-btn-group .pet-egg-btn:nth-child(1){left:8px;bottom:48px}
+  .pet-egg-btn-group .pet-egg-btn:nth-child(2){left:18px;bottom:74px}
+  .pet-egg-btn-group .pet-egg-btn:nth-child(3){left:36px;bottom:100px}
+  /* правая ветвь: pet(нижняя), walk(средняя), discipline(верхняя) */
+  .pet-egg-btn-group .pet-egg-btn:nth-child(4){right:36px;bottom:100px}
+  .pet-egg-btn-group .pet-egg-btn:nth-child(5){right:18px;bottom:74px}
+  .pet-egg-btn-group .pet-egg-btn:nth-child(6){right:8px;bottom:48px}
   @keyframes eggIdle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1.2deg)}}
   @keyframes eggCrack{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-5px) rotate(-5deg)}50%{transform:translateX(5px) rotate(6deg)}75%{transform:translateX(-4px) rotate(-4deg)}}
+
+  /* Выпадающее меню действий профиля (вместо открытых кнопок) */
+  .vp-actions-card{background:var(--surface);border:1px solid var(--surface3);border-radius:14px;padding:10px}
+  .vp-actions-wrap{position:relative;display:flex;align-items:center;gap:6px}
+  .vp-actions-trigger{width:40px;height:40px;border-radius:10px;background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .vp-actions-trigger:active{background:var(--surface3)}
+  .vp-actions-dropdown{position:absolute;top:52px;right:0;min-width:210px;background:var(--surface);border:1px solid var(--surface3);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:600;padding:6px 0;display:flex;flex-direction:column}
+  .vp-action-item{width:100%;text-align:left;padding:8px 14px;background:none;border:none;color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .vp-action-item:hover{background:var(--surface2)}
+  .vp-action-item:active{background:var(--surface3)}
+  .vp-action-item.vp-action-danger{color:var(--red)}
+  .vp-action-sep{height:1px;background:var(--surface3);margin:4px 0;opacity:.6}
 
 </style>
 </head>
@@ -1829,14 +1857,17 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       </div>
     </div>
     <div class="profile-cards-col">
-      <div class="profile-card" style="display:flex;flex-direction:column;gap:8px">
-        <div class="card-title" style="margin-bottom:2px">⚡ Действия</div>
-        <button class="btn btn-primary" id="vpAddBtn" style="display:none" onclick="sendFriendRequest(viewProfileUid)">➕ Добавить в друзья</button>
-        <button class="btn btn-primary" id="vpWriteBtn" style="min-height:44px" onclick="writeToUser()">💬 Написать</button>
-        <button class="btn btn-outline" id="vpGiftBtn" style="display:none" onclick="throwHolidayGift(viewProfileUid,event)">☃️ Запустить снежком</button>
-        <div class="row" style="gap:8px;margin-top:2px">
-          <button class="btn btn-outline" style="flex:1" id="vpUnfriendBtn" onclick="removeFriend(viewProfileUid)">💔 Убрать из друзей</button>
-          <button class="btn btn-danger" style="flex:1" id="vpBlockBtn" onclick="toggleBlock()">🚫 Заблокировать</button>
+      <div class="profile-card vp-actions-card">
+        <div class="vp-actions-wrap" style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-outline vp-actions-trigger" onclick="event.stopPropagation();toggleVpActions()"><span class="hicon">⋮</span></button>
+          <div id="vpActionsDropdown" class="vp-actions-dropdown" style="display:none">
+            <button class="vp-action-item" onclick="closeVpActions();sendFriendRequest(viewProfileUid)" style="display:none" id="vpActionAdd">➕ Добавить в друзья</button>
+            <button class="vp-action-item" onclick="closeVpActions();writeToUser()" id="vpActionWrite">💬 Написать</button>
+            <button class="vp-action-item" onclick="closeVpActions();throwHolidayGift(viewProfileUid,event)" style="display:none" id="vpActionGift">☃️ Запустить снежком</button>
+            <div class="vp-action-sep"></div>
+            <button class="vp-action-item vp-action-danger" onclick="closeVpActions();removeFriend(viewProfileUid)" id="vpActionUnfriend">💔 Убрать из друзей</button>
+            <button class="vp-action-item vp-action-danger" onclick="closeVpActions();toggleBlock()" id="vpActionBlock">🚫 Заблокировать</button>
+          </div>
         </div>
       </div>
       <div class="profile-card" id="vpAnketaCard">
@@ -2182,7 +2213,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 10:00';
+const BUILD='24.11.2026 11:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7700,18 +7731,18 @@ async function openUserProfile(uid){
   document.getElementById('vpColumnCard').style.display=fr?'block':'none';
   document.getElementById('vpColumnTitle').textContent='📝 Колонка: '+displayNameOf(i);
   const isMe=uid===currentUser.uid;
-  document.getElementById('vpAddBtn').style.display=(!isMe&&!isFriend(uid))?'block':'none';
+  document.getElementById('vpActionAdd').style.display=(!isMe&&!isFriend(uid))?'block':'none';
   if(!isMe&&!isFriend(uid))refreshFriendBtn(uid);
   const canWrite=(!isMe)&&(fr||currentUser.isAdmin);
-  document.getElementById('vpWriteBtn').style.display=canWrite?'block':'none';
-  document.getElementById('vpWriteBtn').textContent=canWrite?'💬 Написать':'🔒 Только друзья могут писать';
+  document.getElementById('vpActionWrite').style.display=canWrite?'block':'none';
+  document.getElementById('vpActionWrite').textContent=canWrite?'💬 Написать':'🔒 Только друзья могут писать';
   // себя не блокируем и не пишем самому себе
-  document.getElementById('vpBlockBtn').style.display=isMe?'none':'block';
-  if(!isMe)document.getElementById('vpBlockBtn').textContent=(lastBlocks&&lastBlocks[uid])?'✅ Разблокировать':'🚫 Заблокировать';
+  document.getElementById('vpActionBlock').style.display=isMe?'none':'block';
+  if(!isMe)document.getElementById('vpActionBlock').textContent=(lastBlocks&&lastBlocks[uid])?'✅ Разблокировать':'🚫 Заблокировать';
   // Кнопка разрыва дружбы — только если он реально в друзьях
-  const uf=document.getElementById('vpUnfriendBtn');
+  const uf=document.getElementById('vpActionUnfriend');
   if(uf)uf.style.display=(!isMe&&isFriend(uid))?'block':'none';
-  const vsb=document.getElementById('vpGiftBtn');
+  const vsb=document.getElementById('vpActionGift');
   if(vsb){ const act=currentHolidayAction(); if(act && !isMe){ vsb.style.display='block'; vsb.textContent=act.label; } else vsb.style.display='none'; }
   document.getElementById('vpVisRow').style.display=isMe?'flex':'none';
   paintVisibilitySwitches();
@@ -8900,6 +8931,24 @@ function closeNotifDropdown(){
   d.style.display="none";
   document.body.style.overflow="";
 }
+// Выпадающее меню действий профиля друга
+function toggleVpActions(){
+  const m=document.getElementById('vpActionsDropdown');if(!m)return;
+  const open=m.style.display==='block';
+  closeVpActions();
+  if(!open)m.style.display='block';
+}
+function closeVpActions(){
+  const m=document.getElementById('vpActionsDropdown');if(!m)return;
+  m.style.display='none';
+}
+// Закрыть меню профиля по клику мимо
+document.addEventListener('click',(e)=>{
+  const m=document.getElementById('vpActionsDropdown');
+  if(!m||m.style.display!=='block')return;
+  if(e.target.closest('#vpActionsDropdown')||e.target.closest('.vp-actions-trigger'))return;
+  closeVpActions();
+});
 function renderNotifsDropdown(){
   const l=document.getElementById("notifDropdownList");if(!l||!currentUser)return;
   const items=lastNotifs?Object.entries(lastNotifs):[];
@@ -9482,10 +9531,12 @@ function setPetAvatar(ownerUid){
 // Кнопки ухода вокруг яйца (3 слева, 3 справа по невидимому кругу)
 function renderEggButtons(targetUid){
   const ha=[{k:'feed',e:'🍖'},{k:'play',e:'🎾'},{k:'toilet',e:'🚽'},{k:'pet',e:'🐾'},{k:'walk',e:'🚶'},{k:'discipline',e:'📚'}];
-  return '<div style="display:flex;flex-direction:column;align-items:center;gap:8px">'+
-    '<div class="pet-egg-buttons">'+ha.map(o=>'<button class="pet-egg-btn '+o.k+'" onclick="petAction(\''+escA(targetUid)+'\',\''+o.k+'\')">'+o.e+'</button>').join('')+'</div>'+
-    '<div style="font-size:11px;color:var(--text2);margin-top:4px">Ухаживайте за яйцом — и малыш скорее появится</div>'+
-    '</div>';
+  return '<div class="pet-egg-btn-group">'+
+    '<div class="pet-egg-branch-left"></div>'+
+    '<div class="pet-egg-branch-right"></div>'+
+    ha.map(o=>'<button class="pet-egg-btn '+o.k+'" onclick="petAction(\''+escA(targetUid)+'\',\''+o.k+'\')">'+o.e+'</button>').join('')+
+    '</div>'+
+    '<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:center">Ухаживайте за яйцом — малыш скорее появится</div>';
 }
 function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
