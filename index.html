@@ -1180,8 +1180,20 @@ img,video,canvas{max-width:100%}
   /* На ПК чат-шапка чистая: только назад, имя, колокольчик. Лишние действия скрыты */
   body.desktop-split #chatHeader .chat-actions{display:none !important}
   body.desktop-split #chatHeader .chat-more-btn{display:none !important}
+  /* ПК: убираем дубли навигации из шапок - слева уже есть rail */
+  body.desktop-split .screen .header .desk-nav-btn{display:none !important}
+  body.desktop-split .screen .header .header-btn[onclick*="showScreen('profileScreen')"],
+  body.desktop-split .screen .header .header-btn[onclick*="showScreen('sessionsScreen')"],
+  body.desktop-split .screen .header .header-btn[onclick*="showScreen('adminScreen')"]{display:none !important}
   /* Выдвижной список уведомлений (ПК) */
-.notif-dropdown{position:fixed;top:64px;right:10px;width:min(420px,calc(100vw - 20px));max-height:72vh;background:var(--surface);border:1px solid var(--surface3);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);z-index:950;display:flex;flex-direction:column;overflow:hidden}
+
+  body.desktop-split .screen .header .header-btn[onclick*="openNotifDropdown()"]{display:none !important}
+  .desktop-notif-bell{position:fixed;top:12px;right:16px;width:44px;height:44px;border-radius:12px;border:1px solid var(--surface3);background:var(--surface2);color:var(--text);font-size:20px;cursor:pointer;z-index:960;display:none;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+  .desktop-notif-bell:hover{background:var(--surface3)}
+  .desktop-notif-bell .mini-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ff4757;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center}
+  .desktop-notif-bell .mini-badge.active{display:inline-flex}
+  body.desktop-split .desktop-notif-bell{display:inline-flex !important}
+  .notif-dropdown{position:fixed;top:64px;right:10px;width:min(420px,calc(100vw - 20px));max-height:72vh;background:var(--surface);border:1px solid var(--surface3);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);z-index:950;display:flex;flex-direction:column;overflow:hidden}
 .notif-dropdown-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--surface2)}
 .notif-dropdown-body{overflow-y:auto;padding:8px 0;font-size:14px}
 .notif-dropdown-foot{padding:8px 14px;border-top:1px solid var(--surface2)}
@@ -1404,30 +1416,27 @@ img,video,canvas{max-width:100%}
   .pet-hatch-pet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:52px;opacity:0;transition:opacity .55s .45s,transform .55s .45s cubic-bezier(.2,1,.3,1)}
   .pet-egg.cracked~.pet-hatch-pet{opacity:1;transform:scale(1.15)}
   /* Ветви древа от яйца к кнопкам ухода */
-  .pet-egg-btn-group{position:relative;width:220px;height:120px;margin:16px auto 0}
-  .pet-egg-branch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;background:var(--surface3);transition:height .25s ease}
-  .pet-egg-btn-group .pet-egg-branch-left{left:calc(50% - 46px);width:56px;height:0;transform:none;background:transparent}
-  .pet-egg-branch-left::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--surface3)}
-  .pet-egg-branch-left::after{content:'';position:absolute;bottom:0;left:0;width:2px;height:100%;background:var(--surface3)}
-  .pet-egg-btn-group .pet-egg-branch-right{left:calc(50% + 46px);width:56px;height:0;transform:none;background:transparent}
-  .pet-egg-branch-right::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--surface3)}
-  .pet-egg-branch-right::after{content:'';position:absolute;bottom:0;left:50%;width:2px;height:100%;background:var(--surface3)}
-  .pet-egg-btn{position:absolute;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);color:var(--text);cursor:pointer;font-size:22px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.35);transition:transform .16s ease,background .16s ease}
-  .pet-egg-btn:active{transform:scale(.9);background:var(--surface2)}
+  .pet-egg-tree{position:relative;width:min(320px,100%);height:210px;margin:10px auto 0}
+  .pet-egg-tree-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+  .pet-egg-tree-svg .tree-branch{fill:none;stroke:rgba(255,255,255,.22);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+  .pet-egg-tree-svg .tree-branch-glow{fill:none;stroke:rgba(108,92,231,.35);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:blur(1px)}
+  .pet-egg-btn{position:absolute;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,var(--surface2),var(--surface));color:var(--text);cursor:pointer;font-size:22px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .16s ease,box-shadow .16s ease,background .16s ease;z-index:2;-webkit-tap-highlight-color:transparent}
+  .pet-egg-btn:hover{transform:scale(1.06);box-shadow:0 10px 24px rgba(0,0,0,.42),0 0 0 2px rgba(108,92,231,.18)}
+  .pet-egg-btn:active{transform:scale(.94)}
   .pet-egg-btn.feed{color:#ff7675}
   .pet-egg-btn.play{color:#fdcb6e}
   .pet-egg-btn.toilet{color:#00b894}
   .pet-egg-btn.pet{color:#74b9ff}
   .pet-egg-btn.walk{color:#a29bfe}
   .pet-egg-btn.discipline{color:#55efc4}
-  /* левая ветвь: feed(нижняя), play(средняя), toilet(верхняя) */
-  .pet-egg-btn-group .pet-egg-btn:nth-child(1){left:8px;bottom:48px}
-  .pet-egg-btn-group .pet-egg-btn:nth-child(2){left:18px;bottom:74px}
-  .pet-egg-btn-group .pet-egg-btn:nth-child(3){left:36px;bottom:100px}
-  /* правая ветвь: pet(нижняя), walk(средняя), discipline(верхняя) */
-  .pet-egg-btn-group .pet-egg-btn:nth-child(4){right:36px;bottom:100px}
-  .pet-egg-btn-group .pet-egg-btn:nth-child(5){right:18px;bottom:74px}
-  .pet-egg-btn-group .pet-egg-btn:nth-child(6){right:8px;bottom:48px}
+  /* 3 слева, 3 справа - позиции кнопок относительно дерева */
+  .pet-egg-btn.pos-l1{left:2px;top:132px}
+  .pet-egg-btn.pos-l2{left:18px;top:72px}
+  .pet-egg-btn.pos-l3{left:52px;top:18px}
+  .pet-egg-btn.pos-r1{right:52px;top:18px}
+  .pet-egg-btn.pos-r2{right:18px;top:72px}
+  .pet-egg-btn.pos-r3{right:2px;top:132px}
+  .pet-egg-tree-hint{font-size:11px;color:var(--text2);margin-top:4px;text-align:center}
   @keyframes eggIdle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1.2deg)}}
   @keyframes eggCrack{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-5px) rotate(-5deg)}50%{transform:translateX(5px) rotate(6deg)}75%{transform:translateX(-4px) rotate(-4deg)}}
 
@@ -1632,7 +1641,6 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn back-btn" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <div class="header-col"><h2>🔔 Уведомления</h2></div>
     <button class="btn btn-outline btn-sm" style="width:auto;flex:none" onclick="markAllNotifsRead()" title="Отметить все уведомления прочитанными">✓ Прочитать все</button>
-    <button class="header-btn" onclick="openNotifDropdown()"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
     <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
     <button class="header-btn" onclick="showScreen('profileScreen')"><span class="hicon">👤</span></button>
     <button class="header-btn" onclick="doLogoutConfirm()"><span class="hicon">🚪</span></button>
@@ -1641,6 +1649,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 </div>
 
 <!-- Выдвижной список уведомлений на ПК (открывается по колокольчику в шапке) -->
+<button id="desktopNotifBell" class="desktop-notif-bell" onclick="openNotifDropdown()" title="Уведомления" style="display:none"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
 <div id="notifDropdown" class="notif-dropdown" style="display:none">
   <div class="notif-dropdown-head">
     <div style="font-weight:700;font-size:15px">🔔 Уведомления</div>
@@ -1648,7 +1657,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   </div>
   <div class="notif-dropdown-body" id="notifDropdownList"></div>
   <div class="notif-dropdown-foot">
-    <button class="btn btn-outline" style="width:100%" onclick="closeNotifDropdown()">Все уведомления →</button>
+    <button class="btn btn-outline" style="width:100%" onclick="closeNotifDropdown();if(!isDesktop())showScreen('notifScreen')">Все уведомления →</button>
   </div>
 </div>
 
@@ -1657,11 +1666,9 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <button class="header-btn back-btn desktop-root-back" onclick="showScreen('mainScreen')"><span class="hicon">←</span></button>
     <button class="header-btn desk-nav-btn" onclick="showScreen('friendsScreen')" title="Друзья"><span class="hicon">🤝</span></button>
     <div class="header-col"><h2>🌐 Моё окружение</h2></div>
-    <div class="header-more" id="profMore">
-      <button class="header-btn" onclick="openNotifDropdown()" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
-      <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
-      <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
-    </div>
+    <button class="header-btn" onclick="openNotifDropdown()" title="Уведомления"><span class="hicon">🔔</span><span class="mini-badge js-notif-badge"></span></button>
+    <button class="header-btn js-admin-only" style="display:none" title="Сессии: последние входы" onclick="showScreen('sessionsScreen')"><span class="hicon">🔐</span></button>
+    <button class="header-btn" onclick="doLogoutConfirm()" title="Выйти"><span class="hicon">🚪</span></button>
   </div>
   <div class="profile-wrap">
     <div class="profile-identity-col">
@@ -2219,7 +2226,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 12:30';
+const BUILD='24.11.2026 13:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -8930,7 +8937,7 @@ function openNotifDropdown(){
   if(d.style.display==="flex"){ closeNotifDropdown(); return; }
   renderNotifsDropdown();
   d.style.display="flex";
-  document.body.style.overflow="hidden";
+  if(!isDesktop()) document.body.style.overflow="hidden";
 }
 function closeNotifDropdown(){
   const d=document.getElementById("notifDropdown"); if(!d)return;
@@ -8951,9 +8958,9 @@ function closeVpActions(){
 // Закрыть меню профиля по клику мимо
 document.addEventListener('click',(e)=>{
   const m=document.getElementById('vpActionsDropdown');
-  if(!m||m.style.display!=='block')return;
-  if(e.target.closest('#vpActionsDropdown')||e.target.closest('.vp-actions-trigger'))return;
-  closeVpActions();
+  if(m&&m.style.display==='block'&&!e.target.closest('#vpActionsDropdown')&&!e.target.closest('.vp-actions-trigger')) closeVpActions();
+  const nd=document.getElementById('notifDropdown');
+  if(nd&&nd.style.display==='flex'&&!e.target.closest('#notifDropdown')&&!e.target.closest('[onclick*="openNotifDropdown"]')) closeNotifDropdown();
 });
 function renderNotifsDropdown(){
   const l=document.getElementById("notifDropdownList");if(!l||!currentUser)return;
@@ -9464,6 +9471,17 @@ async function petAction(ownerUid, action){
     }
     if(cur.stage==='egg'){
       if(cur.waitingHatch && action==='hatch'){
+        const eggEl = document.getElementById('petEgg'+ownerUid);
+        if(eggEl && eggEl.dataset.hatching==='1') return;
+        if(eggEl){
+          eggEl.dataset.hatching='1';
+          eggEl.classList.remove('idle');
+          eggEl.classList.add('crack');
+          await new Promise(r=>setTimeout(r, 1200));
+          eggEl.classList.remove('crack');
+          eggEl.classList.add('cracked');
+          await new Promise(r=>setTimeout(r, 650));
+        }
         cur.stage='baby';
         cur.waitingHatch=false; cur.dead=false; cur.runaway=false;
         cur.hunger=100; cur.fun=100; cur.toilet=100; cur.affection=100; cur.discipline=50; cur.health=100;
@@ -9475,7 +9493,18 @@ async function petAction(ownerUid, action){
         return;
       }
       if(cur.waitingHatch){
-        toast('Заботимся о яйце, скоро вылупится!', true);
+        const careLabels={feed:'🍖 Яйцо согрелось!', play:'🎾 Яйцо покачнулось!', toilet:'🚽 Чистота и уют!', pet:'🐾 Яйцо откликнулось!', walk:'🚶 Яйцо прогулялось!', discipline:'📚 Яйцо слушает сказку!'};
+        if(careLabels[action]){
+          cur.eggCare = (cur.eggCare||0) + 1;
+          cur.affection = petClamp((cur.affection||100) + 5);
+          cur.happiness = petClamp((cur.happiness||100) + 5);
+          cur.lastUpdated = now;
+          if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
+          await ref.set(cur);
+          toast(careLabels[action], true);
+          return;
+        }
+        toast('Нажми на яйцо, чтобы питомец появился!', true);
         return;
       }
       toast('Яйцо ещё не вылупилось', true);
@@ -9534,15 +9563,33 @@ function setPetAvatar(ownerUid){
   inp.click();
 }
 
-// Кнопки ухода вокруг яйца (3 слева, 3 справа по невидимому кругу)
-function renderEggButtons(targetUid){
-  const ha=[{k:'feed',e:'🍖'},{k:'play',e:'🎾'},{k:'toilet',e:'🚽'},{k:'pet',e:'🐾'},{k:'walk',e:'🚶'},{k:'discipline',e:'📚'}];
-  return '<div class="pet-egg-btn-group">'+
-    '<div class="pet-egg-branch-left"></div>'+
-    '<div class="pet-egg-branch-right"></div>'+
-    ha.map(o=>'<button class="pet-egg-btn '+o.k+'" onclick="petAction(\''+escA(targetUid)+'\',\''+o.k+'\')">'+o.e+'</button>').join('')+
+// Яйцо + ветви древа с кнопками ухода (3 слева, 3 справа)
+function renderEggButtons(targetUid, petEmoji){
+  const pe = esc(petEmoji||'🐾');
+  const uid = escA(targetUid);
+  const btn = (k,e,pos,label)=>'<button type="button" class="pet-egg-btn '+k+' '+pos+'" title="'+esc(label)+'" onclick="event.stopPropagation();petAction(\''+uid+'\',\''+k+'\')"><span aria-hidden="true">'+e+'</span></button>';
+  return '<div class="pet-egg-tree" aria-label="Уход за яйцом">'+
+    '<svg class="pet-egg-tree-svg" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+
+      '<path class="tree-branch-glow" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
+      '<path class="tree-branch-glow" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
+      '<path class="tree-branch" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
+      '<path class="tree-branch" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
+    '</svg>'+
+    '<div style="position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:3">'+
+      '<div class="pet-egg-wrap" onclick="petAction(\''+uid+'\',\'hatch\')" title="Нажми, чтобы вылупился">'+
+        '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
+        '<div class="pet-hatch-shine" id="petHatchLight'+uid+'"></div>'+
+        '<div class="pet-hatch-pet" id="petHatchPet'+uid+'">'+pe+'</div>'+
+      '</div>'+
     '</div>'+
-    '<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:center">Ухаживайте за яйцом — малыш скорее появится</div>';
+    btn('feed','🍖','pos-l1','Покормить')+
+    btn('play','🎾','pos-l2','Поиграть')+
+    btn('toilet','🚽','pos-l3','Туалет')+
+    btn('pet','🐾','pos-r1','Погладить')+
+    btn('walk','🚶','pos-r2','Погулять')+
+    btn('discipline','📚','pos-r3','Воспитать')+
+  '</div>'+
+  '<div class="pet-egg-tree-hint">Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!</div>';
 }
 function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
@@ -9570,7 +9617,7 @@ function renderPetRow(targetUid, elId){
 
   let actionsHtml='';
   if(st.stage==='egg' && st.waitingHatch){
-    actionsHtml = renderEggButtons(targetUid);
+    actionsHtml = renderEggButtons(targetUid, petEmoji);
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
     if(isTamOpen){
       // Трехкнопочное управление
@@ -9588,11 +9635,7 @@ function renderPetRow(targetUid, elId){
   }
 
   const petFace = (st.stage==='egg' && st.waitingHatch) ?
-    '<div class="pet-egg-wrap" onclick="petAction(\''+escA(targetUid)+'\',\'hatch\')">'+
-      '<div class="pet-egg" id="petEgg'+escA(targetUid)+'"></div>'+
-      '<div class="pet-hatch-light" id="petHatchLight'+escA(targetUid)+'"></div>'+
-      '<div class="pet-hatch-pet" id="petHatchPet'+escA(targetUid)+'">'+petEmoji+'</div>'+
-    '</div>' :
+    '<span style="font-size:34px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))">🥚</span>' :
     (st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--surface3);background:var(--surface);box-shadow:0 6px 16px rgba(0,0,0,.35)">' : '<span style="font-size:44px;line-height:1">'+stageEmoji+'</span>');
   const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
 
