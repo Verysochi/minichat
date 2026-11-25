@@ -2257,7 +2257,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 14:45';
+const BUILD='24.11.2026 15:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9524,7 +9524,7 @@ async function petAction(ownerUid, action, ev){
         cur.stage='baby';
         cur.waitingHatch=false; cur.dead=false; cur.runaway=false;
         cur.hunger=100; cur.fun=100; cur.toilet=100; cur.affection=100; cur.discipline=50; cur.health=100;
-        cur.stageTime=0; cur.lastUpdated=now; cur.hatchTime=now;
+        cur.stageTime=0; cur.age=0; cur.lastUpdated=now; cur.hatchTime=now;
         if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
         await ref.set(cur);
         _pt('🐣 Питомец родился!', true);
