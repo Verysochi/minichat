@@ -1437,6 +1437,18 @@ img,video,canvas{max-width:100%}
   .pet-egg-btn.pos-r2{right:5.6%;top:34.3%}
   .pet-egg-btn.pos-r3{right:0.6%;top:62.9%}
   .pet-egg-tree-hint{font-size:11px;color:var(--text2);margin-top:4px;text-align:center}
+  .pet-care-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center}
+  .pet-care-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,var(--surface2),var(--surface));color:var(--text);cursor:pointer;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;-webkit-tap-highlight-color:transparent}
+  .pet-care-btn:hover{transform:translateY(-1px);border-color:rgba(108,92,231,.35);box-shadow:0 8px 20px rgba(0,0,0,.28)}
+  .pet-care-btn:active{transform:scale(.97)}
+  .pet-care-ico{font-size:16px;line-height:1}
+  .pet-care-lbl{font-size:12px;font-weight:600;white-space:nowrap}
+  .pet-care-btn.feed .pet-care-ico{filter:drop-shadow(0 0 6px rgba(255,118,117,.35))}
+  .pet-care-btn.play .pet-care-ico{filter:drop-shadow(0 0 6px rgba(253,203,110,.35))}
+  .pet-care-btn.toilet .pet-care-ico{filter:drop-shadow(0 0 6px rgba(0,184,148,.35))}
+  .pet-care-btn.pet .pet-care-ico{filter:drop-shadow(0 0 6px rgba(116,185,255,.35))}
+  .pet-care-btn.walk .pet-care-ico{filter:drop-shadow(0 0 6px rgba(162,155,254,.35))}
+  .pet-care-btn.discipline .pet-care-ico{filter:drop-shadow(0 0 6px rgba(85,239,196,.35))}
   @keyframes eggIdle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1.2deg)}}
   @keyframes eggCrack{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-5px) rotate(-5deg)}50%{transform:translateX(5px) rotate(6deg)}75%{transform:translateX(-4px) rotate(-4deg)}}
 
@@ -2226,7 +2238,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 13:15';
+const BUILD='24.11.2026 13:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2725,7 +2737,7 @@ function showScreen(id,fromBack){
   if(id==='profileEditScreen'){renderProfileEdit();const w=document.querySelector('#profileEditScreen .profile-wrap');if(w){w.scrollTop=0;try{w.scrollTo({top:0});}catch(e){}}}
   if(id==='myColumnScreen')renderMyColumn();
   if(id==='friendsScreen'){renderPeople();renderFriends();renderFind();}
-  if(id==='newsScreen'){freshSeenBefore=parseInt(localStorage.getItem('mc_news_seen')||'0',10);localStorage.setItem('mc_news_seen',Date.now());document.getElementById('newsClearBtn').style.display=currentUser.isAdmin?'flex':'none';renderNews();const sc=document.getElementById('newsScroll');if(sc)sc.scrollTop=0;}
+  if(id==='newsScreen'){freshSeenBefore=parseInt(localStorage.getItem('mc_news_seen')||'0',10);localStorage.setItem('mc_news_seen',Date.now());freshShown={};document.getElementById('newsClearBtn').style.display=currentUser.isAdmin?'flex':'none';renderNews();const sc=document.getElementById('newsScroll');if(sc)sc.scrollTop=0;}
   if(id==='groupInfoScreen'){renderGroupInfo();if(watchGroupJoinReqs)watchGroupJoinReqs(currentIsGroup?currentChatId:null);}
   else if(watchGroupJoinReqs)watchGroupJoinReqs(null);
   if(id==='notifScreen'){
@@ -8619,8 +8631,10 @@ function renderNews(){
     if(n.mediaList)n.mediaList.forEach(m=>{if(!mediaCache[m.key])loadMediaSilent(m.key);});else maybeLoad(n);
     if(n.comments)Object.values(n.comments).forEach(cc=>maybeLoad(cc));
     const div=document.createElement('div');div.className='news-card';div.id='news_'+id;
-    if(typeof freshSeenBefore!=='undefined' && typeof freshShown!=='undefined' && freshSeenBefore&&n.ts>freshSeenBefore&&!freshShown[id]){div.classList.add('news-fresh');freshShown[id]=1;
-      setTimeout(()=>{const e2=document.getElementById('news_'+id);if(e2)e2.classList.remove('news-fresh');},3500);}
+    if(typeof freshSeenBefore!=='undefined' && typeof freshShown!=='undefined' && freshSeenBefore&&n.ts>freshSeenBefore){
+      if(!freshShown[id]) freshShown[id]=Date.now();
+      if(Date.now()-freshShown[id] < 4000){ div.classList.add('news-fresh'); setTimeout(()=>{const e2=document.getElementById('news_'+id);if(e2)e2.classList.remove('news-fresh');}, Math.max(0,4000-(Date.now()-freshShown[id]))); }
+    }
     const mh=inlineMediaHtml(n,'');
     const vC=n.views?Object.keys(n.views).length:0;
     const ctl=(currentUser&&currentUser.isAdmin)?('<button class="news-ctl" onclick="editNews(\''+id+'\')">✏️</button><button class="news-ctl" onclick="deleteNews(\''+id+'\')">🗑</button>'):'';
@@ -9619,19 +9633,18 @@ function renderPetRow(targetUid, elId){
   if(st.stage==='egg' && st.waitingHatch){
     actionsHtml = renderEggButtons(targetUid, petEmoji);
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
-    if(isTamOpen){
-      // Трехкнопочное управление
-      const optList = TAM_OPTIONS.map((o,k)=>'<div style="padding:6px 8px;'+(k===window._tamMenu.idx?'background:var(--primary);color:#fff;border-radius:8px':'')+'" onclick="tamMenuConfirm()"><b>'+(k===0?'A':'')+'</b> '+o.label+'</div>').join('');
-      actionsHtml = '<div class="pet-actions tam-panel" style="margin-top:8px">'
-        + '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Управление питомцем (A/B/C):</div>'
-        + optList
-        + '<div style="margin-top:6px;font-size:11px;color:var(--text3)">B — выбрать · C — закрыть</div>'
-        + '</div>';
-    } else {
-      actionsHtml = '<div class="pet-actions" style="margin-top:6px">'
-        + '<button class="btn btn-sm btn-outline" onclick="tamMenuOpen('+escA(targetUid)+')">🎮 Меню питомца</button>'
-        + '</div>';
-    }
+    const careBtns=[
+      {k:'feed',e:'🍖',t:'Кормить'},
+      {k:'play',e:'🎾',t:'Играть'},
+      {k:'toilet',e:'🚽',t:'Туалет'},
+      {k:'pet',e:'🐾',t:'Гладить'},
+      {k:'walk',e:'🚶',t:'Гулять'},
+      {k:'discipline',e:'📚',t:'Учить'}
+    ];
+    const uidArg=escA(targetUid);
+    actionsHtml = '<div class="pet-care-row">'
+      + careBtns.map(o=>'<button type="button" class="pet-care-btn '+o.k+'" title="'+esc(o.t)+'" onclick="petAction(\''+uidArg+'\',\''+o.k+'\')"><span class="pet-care-ico">'+o.e+'</span><span class="pet-care-lbl">'+esc(o.t)+'</span></button>').join('')
+      + '</div>';
   }
 
   const petFace = (st.stage==='egg' && st.waitingHatch) ?
