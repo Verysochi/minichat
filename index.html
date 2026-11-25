@@ -2257,7 +2257,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 14:30';
+const BUILD='24.11.2026 14:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4130,6 +4130,18 @@ function stopSong(){
 }
 function closeSongBar(){stopSong();}
 function toast(m,ok){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';t.className=ok?'success':'';clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.style.display='none',2600);}
+function floatTip(m,ok,ev){
+  try{
+    const x=(ev&&(ev.clientX||ev.pageX))||((window.innerWidth||300)/2);
+    const y=(ev&&(ev.clientY||ev.pageY))||((window.innerHeight||300)/2);
+    const d=document.createElement('div');
+    d.textContent=m;
+    d.style.cssText='position:fixed;z-index:99999;left:'+x+'px;top:'+y+'px;transform:translate(-50%,-120%);padding:6px 10px;border-radius:10px;font-size:12px;font-weight:700;pointer-events:none;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.35);background:'+(ok?'rgba(0,184,148,.95)':'rgba(47,53,66,.96)')+';color:#fff;opacity:0;transition:opacity .15s ease,transform .2s ease';
+    document.body.appendChild(d);
+    requestAnimationFrame(()=>{d.style.opacity='1';d.style.transform='translate(-50%,-150%)';});
+    setTimeout(()=>{d.style.opacity='0';d.style.transform='translate(-50%,-170%)'; setTimeout(()=>d.remove(),220);},1200);
+  }catch(e){ try{toast(m,ok);}catch(_){} }
+}
 function beep(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=880;o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(.001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.2,audioCtx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.3);o.start();o.stop(audioCtx.currentTime+.35);}catch(e){}}
 function vibrate(){try{if(navigator.vibrate)navigator.vibrate([100,50,100]);}catch(e){}}
 // ===== Системные уведомления =====
@@ -9344,14 +9356,7 @@ function petCompute(state){
         s0.evolveTime = now;
       }
     }
-    // Шанс сбежать при критически низком здоровье — превращаем в яйцо до тапа
-    if(health<30 && gameElapsed>60 && Math.random()<0.02){
-      return Object.assign({}, s0, {
-        stage:'egg', waitingHatch:true, dead:false, runaway:false,
-        hunger:100, fun:100, toilet:100, affection:100, discipline:50, health:100,
-        age, stageTime:0, lastUpdated: now
-      });
-    }
+    // Случайный побег отключён — слишком неожиданно для игрока
   }
 
   return Object.assign({}, s0, {
@@ -9488,10 +9493,11 @@ function petAttentionCheck(p){
   return null;
 }
 
-async function petAction(ownerUid, action){
+async function petAction(ownerUid, action, ev){
+  const _pt = (m,ok)=>{ if(ev) floatTip(m,ok,ev); else toast(m,ok); };
   if(!currentUser||!ownerUid) return;
   const isOwner = currentUser.uid===ownerUid;
-  if(!isOwner && !currentUser.uid){ toast('Нужно войти в аккаунт'); return; }
+  if(!isOwner && !currentUser.uid){ _pt('Нужно войти в аккаунт',false); return; }
   const ref = db.ref('pets/'+ownerUid);
   try{
     const snap = await ref.once('value');
@@ -9499,7 +9505,7 @@ async function petAction(ownerUid, action){
     const now = Date.now();
 
     if(cur.stage==='dead'||cur.stage==='runaway'){
-      toast(cur.stage==='dead'?'Питомец больше не жив':'Питомец сбежал', true);
+      _pt(cur.stage==='dead'?'Питомец больше не жив':'Питомец сбежал', true);
       return;
     }
     if(cur.stage==='egg'){
@@ -9521,7 +9527,7 @@ async function petAction(ownerUid, action){
         cur.stageTime=0; cur.lastUpdated=now; cur.hatchTime=now;
         if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
         await ref.set(cur);
-        toast('🐣 Питомец родился!', true);
+        _pt('🐣 Питомец родился!', true);
         try{ tamMenuOpen(ownerUid); }catch(e){}   // меню ухода открылось само после вылупления
         return;
       }
@@ -9534,13 +9540,13 @@ async function petAction(ownerUid, action){
           cur.lastUpdated = now;
           if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
           await ref.set(cur);
-          toast(careLabels[action], true);
+          _pt(careLabels[action], true);
           return;
         }
-        toast('Нажми на яйцо, чтобы питомец появился!', true);
+        _pt('Нажми на яйцо, чтобы питомец появился!', true);
         return;
       }
-      toast('Яйцо ещё не вылупилось', true);
+      _pt('Яйцо ещё не вылупилось', true);
       return;
     }
 
@@ -9558,7 +9564,7 @@ async function petAction(ownerUid, action){
     await ref.set(cur);
 
     const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)', discipline:'📚 Воспитал(а)', sleep:'😴 Уложил(а) спать', check:'🔍 Осмотрел(а)'};
-    toast(labels[action]||'Готово', true);
+    _pt(labels[action]||'Готово', true);
 
     // событие для владельца
     if(ownerUid!==currentUser.uid){
@@ -9570,7 +9576,7 @@ async function petAction(ownerUid, action){
       db.ref('profileEvents/'+ownerUid).push(ev).catch(()=>{});
       try{ if(typeof notifyUser==='function') notifyUser(ownerUid,'pet','🐾 Питомец', text, {from:currentUser.uid, kind:'petcare', action, petName:String(petName).slice(0,60)}); }catch(e){}
     }
-  }catch(e){ toast('Не удалось (проверь права/сеть)'); }
+  }catch(e){ _pt('Не удалось (проверь права/сеть)', false); }
 }
 
 function setPetAvatar(ownerUid){
@@ -9606,7 +9612,7 @@ function renderPetTree(targetUid, petEmoji, opts){
   const statVal = (k)=>{ if(!st) return ''; const v=Math.max(0,Math.min(100,Math.round(+st[k]||0))); return v+'%'; };
   const statCls = (k)=>{ if(!st) return ''; const v=Math.max(0,Math.min(100,Math.round(+st[k]||0))); return v<30?' low':(v<60?' mid':''); };
   const center = isEgg
-    ? '<div class="pet-egg-wrap" style="pointer-events:auto" onclick="petAction(\''+uid+'\',\'hatch\')" title="Нажми, чтобы вылупился">'+
+    ? '<div class="pet-egg-wrap" style="pointer-events:auto" onclick="petAction(\''+uid+'\',\'hatch\',event)" title="Нажми, чтобы вылупился">'+
         '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
         '<div class="pet-hatch-shine" id="petHatchLight'+uid+'"></div>'+
         '<div class="pet-hatch-pet" id="petHatchPet'+uid+'">'+pe+'</div>'+
@@ -9618,7 +9624,7 @@ function renderPetTree(targetUid, petEmoji, opts){
     const sv = statKey ? statVal(statKey) : '';
     const sc = statKey ? statCls(statKey) : '';
     const statHtml = sv ? '<div class="pet-tree-stat '+pos+sc+'">'+sv+'</div>' : '';
-    return statHtml + '<button type="button" class="pet-egg-btn '+k+' '+pos+'" title="'+esc(label)+(sv?' · '+sv:'')+'" onclick="event.stopPropagation();petAction(\''+uid+'\',\''+k+'\')"><span aria-hidden="true">'+e+'</span></button>';
+    return statHtml + '<button type="button" class="pet-egg-btn '+k+' '+pos+'" title="'+esc(label)+(sv?' · '+sv:'')+'" onclick="event.stopPropagation();petAction(\''+uid+'\',\''+k+'\',event)"><span aria-hidden="true">'+e+'</span></button>';
   };
   const hint = isEgg ? 'Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!' : 'Проценты над кнопками — состояние питомца.';
   return '<div class="pet-egg-tree" aria-label="Уход за питомцем">'+
@@ -9666,9 +9672,7 @@ function renderPetRow(targetUid, elId){
     actionsHtml = renderPetTree(targetUid, petEmoji, {egg:false, name:petNameRaw, avatar:st.avatar||'', stats:petStats});
   }
 
-  const petFace = (st.stage==='egg' && st.waitingHatch) ?
-    '<span style="font-size:34px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))">🥚</span>' :
-    (st.avatar ? '<img src="'+esc(st.avatar)+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--surface3);background:var(--surface);box-shadow:0 6px 16px rgba(0,0,0,.35)">' : '<span style="font-size:44px;line-height:1">'+stageEmoji+'</span>');
+  const petFace = '';
   const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
 
   const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'):'';
