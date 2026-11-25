@@ -1449,6 +1449,9 @@ img,video,canvas{max-width:100%}
   .pet-care-btn.pet .pet-care-ico{filter:drop-shadow(0 0 6px rgba(116,185,255,.35))}
   .pet-care-btn.walk .pet-care-ico{filter:drop-shadow(0 0 6px rgba(162,155,254,.35))}
   .pet-care-btn.discipline .pet-care-ico{filter:drop-shadow(0 0 6px rgba(85,239,196,.35))}
+  .pet-tree-center{width:88px;height:88px;border-radius:50%;background:linear-gradient(180deg,var(--surface2),var(--surface));border:2px solid rgba(255,255,255,.08);box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;margin-top:10px;pointer-events:auto}
+  .pet-tree-emoji{font-size:46px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
+  .pet-tree-avatar{width:100%;height:100%;border-radius:50%;object-fit:cover}
   @keyframes eggIdle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1.2deg)}}
   @keyframes eggCrack{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-5px) rotate(-5deg)}50%{transform:translateX(5px) rotate(6deg)}75%{transform:translateX(-4px) rotate(-4deg)}}
 
@@ -2238,7 +2241,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 13:30';
+const BUILD='24.11.2026 13:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9577,25 +9580,31 @@ function setPetAvatar(ownerUid){
   inp.click();
 }
 
-// Яйцо + ветви древа с кнопками ухода (3 слева, 3 справа)
-function renderEggButtons(targetUid, petEmoji){
+// Дерево ухода: яйцо или питомец в центре, 6 кнопок на ветвях (3 слева, 3 справа)
+function renderPetTree(targetUid, petEmoji, opts){
+  opts = opts || {};
   const pe = esc(petEmoji||'🐾');
   const uid = escA(targetUid);
+  const isEgg = !!opts.egg;
+  const center = isEgg
+    ? '<div class="pet-egg-wrap" style="pointer-events:auto" onclick="petAction(\''+uid+'\',\'hatch\')" title="Нажми, чтобы вылупился">'+
+        '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
+        '<div class="pet-hatch-shine" id="petHatchLight'+uid+'"></div>'+
+        '<div class="pet-hatch-pet" id="petHatchPet'+uid+'">'+pe+'</div>'+
+      '</div>'
+    : '<div class="pet-tree-center" title="'+esc(opts.name||'Питомец')+'">'+
+        (opts.avatar ? '<img src="'+esc(opts.avatar)+'" class="pet-tree-avatar" alt="">' : '<span class="pet-tree-emoji">'+pe+'</span>')+
+      '</div>';
   const btn = (k,e,pos,label)=>'<button type="button" class="pet-egg-btn '+k+' '+pos+'" title="'+esc(label)+'" onclick="event.stopPropagation();petAction(\''+uid+'\',\''+k+'\')"><span aria-hidden="true">'+e+'</span></button>';
-  return '<div class="pet-egg-tree" aria-label="Уход за яйцом">'+
+  const hint = isEgg ? 'Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!' : 'Ухаживай за питомцем — кнопки на ветвях работают.';
+  return '<div class="pet-egg-tree" aria-label="Уход за питомцем">'+
     '<svg class="pet-egg-tree-svg" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+
       '<path class="tree-branch-glow" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
       '<path class="tree-branch-glow" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
       '<path class="tree-branch" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
       '<path class="tree-branch" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
     '</svg>'+
-    '<div style="position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+
-      '<div class="pet-egg-wrap" onclick="petAction(\''+uid+'\',\'hatch\')" title="Нажми, чтобы вылупился">'+
-        '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
-        '<div class="pet-hatch-shine" id="petHatchLight'+uid+'"></div>'+
-        '<div class="pet-hatch-pet" id="petHatchPet'+uid+'">'+pe+'</div>'+
-      '</div>'+
-    '</div>'+
+    '<div style="position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
     btn('feed','🍖','pos-l1','Покормить')+
     btn('play','🎾','pos-l2','Поиграть')+
     btn('toilet','🚽','pos-l3','Туалет')+
@@ -9603,7 +9612,10 @@ function renderEggButtons(targetUid, petEmoji){
     btn('walk','🚶','pos-r2','Погулять')+
     btn('discipline','📚','pos-r3','Воспитать')+
   '</div>'+
-  '<div class="pet-egg-tree-hint">Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!</div>';
+  '<div class="pet-egg-tree-hint">'+hint+'</div>';
+}
+function renderEggButtons(targetUid, petEmoji){
+  return renderPetTree(targetUid, petEmoji, {egg:true});
 }
 function renderPetRow(targetUid, elId){
   const el=document.getElementById(elId); if(!el||!targetUid){ if(el) el.innerHTML=''; return; }
@@ -9631,20 +9643,9 @@ function renderPetRow(targetUid, elId){
 
   let actionsHtml='';
   if(st.stage==='egg' && st.waitingHatch){
-    actionsHtml = renderEggButtons(targetUid, petEmoji);
+    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:true});
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
-    const careBtns=[
-      {k:'feed',e:'🍖',t:'Кормить'},
-      {k:'play',e:'🎾',t:'Играть'},
-      {k:'toilet',e:'🚽',t:'Туалет'},
-      {k:'pet',e:'🐾',t:'Гладить'},
-      {k:'walk',e:'🚶',t:'Гулять'},
-      {k:'discipline',e:'📚',t:'Учить'}
-    ];
-    const uidArg=escA(targetUid);
-    actionsHtml = '<div class="pet-care-row">'
-      + careBtns.map(o=>'<button type="button" class="pet-care-btn '+o.k+'" title="'+esc(o.t)+'" onclick="petAction(\''+uidArg+'\',\''+o.k+'\')"><span class="pet-care-ico">'+o.e+'</span><span class="pet-care-lbl">'+esc(o.t)+'</span></button>').join('')
-      + '</div>';
+    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:false, name:petNameRaw, avatar:st.avatar||''});
   }
 
   const petFace = (st.stage==='egg' && st.waitingHatch) ?
