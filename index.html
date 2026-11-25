@@ -1444,6 +1444,15 @@ img,video,canvas{max-width:100%}
   .pet-egg-btn.pos-r2{right:5.6%;top:34.3%}
   .pet-egg-btn.pos-r3{right:0.6%;top:62.9%}
   .pet-egg-tree-hint{font-size:11px;color:var(--text2);margin-top:4px;text-align:center}
+  .pet-tree-stat{position:absolute;z-index:4;font-size:11px;font-weight:700;color:var(--text);background:rgba(0,0,0,.28);padding:1px 6px;border-radius:999px;pointer-events:none;white-space:nowrap;transform:translateX(-50%);text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  .pet-tree-stat.mid{color:#fdcb6e}
+  .pet-tree-stat.low{color:#ff7675}
+  .pet-tree-stat.pos-l1{left:calc(0.6% + 23px);top:calc(62.9% - 20px)}
+  .pet-tree-stat.pos-l2{left:calc(5.6% + 23px);top:calc(34.3% - 20px)}
+  .pet-tree-stat.pos-l3{left:calc(16.25% + 23px);top:calc(8.6% - 20px)}
+  .pet-tree-stat.pos-r1{left:calc(83.75% - 23px);top:calc(8.6% - 20px)}
+  .pet-tree-stat.pos-r2{left:calc(94.4% - 23px);top:calc(34.3% - 20px)}
+  .pet-tree-stat.pos-r3{left:calc(99.4% - 23px);top:calc(62.9% - 20px)}
   .pet-care-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center}
   .pet-care-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,var(--surface2),var(--surface));color:var(--text);cursor:pointer;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;-webkit-tap-highlight-color:transparent}
   .pet-care-btn:hover{transform:translateY(-1px);border-color:rgba(108,92,231,.35);box-shadow:0 8px 20px rgba(0,0,0,.28)}
@@ -2248,7 +2257,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 14:00';
+const BUILD='24.11.2026 14:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9593,6 +9602,9 @@ function renderPetTree(targetUid, petEmoji, opts){
   const pe = esc(petEmoji||'🐾');
   const uid = escA(targetUid);
   const isEgg = !!opts.egg;
+  const st = opts.stats || null;
+  const statVal = (k)=>{ if(!st) return ''; const v=Math.max(0,Math.min(100,Math.round(+st[k]||0))); return v+'%'; };
+  const statCls = (k)=>{ if(!st) return ''; const v=Math.max(0,Math.min(100,Math.round(+st[k]||0))); return v<30?' low':(v<60?' mid':''); };
   const center = isEgg
     ? '<div class="pet-egg-wrap" style="pointer-events:auto" onclick="petAction(\''+uid+'\',\'hatch\')" title="Нажми, чтобы вылупился">'+
         '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
@@ -9602,8 +9614,13 @@ function renderPetTree(targetUid, petEmoji, opts){
     : '<div class="pet-tree-center" title="'+esc(opts.name||'Питомец')+'">'+
         (opts.avatar ? '<img src="'+esc(opts.avatar)+'" class="pet-tree-avatar" alt="">' : '<span class="pet-tree-emoji">'+pe+'</span>')+
       '</div>';
-  const btn = (k,e,pos,label)=>'<button type="button" class="pet-egg-btn '+k+' '+pos+'" title="'+esc(label)+'" onclick="event.stopPropagation();petAction(\''+uid+'\',\''+k+'\')"><span aria-hidden="true">'+e+'</span></button>';
-  const hint = isEgg ? 'Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!' : 'Ухаживай за питомцем — кнопки на ветвях работают.';
+  const btn = (k,e,pos,label,statKey)=>{
+    const sv = statKey ? statVal(statKey) : '';
+    const sc = statKey ? statCls(statKey) : '';
+    const statHtml = sv ? '<div class="pet-tree-stat '+pos+sc+'">'+sv+'</div>' : '';
+    return statHtml + '<button type="button" class="pet-egg-btn '+k+' '+pos+'" title="'+esc(label)+(sv?' · '+sv:'')+'" onclick="event.stopPropagation();petAction(\''+uid+'\',\''+k+'\')"><span aria-hidden="true">'+e+'</span></button>';
+  };
+  const hint = isEgg ? 'Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!' : 'Проценты над кнопками — состояние питомца.';
   return '<div class="pet-egg-tree" aria-label="Уход за питомцем">'+
     '<svg class="pet-egg-tree-svg" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+
       '<path class="tree-branch-glow" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
@@ -9612,12 +9629,12 @@ function renderPetTree(targetUid, petEmoji, opts){
       '<path class="tree-branch" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
     '</svg>'+
     '<div style="position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
-    btn('feed','🍖','pos-l1','Покормить')+
-    btn('play','🎾','pos-l2','Поиграть')+
-    btn('toilet','🚽','pos-l3','Туалет')+
-    btn('pet','🐾','pos-r1','Погладить')+
-    btn('walk','🚶','pos-r2','Погулять')+
-    btn('discipline','📚','pos-r3','Воспитать')+
+    btn('feed','🍖','pos-l1','Покормить','hunger')+
+    btn('play','🎾','pos-l2','Поиграть','fun')+
+    btn('toilet','🚽','pos-l3','Туалет','toilet')+
+    btn('pet','🐾','pos-r1','Погладить','affection')+
+    btn('walk','🚶','pos-r2','Погулять','health')+
+    btn('discipline','📚','pos-r3','Воспитать','discipline')+
   '</div>'+
   '<div class="pet-egg-tree-hint">'+hint+'</div>';
 }
@@ -9646,13 +9663,12 @@ function renderPetRow(targetUid, elId){
   const curOpt = isTamOpen ? TAM_OPTIONS[window._tamMenu.idx] : null;
 
   // Шкалы визуально
-  const bar = (v,color)=>'<div style="font-size:11px;color:var(--text2);margin:2px 0"><div style="display:flex;align-items:center;gap:6px"><span style="width:70px">'+v+'</span><div class="pet-hp" style="flex:1;height:6px;background:var(--surface3)"><div class="pet-hp-fill" style="width:'+v+'%;background:'+color+';border-radius:3px"></div></div></div></div>';
-
   let actionsHtml='';
+  const petStats = {hunger:st.hunger, fun:st.fun, toilet:st.toilet, affection:st.affection, discipline:st.discipline, health:st.health};
   if(st.stage==='egg' && st.waitingHatch){
-    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:true});
+    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:true, stats:petStats});
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
-    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:false, name:petNameRaw, avatar:st.avatar||''});
+    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:false, name:petNameRaw, avatar:st.avatar||'', stats:petStats});
   }
 
   const petFace = (st.stage==='egg' && st.waitingHatch) ?
@@ -9661,14 +9677,11 @@ function renderPetRow(targetUid, elId){
   const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
 
   const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'):'';
-  const hpBar = bar(st.hunger,'#ff7675')+bar(st.fun,'#fdcb6e')+bar(st.toilet,'#00b894')+bar(st.affection,'#74b9ff')+bar(st.discipline,'#a29bfe')+bar(st.health,'#55efc4');
-
   el.innerHTML = '<div class="pet-panel">' + attHtml +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
       '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px">'+petFace+' <span style="font-size:12px;opacity:.8">'+stageEmoji+' '+stageLabel+'</span><span>'+petName+'</span>'+(isOwner?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="setPetAvatar('+escA(targetUid)+')" title="Аватар питомца">📷</button>':'')+'</div>' +
       '<div class="pet-mood-cloud"><span style="font-size:16px">'+mood.emoji+'</span><span>'+esc(mood.text)+esc(ageText)+'</span></div>' +
     '</div>' +
-    hpBar +
     (actionsHtml?actionsHtml:'') +
     (!currentUser?'<div class="pet-ask" style="color:var(--text3)">Войдите, чтобы ухаживать за питомцем</div>':'') +
     '</div>';
