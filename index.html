@@ -2257,7 +2257,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 14:15';
+const BUILD='24.11.2026 14:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9622,12 +9622,7 @@ function renderPetTree(targetUid, petEmoji, opts){
   };
   const hint = isEgg ? 'Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!' : 'Проценты над кнопками — состояние питомца.';
   return '<div class="pet-egg-tree" aria-label="Уход за питомцем">'+
-    '<svg class="pet-egg-tree-svg" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+
-      '<path class="tree-branch-glow" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
-      '<path class="tree-branch-glow" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
-      '<path class="tree-branch" d="M160 34 L160 58 M160 58 C120 58 92 72 72 95 L48 132 M160 58 C120 58 100 82 88 108 L72 148 M160 58 C140 58 126 74 118 98 L106 126"/>'+
-      '<path class="tree-branch" d="M160 58 C200 58 228 72 248 95 L272 132 M160 58 C200 58 220 82 232 108 L248 148 M160 58 C180 58 194 74 202 98 L214 126"/>'+
-    '</svg>'+
+
     '<div style="position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
     btn('feed','🍖','pos-l1','Покормить','hunger')+
     btn('play','🎾','pos-l2','Поиграть','fun')+
