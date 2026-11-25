@@ -2257,7 +2257,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 15:00';
+const BUILD='24.11.2026 15:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9294,6 +9294,7 @@ function petDefaultState(){
     lastDisciplined:Date.now(),
     calls:0,                        // сколько раз звал на помощь (игровых минут)
     lastCall:0,                     // последняя игровая минута звонка
+    generation:1,                   // цикл перерождений
     totem:'cat', totemName:'', petGender:'m',
     avatar:null, dead:false, runaway:false, waitingHatch:false, hatchTime:null, evolveTime:null,
     disciplineActions:0,            // сколько раз принуждали к дисциплине
@@ -9525,6 +9526,7 @@ async function petAction(ownerUid, action, ev){
         cur.waitingHatch=false; cur.dead=false; cur.runaway=false;
         cur.hunger=100; cur.fun=100; cur.toilet=100; cur.affection=100; cur.discipline=50; cur.health=100;
         cur.stageTime=0; cur.age=0; cur.lastUpdated=now; cur.hatchTime=now;
+        cur.generation = (+(cur.generation||1) || 1) + 1;
         if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
         await ref.set(cur);
         _pt('🐣 Питомец родился!', true);
@@ -9675,7 +9677,8 @@ function renderPetRow(targetUid, elId){
   const petFace = '';
   const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
 
-  const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'):'';
+  const genText = ' · Поколение: '+(+(st.generation||1));
+  const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'+genText) : (' Поколение: '+(+(st.generation||1)));
   el.innerHTML = '<div class="pet-panel">' + attHtml +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
       '<div style="font-size:14px;font-weight:700;color:'+_themeColorOf(i)+';display:flex;align-items:center;gap:6px">'+petFace+' <span style="font-size:12px;opacity:.8">'+stageEmoji+' '+stageLabel+'</span><span>'+petName+'</span>'+(isOwner?'<button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="setPetAvatar('+escA(targetUid)+')" title="Аватар питомца">📷</button>':'')+'</div>' +
