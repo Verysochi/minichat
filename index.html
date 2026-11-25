@@ -888,7 +888,7 @@ img,video,canvas{max-width:100%}
 #toast.success{background:var(--green)}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:56px;background:var(--surface);border-top:1px solid var(--surface2);display:flex;z-index:50}
 .nav-btn{flex:1;background:none;border:none;color:var(--text);font-size:9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;transition:color .2s ease,background .2s ease;-webkit-tap-highlight-color:transparent}
-.nav-btn.active{color:var(--primary)}
+.nav-btn.active{color:var(--primary);background:linear-gradient(to top,rgba(124,134,255,.10),transparent 80%)}
 .nav-btn .nav-icon{font-size:20px;line-height:1;transition:transform .22s cubic-bezier(.34,1.56,.64,1),filter .22s ease}
 .nav-btn.active .nav-icon{filter:brightness(1.3)}
 /* подсветка подложки и «подпрыгивание» иконки — только transform/filter,
@@ -1145,16 +1145,23 @@ img,video,canvas{max-width:100%}
   body.desktop-split .bottom-nav .nav-btn .nav-icon{font-size:22px}
   body.desktop-split .bottom-nav .nav-btn .mini-badge{top:6px;right:8px}
   body.desktop-split .bottom-nav .nav-btn span:not(.nav-icon):not(.mini-badge):not(.nav-friends-count){display:none}
-  body.desktop-split .bottom-nav .nav-btn.active{background:var(--surface2);color:var(--primary);border-right:3px solid var(--primary)}
-  body.desktop-split .bottom-nav .rail-extra{border-top:1px solid var(--surface3);margin-top:auto;padding:12px 6px;display:flex !important;flex-direction:column;gap:8px}
-  body.desktop-split .bottom-nav .rail-btn{min-height:56px;border-radius:10px;font-size:10px;width:auto;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  body.desktop-split .bottom-nav .rail-btn .nav-icon{font-size:22px;line-height:1}
-  body.desktop-split .bottom-nav .rail-btn span{font-size:10px;line-height:1.1;max-width:44px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  body.desktop-split .bottom-nav .rail-btn{flex:0 0 auto;min-height:64px;border-radius:12px;font-size:10px;width:auto;padding:8px 4px}
-  body.desktop-split .bottom-nav .rail-btn .nav-icon{font-size:20px}
-  body.desktop-split .bottom-nav .rail-btn .mini-badge{top:6px;right:8px}
-  body.desktop-split .bottom-nav .rail-btn span:not(.nav-icon):not(.mini-badge){display:none}
-  body.desktop-split .bottom-nav .rail-btn.active{background:var(--surface2);color:var(--primary);border-right:3px solid var(--primary)}
+  body.desktop-split .bottom-nav .nav-btn.active{background:var(--surface2);color:var(--primary);box-shadow:inset 3px 0 0 var(--primary)}
+  body.desktop-split .bottom-nav .rail-extra{border-top:1px solid var(--surface3);margin-top:auto;padding:10px 4px;display:flex !important;flex-direction:column;gap:6px}
+  body.desktop-split .bottom-nav .rail-btn{flex:0 0 auto;min-height:56px;border-radius:12px;font-size:10px;width:auto;padding:8px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  body.desktop-split .bottom-nav .rail-btn .nav-icon{font-size:20px;line-height:1}
+  body.desktop-split .bottom-nav .rail-btn span:not(.nav-icon):not(.mini-badge){display:block;font-size:10px;line-height:1.1;max-width:52px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body.desktop-split .bottom-nav .rail-btn .mini-badge{top:4px;right:6px}
+  body.desktop-split .bottom-nav .rail-btn.active{background:var(--surface2);color:var(--primary);box-shadow:inset 3px 0 0 var(--primary)}
+  body.desktop-split .bottom-nav .rail-admin{margin-top:2px;color:var(--text2)}
+  /* Контент чата на всю правую панель */
+  body.desktop-split #chatScreen .messages,
+  body.desktop-split #chatScreen .header,
+  body.desktop-split #chatScreen .input-bar,
+  body.desktop-split #chatScreen .typing{max-width:none;margin-left:0;margin-right:0;width:100%}
+  /* Десктоп: дубли навигации и лишние отступы под нижнюю панель */
+  body.desktop-split .desk-nav-btn{display:none !important}
+  body.desktop-split #adminNavBtn{display:none !important}
+  body.desktop-split .screen{padding-bottom:0 !important}
   body.desktop-split .bottom-nav .rail-admin{margin-top:4px}
   body.desktop-split .bottom-nav .rail-admin{color:var(--text2)}
   body.desktop-split .bottom-nav .rail-admin.active{color:var(--primary)}
@@ -2241,7 +2248,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='24.11.2026 13:45';
+const BUILD='24.11.2026 14:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
