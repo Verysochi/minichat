@@ -1760,6 +1760,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-name" id="profileName"></div>
     <div class="profile-login" id="profileLogin"></div>
     <div class="profile-status" id="profileStatus"></div>
+    <div id="profileThemeRow" style="font-size:12px;color:var(--text2);margin:2px 0 6px;text-align:center"></div>
     <div id="profileMoodMarquee" class="mood-marquee" style="display:none" aria-label="Настроение"></div>
     <div id="profileThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35"></div>
     <div id="profileMoodQuickWrap" style="width:100%;max-width:520px;margin:2px 0 8px">
@@ -1936,6 +1937,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         <div class="profile-name" id="vpName"></div>
         <div class="profile-login" id="vpLogin"></div>
         <div class="profile-status" id="vpStatus"></div>
+        <div id="vpThemeRow" style="font-size:12px;color:var(--text2);margin:2px 0 6px;text-align:center"></div>
         <div id="vpThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35;text-align:center"></div>
         <div id="vpMoodMarquee" class="mood-marquee" style="display:none" aria-label="Настроение"></div>
         <div id="vpAvatarRockRow" style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:2px 0 8px"></div>
@@ -2305,7 +2307,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 15:00';
+const BUILD='26.11.2026 15:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -4429,7 +4431,52 @@ function showNotifHint(){
     '<button class="btn btn-outline btn-sm" style="width:auto" onclick="hideNotifHint()">Позже</button>';
   bar.style.display='flex';
 }
+let _themePreviewOrig=null;
 function applyTheme(id){if(!THEMES.find(t=>t.id===id))id='dark';document.documentElement.setAttribute('data-theme',id);localStorage.setItem('mc_theme',id);if(currentUser)db.ref('users/'+currentUser.uid+'/theme').set(id);}
+function previewThemeOnly(id){if(!THEMES.find(t=>t.id===id))id='dark';document.documentElement.setAttribute('data-theme',id);localStorage.setItem('mc_theme',id);}
+function previewUserTheme(id){
+  if(!THEMES.find(t=>t.id===id)) return;
+  if(_themePreviewOrig==null) _themePreviewOrig=(ALL_USERS[currentUser.uid]&&ALL_USERS[currentUser.uid].theme)||localStorage.getItem('mc_theme')||'dark';
+  previewThemeOnly(id);
+  renderThemeRows();
+  toast('🎨 Примеряю тему…',true);
+}
+function savePreviewTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'dark';
+  _themePreviewOrig=null;
+  applyTheme(cur);
+  renderThemeRows();
+  toast('✅ Тема сохранена',true);
+}
+function resetPreviewTheme(){
+  const orig=_themePreviewOrig || (ALL_USERS[currentUser.uid]&&ALL_USERS[currentUser.uid].theme) || localStorage.getItem('mc_theme') || 'dark';
+  _themePreviewOrig=null;
+  applyTheme(orig);
+  renderThemeRows();
+  toast('↩ Тема возвращена',true);
+}
+function renderThemeRows(){
+  try{
+    const mkRow=(uid,elId)=>{
+      const el=document.getElementById(elId); if(!el) return;
+      const i=ALL_USERS[uid]||{};
+      const tid=i.theme||'dark';
+      const th=THEMES.find(t=>t.id===tid);
+      const tname=th?th.name:tid;
+      const isMe=currentUser && uid===currentUser.uid;
+      if(isMe){ el.innerHTML=''; return; }
+      const previewing=_themePreviewOrig!=null;
+      const cur=document.documentElement.getAttribute('data-theme')||'dark';
+      if(previewing && cur===tid){
+        el.innerHTML='🎨 Использует тему: <b>'+esc(tname)+'</b> <button class="btn btn-sm btn-primary" style="width:auto;padding:2px 8px;font-size:11px" onclick="savePreviewTheme()">Сохранить</button> <button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="resetPreviewTheme()">Сброс</button>';
+      } else {
+        el.innerHTML='🎨 Использует тему: <b>'+esc(tname)+'</b> <button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="previewUserTheme(\''+esc(tid)+'\')">Попробовать</button>'+(previewing?' <button class="btn btn-sm btn-outline" style="width:auto;padding:2px 8px;font-size:11px" onclick="resetPreviewTheme()">Сброс</button>':'');
+      }
+    };
+    if(currentUser){ mkRow(currentUser.uid,'profileThemeRow'); }
+    if(viewProfileUid){ mkRow(viewProfileUid,'vpThemeRow'); }
+  }catch(e){}
+}
 function notifyUser(uid,type,title,text,extra){
   if(!uid||uid===currentUser.uid||!ALL_USERS[uid])return;
   const payload=Object.assign({type,title:title||'',text,ts:Date.now(),read:false},extra||{});
@@ -7888,6 +7935,7 @@ async function openUserProfile(uid){
   }
   document.getElementById('vpPresence').innerHTML=fr?presenceHtml(i):'';
   document.getElementById('vpGeo').innerHTML=(currentUser.isAdmin&&i.geo)?geoLinkHtml(uid,i):'';
+  renderThemeRows();
   document.getElementById('vpAnketaCard').style.display=fr?'block':'none';
   document.getElementById('vpAnketaView').innerHTML=anketaHtml(i);
   document.getElementById('vpColumnCard').style.display=fr?'block':'none';
@@ -10058,6 +10106,7 @@ function renderProfile(){
       d.innerHTML='<div style="font-weight:600"><span style="color:'+colorOf(ALL_USERS[uid])+'">'+esc(displayNameOf(ALL_USERS[uid]))+'</span>'+totemChip(ALL_USERS[uid])+'</div><button class="btn btn-outline btn-sm" style="width:auto" onclick="unblock(\''+uid+'\')">✅ Разблокировать</button>';
       bl.appendChild(d);});
   } else bc.style.display='none';
+  renderThemeRows();
 }
 // Права админа — ИСКЛЮЧИТЕЛЬНО по подтверждённой почте Firebase.
 // Поле isAdmin в базе не смотрим: база может быть доступна для записи, флаг подделать.
