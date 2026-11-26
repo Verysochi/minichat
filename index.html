@@ -235,10 +235,10 @@ img.avatar.sq{border-radius:8px}
 .snowball-fly{position:fixed;z-index:9999;pointer-events:none;font-size:26px;transition:transform .55s cubic-bezier(.2,.8,.2,1),opacity .55s ease;will-change:transform,opacity}
 .clickable{cursor:pointer}
 .totem-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--text2);margin-left:6px;vertical-align:middle}
-.frame-gold,.avatar.frame-gold,.profile-photo.frame-gold,img.frame-gold,div.frame-gold{box-shadow:0 0 0 3px #ffd700,0 0 12px rgba(255,215,0,.55) !important}
-.frame-silver,.avatar.frame-silver,.profile-photo.frame-silver,img.frame-silver,div.frame-silver{box-shadow:0 0 0 3px #c0c0c0,0 0 10px rgba(192,192,192,.5) !important}
-.frame-neon,.avatar.frame-neon,.profile-photo.frame-neon,img.frame-neon,div.frame-neon{box-shadow:0 0 0 3px #0ff,0 0 14px #0ff !important}
-.frame-rainbow,.avatar.frame-rainbow,.profile-photo.frame-rainbow,img.frame-rainbow,div.frame-rainbow{box-shadow:0 0 0 2px #ff004c,0 0 0 4px #ffb800,0 0 0 6px #00ff85,0 0 0 8px #00b3ff !important}
+.frame-gold,.avatar.frame-gold,.profile-photo.frame-gold,img.frame-gold,div.frame-gold,.avatar.online-frame.frame-gold,.avatar.offline-frame.frame-gold,.profile-photo.online-frame.frame-gold{box-shadow:0 0 0 3px #ffd700,0 0 12px rgba(255,215,0,.55) !important}
+.frame-silver,.avatar.frame-silver,.profile-photo.frame-silver,img.frame-silver,div.frame-silver,.avatar.online-frame.frame-silver,.avatar.offline-frame.frame-silver,.profile-photo.online-frame.frame-silver{box-shadow:0 0 0 3px #c0c0c0,0 0 10px rgba(192,192,192,.5) !important}
+.frame-neon,.avatar.frame-neon,.profile-photo.frame-neon,img.frame-neon,div.frame-neon,.avatar.online-frame.frame-neon,.avatar.offline-frame.frame-neon,.profile-photo.online-frame.frame-neon{box-shadow:0 0 0 3px #0ff,0 0 14px #0ff !important}
+.frame-rainbow,.avatar.frame-rainbow,.profile-photo.frame-rainbow,img.frame-rainbow,div.frame-rainbow,.avatar.online-frame.frame-rainbow,.avatar.offline-frame.frame-rainbow,.profile-photo.online-frame.frame-rainbow{box-shadow:0 0 0 2px #ff004c,0 0 0 4px #ffb800,0 0 0 6px #00ff85,0 0 0 8px #00b3ff !important}
 .cover-slot{width:100%;max-width:430px;position:relative}
 .cover-band{width:100%;height:180px;object-fit:cover;display:block;background:linear-gradient(135deg,var(--surface2),var(--surface3));cursor:pointer}
 .cover-avatar{position:relative;margin:-50px auto 0;width:max-content;display:flex;flex-direction:column;align-items:center}
@@ -784,7 +784,8 @@ img,video,canvas{max-width:100%}
 .undo-bar.show{opacity:1;transform:translate(-50%,0)}
 .undo-bar:active{transform:translate(-50%,0) scale(.97)}
 .admin-user:last-child{border:none}
-.profile-wrap{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;align-items:center}
+.profile-wrap{flex:1;overflow-y:auto;overflow-x:clip;padding:24px;display:flex;flex-direction:column;align-items:center;max-width:100%;box-sizing:border-box}
+@media(max-width:520px){.profile-wrap{padding:12px 8px}.profile-card{padding:12px;max-width:100%}}
 .profile-name{font-size:22px;font-weight:700;margin-top:10px}
 .profile-login{color:var(--text2);font-size:13px;margin-top:2px}
 .profile-status{color:var(--green);font-size:14px;margin:6px 0 16px;text-align:center;max-width:300px}
@@ -1223,6 +1224,7 @@ img,video,canvas{max-width:100%}
   /* На ПК отдельная страница уведомлений не открывается — только выдвижной список */
   body.desktop-split #notifScreen{display:none !important}
   body.desktop-split .screen.active#notifScreen{display:none !important}
+  body.desktop-split .bottom-nav .nav-btn[data-screen="notifScreen"]{display:none !important}
 }
   /* Выдвижной список уведомлений (ПК) */
 .notif-dropdown{position:fixed;top:64px;right:10px;width:min(420px,calc(100vw - 20px));max-height:72vh;background:var(--surface);border:1px solid var(--surface3);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);z-index:950;display:flex;flex-direction:column;overflow:hidden}
@@ -1437,6 +1439,8 @@ img,video,canvas{max-width:100%}
   .pet-totem.hatching~.pet-hatch-ring{animation:hatchRing 1.2s .8s ease-out 2}
   /* Ветви древа от яйца к кнопкам ухода */
   .pet-egg-tree{position:relative;width:min(320px,100%);height:220px;margin:10px auto 0;max-width:100%;padding-top:10px;border-radius:18px;overflow:visible;background:transparent}
+  @media(max-width:420px){.pet-egg-tree{transform:scale(.88);transform-origin:top center;margin-bottom:-24px}}
+  @media(max-width:360px){.pet-egg-tree{transform:scale(.78);transform-origin:top center;margin-bottom:-44px}}
   .pet-decor{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:18px}
   .pet-decor-i{position:absolute;font-size:18px;opacity:.22;filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
   .pet-decor-i.d0{left:8%;top:8%}.pet-decor-i.d1{right:8%;top:10%}.pet-decor-i.d2{left:4%;bottom:18%}.pet-decor-i.d3{right:4%;bottom:20%}.pet-decor-i.d4{left:46%;top:2%;font-size:16px}.pet-decor-i.d5{left:48%;bottom:4%;font-size:16px}
@@ -2011,6 +2015,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <audio controls id="recPreviewAudio" style="display:none"></audio>
     <video controls id="recPreviewVideo" style="display:none;max-width:100%"></video>
     <div id="recLiveLabel" style="font-size:11px;color:var(--text3);flex:none;max-width:120px;line-height:1.3"></div>
+    <button class="preview-btn rec-stop" id="recSendBtn" title="Отправить" onclick="sendRecorded()" style="display:none;background:var(--primary);color:#fff">➤</button>
     <button class="preview-btn preview-del" title="Удалить запись" onclick="cancelRecorded()">🗑</button>
   </div>
   <div id="chatMediaContainer" class="media-container" style="display:none;margin:0 8px"></div>
@@ -2294,6 +2299,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
   <button class="nav-btn" data-screen="newsScreen" onclick="showScreen('newsScreen')"><span class="nav-icon">📰</span><span>Новости</span><span class="mini-badge" id="newsBadge"></span></button>
   <button class="nav-btn active" data-screen="mainScreen" onclick="showScreen('mainScreen')"><span class="nav-icon">💬</span><span>Чаты</span><span class="mini-badge" id="chatBadge"></span></button>
   <button class="nav-btn" data-screen="friendsScreen" onclick="showScreen('friendsScreen')"><span class="nav-icon">🤝</span><span>Друзья</span><span class="mini-badge" id="peopleBadge"></span><span class="nav-friends-count" id="friendsCountNav"></span></button>
+  <button class="nav-btn" data-screen="notifScreen" id="mobileNotifNavBtn" onclick="showScreen('notifScreen')"><span class="nav-icon">🔔</span><span>Увед.</span><span class="mini-badge js-notif-badge" id="notifBadgeNav"></span></button>
   <button class="nav-btn" data-screen="adminScreen" id="adminNavBtn" style="display:none" onclick="showScreen('adminScreen')"><span class="nav-icon">⚙️</span><span>Админ</span><span class="mini-badge" id="reqBadge"></span></button>
 
   <!-- Desktop left rail: extra actions under the main nav -->
@@ -2308,7 +2314,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 15:55';
+const BUILD='26.11.2026 16:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2707,9 +2713,10 @@ function isChatSplitContext(id){return id==='mainScreen'||id==='chatScreen';}
 function updateDesktopSplit(){
   const on=isDesktop() && !!currentUser;
   document.body.classList.toggle('desktop-split', !!on);
-  if(!on){ document.body.classList.remove('chat-open-desktop'); return; }
+  if(!on){ document.body.classList.remove('chat-open-desktop'); try{initNavReorder();}catch(e){} return; }
   if(currentScreenId==='chatScreen' && currentChatId) document.body.classList.add('chat-open-desktop');
   else document.body.classList.remove('chat-open-desktop');
+  try{initNavReorder();}catch(e){}
 }
 window.addEventListener('resize',()=>{ try{ updateDesktopSplit(); }catch(e){} });
 function navTrack(prev,next){
@@ -3902,6 +3909,39 @@ function ensureVideoThumb(key,m){
 }
 // Мини-плеер песни, привязанный к сообщению
 function songSrcFor(m,key){const mk=(m&&m.mediaKey)||key;return (m&&m.data)||mediaCache[mk]||'';}
+function videoNoteHtml(key,m,src){
+  const id=CSS_ID(key);
+  const tr=(m&&m.transcript)?String(m.transcript).trim():'';
+  return '<div class="video-note" id="vn_wrap_'+id+'" data-key="'+id+'" style="margin:4px 0;max-width:280px">'+
+    '<div style="position:relative;width:240px;height:240px;margin:0 auto">'+
+      '<div style="width:220px;height:220px;border-radius:50%;overflow:hidden;margin:10px auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative">'+
+        '<video id="vn_'+id+'" src="'+src+'" playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" ontimeupdate="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onplay="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onpause="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onended="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onloadedmetadata="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')"></video>'+
+      '</div>'+
+      '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
+      '<button class="btn btn-ghost btn-sm" id="vn_mute_'+id+'" onclick="event.stopPropagation();vnMute(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Звук" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">🔊</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();saveFile(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать" style="position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">⬇</button>'+
+    '</div>'+
+    '<div style="display:flex;align-items:center;gap:8px;padding:0 8px;margin-top:2px">'+
+      '<span id="vn_time_'+id+'" style="font-size:11px;color:var(--text3);min-width:34px">0:00</span>'+
+      '<input id="vn_seek_'+id+'" type="range" min="0" max="1000" value="0" oninput="vnSeek(\''+esc(key).replace(/'/g,"\\'")+'\',this.value)" style="flex:1;height:4px;accent-color:var(--primary)">'+
+      '<span id="vn_dur_'+id+'" style="font-size:11px;color:var(--text3);min-width:34px;text-align:right">0:00</span>'+
+    '</div>'+
+    (tr?'<div style="margin-top:6px;padding:6px 8px;border-radius:10px;background:var(--surface2);font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+esc(tr)+'</div>':'')+
+  '</div>';
+}
+function vnGet(key){ return document.getElementById('vn_'+CSS_ID(key)); }
+function vnToggle(key){ const v=vnGet(key); if(!v) return; if(v.paused){ v.play().catch(()=>{}); } else { v.pause(); } vnUpdate(key); }
+function vnMute(key){ const v=vnGet(key); if(!v) return; v.muted=!v.muted; vnUpdate(key); }
+function vnSeek(key,val){ const v=vnGet(key); if(!v||!isFinite(v.duration)||v.duration<=0) return; v.currentTime=(Number(val)/1000)*v.duration; vnUpdate(key); }
+function vnUpdate(key){
+  const id=CSS_ID(key), v=vnGet(key); if(!v) return;
+  const play=document.getElementById('vn_play_'+id); if(play) play.textContent=v.paused?'▶':'⏸';
+  const mute=document.getElementById('vn_mute_'+id); if(mute) mute.textContent=v.muted?'🔇':'🔊';
+  const cur=v.currentTime||0, dur=(isFinite(v.duration)&&v.duration>0)?v.duration:0;
+  const seek=document.getElementById('vn_seek_'+id); if(seek && !seek.matches(':active')) seek.value=dur?String(Math.round((cur/dur)*1000)):'0';
+  const t=document.getElementById('vn_time_'+id); if(t) t.textContent=fmtDur(cur);
+  const d=document.getElementById('vn_dur_'+id); if(d) d.textContent=dur?fmtDur(dur):'0:00';
+}
 function songMiniHtml(key,m){
   const playing=(songKey===key&&!songPaused);
   const src=songSrcFor(m,key);
@@ -6205,7 +6245,7 @@ function bubbleInner(m,key,senderInside){
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';}
       else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='videonote'){
-      if(loaded)c+='<div style="width:220px;height:220px;border-radius:50%;overflow:hidden;margin:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12)"><video src="'+loaded+'" playsinline controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:50%;background:#000"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+      if(loaded)c+=videoNoteHtml(key,m,loaded);
       else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='video'){
       if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
@@ -6243,7 +6283,7 @@ function bubbleInner(m,key,senderInside){
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
   else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else if(m.type==='audio'&&d)c+=songMiniHtml(key,m)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать">⬇</button></div>';
-  else if(m.type==='videonote'&&d)c+='<div style="width:220px;height:220px;border-radius:50%;overflow:hidden;margin:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12)"><video src="'+d+'" playsinline controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:50%;background:#000"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+  else if(m.type==='videonote'&&d)c+=videoNoteHtml(key,m,d);
   else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
@@ -6949,12 +6989,23 @@ function toggleRecord(mode){
       const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
       const isVidRec=mode==='video'||mode==='videonote';
       const el=isVidRec?pv0:pa0,other=isVidRec?pa0:pv0;
-      // Живой плеер во время записи НЕ показываем. Он всё равно отключён
-      // (muted) и слушает только микрофон, но браузер рисует в нём СВОЁ
-      // время — и оно тикало даже на паузе записи. Из-за этого в облачке
-      // отправки оказывалось второе время рядом с секундомером.
-      el.style.display='none';other.style.display='none';
-      el.muted=true;el.srcObject=stream;el.play().catch(()=>{});
+      other.style.display='none'; other.pause?.(); other.srcObject=null; other.removeAttribute('src');
+      el.muted=true; el.srcObject=stream;
+      if(isVidRec){
+        el.controls=false;
+        el.style.display='block';
+        if(mode==='videonote'){
+          el.style.borderRadius='50%'; el.style.width='220px'; el.style.height='220px';
+          el.style.objectFit='cover'; el.style.background='#000';
+        } else {
+          el.style.borderRadius='12px'; el.style.width='min(320px,100%)'; el.style.height='auto';
+          el.style.maxHeight='240px'; el.style.objectFit='cover'; el.style.background='#000';
+        }
+      } else {
+        // Аудио: живой плеер не показываем (браузер рисует своё время).
+        el.style.display='none'; el.controls=false;
+      }
+      el.play().catch(()=>{});
     }catch(e){console.warn('live preview failed',e);}
     document.getElementById('recPreview').classList.add('active');
     const lb=document.getElementById('recLiveLabel');
@@ -6963,6 +7014,7 @@ function toggleRecord(mode){
     if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить запись';}
     const pb=document.getElementById('recPauseBtn');
     if(pb){pb.style.display='flex';pb.textContent='⏸';pb.title='Пауза';pb.classList.remove('paused');}
+    const sendB=document.getElementById('recSendBtn'); if(sendB) sendB.style.display='none';
     const mb=document.getElementById(mode==='videonote'?'recVideoNoteBtn':'recBtn');
     if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
     try{startRecSpeech();}catch(e){}
@@ -7006,7 +7058,7 @@ function pickRecType(mode){
 }
 function startRecSpeech(){
   recTranscriptText='';
-  try{ if(recMode!=='audio') return; }catch(e){}
+  try{ if(recMode!=='audio' && recMode!=='videonote') return; }catch(e){}
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR) return;
   try{
@@ -7025,7 +7077,7 @@ function startRecSpeech(){
       }catch(e){}
     };
     r.onerror=function(){};
-    r.onend=function(){ try{ if(isRecording && !recPaused && recMode==='audio' && window._recSpeech===r){ try{r.start();}catch(e){} } }catch(e){} };
+    r.onend=function(){ try{ if(isRecording && !recPaused && (recMode==='audio'||recMode==='videonote') && window._recSpeech===r){ try{r.start();}catch(e){} } }catch(e){} };
     window._recSpeech=r; r.start();
   }catch(e){ window._recSpeech=null; }
 }
@@ -7075,13 +7127,24 @@ function finishRecording(){
     recordedDataUrl=r.result;recordedType=recMode;
     const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
     try{
-      if(recMode==='video'||recMode==='videonote'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none'; if(recMode==='videonote'){pv.style.borderRadius='50%';pv.style.width='220px';pv.style.height='220px';pv.style.objectFit='cover';} else {pv.style.borderRadius='';pv.style.width='';pv.style.height='';pv.style.objectFit='';} }
-      else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
+      if(recMode==='video'||recMode==='videonote'){
+        pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';
+        if(recMode==='videonote'){
+          pv.controls=false; pv.style.borderRadius='50%'; pv.style.width='220px'; pv.style.height='220px';
+          pv.style.objectFit='cover'; pv.style.background='#000'; pv.style.cursor='pointer';
+          pv.onclick=function(ev){ev.stopPropagation(); if(pv.paused) pv.play().catch(()=>{}); else pv.pause();};
+          pv.title='Нажми для просмотра';
+        } else {
+          pv.controls=true; pv.onclick=null; pv.style.borderRadius='12px'; pv.style.width='min(320px,100%)'; pv.style.height='auto'; pv.style.maxHeight='240px'; pv.style.objectFit='contain'; pv.style.background='#000';
+        }
+      }
+      else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.controls=true;pa.style.display='block';pv.style.display='none';}
     }catch(e){}
     document.getElementById('recPreview').classList.add('active');
     const lb=document.getElementById('recLiveLabel');if(lb)lb.textContent='Готово — ➤ отправить';
     const sb=document.getElementById('recStopBtn');if(sb)sb.style.display='none';
     const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
+    const sendB=document.getElementById('recSendBtn');if(sendB)sendB.style.display='inline-flex';
     document.getElementById('msgInput').placeholder='Сообщение...';
     if(recAutoSend){recAutoSend=false;sendRecorded();}
   };
@@ -7189,9 +7252,10 @@ function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=fal
   const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
   const sb=document.getElementById('recStopBtn'),lb=document.getElementById('recLiveLabel');
   if(pa){pa.pause();pa.removeAttribute('src');pa.srcObject=null;pa.style.display='none';}
-  if(pv){pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';}
+  if(pv){pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';pv.onclick=null;pv.controls=true;pv.style.borderRadius='';pv.style.width='';pv.style.height='';pv.style.objectFit='';pv.style.cursor='';pv.title='';}
   if(sb)sb.style.display='none';
   const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
+  const sendB=document.getElementById('recSendBtn');if(sendB)sendB.style.display='none';
   if(lb)lb.textContent='';
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   const inp=document.getElementById('msgInput');if(inp&&inp.placeholder.indexOf('Отправляю')>=0)inp.placeholder='Сообщение...';
@@ -9135,11 +9199,11 @@ function openNotifScreen(){
 
 // Выдвижной список уведомлений на ПК
 function openNotifDropdown(){
+  if(!isDesktop()){ showScreen('notifScreen'); return; }
   const d=document.getElementById("notifDropdown"); if(!d)return;
   if(d.style.display==="flex"){ closeNotifDropdown(); return; }
   renderNotifsDropdown();
   d.style.display="flex";
-  if(!isDesktop()) document.body.style.overflow="hidden";
 }
 function closeNotifDropdown(){
   const d=document.getElementById("notifDropdown"); if(!d)return;
