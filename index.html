@@ -235,10 +235,10 @@ img.avatar.sq{border-radius:8px}
 .snowball-fly{position:fixed;z-index:9999;pointer-events:none;font-size:26px;transition:transform .55s cubic-bezier(.2,.8,.2,1),opacity .55s ease;will-change:transform,opacity}
 .clickable{cursor:pointer}
 .totem-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--surface3);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--text2);margin-left:6px;vertical-align:middle}
-.frame-gold{box-shadow:0 0 0 3px #ffd700,0 0 12px rgba(255,215,0,.55)}
-.frame-silver{box-shadow:0 0 0 3px #c0c0c0,0 0 10px rgba(192,192,192,.5)}
-.frame-neon{box-shadow:0 0 0 3px #0ff,0 0 14px #0ff}
-.frame-rainbow{box-shadow:0 0 0 2px #ff004c,0 0 0 4px #ffb800,0 0 0 6px #00ff85,0 0 0 8px #00b3ff}
+.frame-gold,.avatar.frame-gold,.profile-photo.frame-gold,img.frame-gold,div.frame-gold{box-shadow:0 0 0 3px #ffd700,0 0 12px rgba(255,215,0,.55) !important}
+.frame-silver,.avatar.frame-silver,.profile-photo.frame-silver,img.frame-silver,div.frame-silver{box-shadow:0 0 0 3px #c0c0c0,0 0 10px rgba(192,192,192,.5) !important}
+.frame-neon,.avatar.frame-neon,.profile-photo.frame-neon,img.frame-neon,div.frame-neon{box-shadow:0 0 0 3px #0ff,0 0 14px #0ff !important}
+.frame-rainbow,.avatar.frame-rainbow,.profile-photo.frame-rainbow,img.frame-rainbow,div.frame-rainbow{box-shadow:0 0 0 2px #ff004c,0 0 0 4px #ffb800,0 0 0 6px #00ff85,0 0 0 8px #00b3ff !important}
 .cover-slot{width:100%;max-width:430px;position:relative}
 .cover-band{width:100%;height:180px;object-fit:cover;display:block;background:linear-gradient(135deg,var(--surface2),var(--surface3));cursor:pointer}
 .cover-avatar{position:relative;margin:-50px auto 0;width:max-content;display:flex;flex-direction:column;align-items:center}
@@ -1426,7 +1426,7 @@ img,video,canvas{max-width:100%}
   .pet-totem-wood{position:absolute;inset:0;border-radius:18px 18px 22px 22px;background:linear-gradient(160deg,#8b5a2b 0%,#6d4520 40%,#4e2f14 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -8px 18px rgba(0,0,0,.25)}
   .pet-totem-wood::before{content:'';position:absolute;inset:5px;border-radius:14px 14px 18px 18px;border:1px solid rgba(255,220,170,.18);background:repeating-linear-gradient(180deg,rgba(255,255,255,.03) 0 6px,rgba(0,0,0,.03) 6px 12px)}
   .pet-totem-carve{position:absolute;left:10px;right:10px;top:18px;bottom:18px;border-radius:12px;border:1px dashed rgba(255,210,140,.25);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
-  .pet-totem-gem{position:absolute;left:50%;top:14px;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95),rgba(255,255,255,.2) 28%,transparent 30%),linear-gradient(160deg,color-mix(in srgb,var(--totem-c) 35%,white),var(--totem-c) 55%,color-mix(in srgb,var(--totem-c) 70%,#000));box-shadow:0 0 0 3px rgba(255,225,170,.35),0 8px 20px rgba(0,0,0,.35),0 0 24px color-mix(in srgb,var(--totem-c) 45%,transparent);display:flex;align-items:center;justify-content:center;font-size:24px}
+  .pet-totem-gem{position:absolute;left:50%;top:14px;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95),rgba(255,255,255,.2) 28%,transparent 30%),linear-gradient(160deg,color-mix(in srgb,var(--totem-c) 35%,white),var(--totem-c) 55%,color-mix(in srgb,var(--totem-c) 70%,#000));box-shadow:0 0 0 3px rgba(255,225,170,.35),0 8px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:24px}
   .pet-totem-base{position:absolute;left:50%;bottom:8px;width:58px;height:14px;transform:translateX(-50%);border-radius:8px;background:linear-gradient(180deg,#7a4e24,#4a2c12);box-shadow:0 4px 10px rgba(0,0,0,.35)}
   .pet-totem-runes{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:10px;color:rgba(255,225,170,.75);letter-spacing:2px;white-space:nowrap}
   .pet-hatch-shine{position:absolute;inset:-8px -20px -20px -20px;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.95),rgba(255,220,120,.55) 28%,rgba(255,220,120,.12) 55%,transparent 72%);opacity:0;transform:scale(.4);transition:opacity .45s ease,transform .45s ease;border-radius:50%;pointer-events:none}
@@ -1436,7 +1436,7 @@ img,video,canvas{max-width:100%}
   .pet-hatch-ring{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2px solid color-mix(in srgb,var(--totem-c) 70%,white);opacity:0;pointer-events:none}
   .pet-totem.hatching~.pet-hatch-ring{animation:hatchRing 1.2s .8s ease-out 2}
   /* Ветви древа от яйца к кнопкам ухода */
-  .pet-egg-tree{position:relative;width:min(320px,100%);height:220px;margin:10px auto 0;max-width:100%;padding-top:10px;border-radius:18px;overflow:visible;background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.10), color-mix(in srgb,var(--totem-c,#6c5ce7) 18%, transparent) 28%, transparent 58%)}
+  .pet-egg-tree{position:relative;width:min(320px,100%);height:220px;margin:10px auto 0;max-width:100%;padding-top:10px;border-radius:18px;overflow:visible;background:transparent}
   .pet-decor{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:18px}
   .pet-decor-i{position:absolute;font-size:18px;opacity:.22;filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
   .pet-decor-i.d0{left:8%;top:8%}.pet-decor-i.d1{right:8%;top:10%}.pet-decor-i.d2{left:4%;bottom:18%}.pet-decor-i.d3{right:4%;bottom:20%}.pet-decor-i.d4{left:46%;top:2%;font-size:16px}.pet-decor-i.d5{left:48%;bottom:4%;font-size:16px}
@@ -1676,9 +1676,9 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div id="relReqWrap" style="display:none"><div class="section-lbl">🤝 Кто ты ему/ей</div><div id="relReqList"></div></div>
       <div id="groupInvWrap" style="display:none"><div class="section-lbl">📩 Приглашения в группы</div><div id="groupInvList"></div></div>
       <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">📡 Глобальный поиск (Радар) <button class="btn btn-outline btn-sm" style="width:auto;padding:4px 10px;font-size:12px" onclick="const p=document.getElementById('findFilters');p.style.display=p.style.display==='none'?'block':'none'">Фильтры</button></div>
-        <div class="input-group" style="margin:0"><input type="text" id="findInput" placeholder="Начни вводить имя..." oninput="renderFind()"></div>
-        <div id="findFilters" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--surface3);border-radius:10px;background:var(--surface2)">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">📡 Глобальный поиск (Радар) <button id="findFiltersBtn" class="btn btn-outline btn-sm" style="width:auto;padding:4px 10px;font-size:12px" onclick="const p=document.getElementById('findFilters');const show=p.style.display==='none';p.style.display=show?'block':'none';this.textContent=show?'Скрыть фильтры':'Показать фильтры'">Скрыть фильтры</button></div>
+        <div class="input-group" style="margin:0;display:flex;gap:8px"><input type="text" id="findInput" placeholder="Имя (необязательно)..." oninput="renderFind()" style="flex:1"><button class="btn btn-primary btn-sm" style="width:auto;padding:8px 14px" onclick="renderFind()">🔍 Найти</button></div>
+        <div id="findFilters" style="display:block;margin-top:8px;padding:10px;border:1px solid var(--surface3);border-radius:10px;background:var(--surface2)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div><label style="font-size:11px;color:var(--text3)">Возраст от</label><input type="number" id="findAgeMin" min="0" max="120" placeholder="от" oninput="renderFind()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--surface3);background:var(--surface);color:var(--text)"></div>
             <div><label style="font-size:11px;color:var(--text3)">Возраст до</label><input type="number" id="findAgeMax" min="0" max="120" placeholder="до" oninput="renderFind()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--surface3);background:var(--surface);color:var(--text)"></div>
@@ -1692,7 +1692,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         </div>
         <div id="findList" style="margin-top:8px"></div>
       </div>
-      <div class="section-lbl">Мои друзья</div>
+      <div class="section-lbl" style="display:flex;align-items:center;justify-content:space-between;gap:8px">Мои друзья <label style="font-size:12px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:6px"><input type="checkbox" id="friendsOnlineOnly" onchange="renderFriends()"> Только онлайн</label></div>
       <div id="friendsList"></div>
       <div class="card">
         <div class="card-title">🔑 Добавить по личному коду</div>
@@ -2308,7 +2308,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 15:25';
+const BUILD='26.11.2026 15:40';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7793,8 +7793,10 @@ function openFriendMenu(uid,ev){
 }
 function renderFriends(){
   const l=document.getElementById('friendsList');if(!l||!currentUser)return;l.innerHTML='';
-  const fr=lastFriends?Object.entries(lastFriends):[];
-  if(!fr.length){l.innerHTML='<div style="padding:16px;color:var(--text3);font-size:13px">Друзей пока нет. Найди через 🔍 или по коду 🔑</div>';return;}
+  let fr=lastFriends?Object.entries(lastFriends):[];
+  const onlineOnly=!!(document.getElementById('friendsOnlineOnly')||{}).checked;
+  if(onlineOnly) fr=fr.filter(([uid])=>isOnline(ALL_USERS[uid]));
+  if(!fr.length){l.innerHTML='<div style="padding:16px;color:var(--text3);font-size:13px">'+(onlineOnly?'Сейчас никто из друзей не онлайн':'Друзей пока нет. Найди через 🔍 или по коду 🔑')+'</div>';return;}
   fr.sort((a,b)=>nameOf(a[0]).localeCompare(nameOf(b[0]),'ru')).forEach(([uid,val])=>{
     const i=ALL_USERS[uid];if(!i)return;
     const rel=relOf(uid);
@@ -9928,6 +9930,7 @@ function initNavReorder(){
       }
     };
     applyOrder();
+    getBtns().forEach(b=>{ b.draggable=isDesk(); });
     if(nav._navReorderBound) return;
     nav._navReorderBound=true;
     let dragId=null; let insertLine=null;
