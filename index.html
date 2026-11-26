@@ -2028,6 +2028,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     </div>
     <div class="input-bar" id="chatInputBar">
     <button class="attach-btn" id="recBtn" onclick="toggleRecord('audio')" title="Голосовое сообщение">🎤</button>
+    <button class="attach-btn" id="recVideoNoteBtn" onclick="toggleRecord('videonote')" title="Видеокружок">⭕</button>
     <button class="more-btn" onclick="toggleAttachMenu()" title="Прикрепить фото, видео или файл">＋</button>
     <textarea id="msgInput" placeholder="Сообщение...   (Ctrl+Enter — новая строка)" rows="1" title="Enter — отправить, Ctrl+Enter — новая строка" oninput="autoResize(this);sendTyping();onMentionInput(this)"></textarea>
     <button class="send-btn" onclick="sendMessage()">➤</button>
@@ -2307,7 +2308,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 15:15';
+const BUILD='26.11.2026 15:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -6962,7 +6963,7 @@ function toggleRecord(mode){
     if(sb){sb.style.display='flex';sb.textContent='⏹';sb.title='Остановить запись';}
     const pb=document.getElementById('recPauseBtn');
     if(pb){pb.style.display='flex';pb.textContent='⏸';pb.title='Пауза';pb.classList.remove('paused');}
-    const mb=document.getElementById('recBtn');
+    const mb=document.getElementById(mode==='videonote'?'recVideoNoteBtn':'recBtn');
     if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
     try{startRecSpeech();}catch(e){}
     startSegment();
