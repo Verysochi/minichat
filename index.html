@@ -1423,7 +1423,7 @@ img,video,canvas{max-width:100%}
   .pet-hatch-pet{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:52px;opacity:0;transition:opacity .55s .45s,transform .55s .45s cubic-bezier(.2,1,.3,1)}
   .pet-egg.cracked~.pet-hatch-pet{opacity:1;transform:scale(1.15)}
   /* Ветви древа от яйца к кнопкам ухода */
-  .pet-egg-tree{position:relative;width:min(320px,100%);height:210px;margin:10px auto 0;max-width:100%;border-radius:18px;background:radial-gradient(circle at 50% 28%, rgba(255,255,255,.08), rgba(108,92,231,.10) 28%, transparent 62%)}
+  .pet-egg-tree{position:relative;width:min(320px,100%);height:220px;margin:10px auto 0;max-width:100%;padding-top:10px;border-radius:18px;overflow:visible;background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.08), rgba(108,92,231,.10) 30%, transparent 65%)}
   .pet-egg-tree-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
   .pet-egg-tree-svg .tree-branch{fill:none;stroke:rgba(255,255,255,.22);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
   .pet-egg-tree-svg .tree-branch-glow{fill:none;stroke:rgba(108,92,231,.35);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:blur(1px)}
@@ -2259,7 +2259,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 11:00';
+const BUILD='26.11.2026 11:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9627,7 +9627,7 @@ function renderPetTree(targetUid, petEmoji, opts){
   const hint = isEgg ? 'Нажми на яйцо — появится питомец. Кнопки вокруг тоже работают!' : 'Проценты над кнопками — состояние питомца.';
   return '<div class="pet-egg-tree" aria-label="Уход за питомцем">'+
 
-    '<div style="position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
+    '<div style="position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
     btn('feed','🍖','pos-l1','Покормить','hunger')+
     btn('play','🎾','pos-l2','Поиграть','fun')+
     btn('toilet','🚽','pos-l3','Туалет','toilet')+
