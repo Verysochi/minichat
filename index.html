@@ -1676,8 +1676,20 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div id="relReqWrap" style="display:none"><div class="section-lbl">🤝 Кто ты ему/ей</div><div id="relReqList"></div></div>
       <div id="groupInvWrap" style="display:none"><div class="section-lbl">📩 Приглашения в группы</div><div id="groupInvList"></div></div>
       <div class="card">
-        <div class="card-title">📡 Глобальный поиск (Радар)</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">📡 Глобальный поиск (Радар) <button class="btn btn-outline btn-sm" style="width:auto;padding:4px 10px;font-size:12px" onclick="const p=document.getElementById('findFilters');p.style.display=p.style.display==='none'?'block':'none'">Фильтры</button></div>
         <div class="input-group" style="margin:0"><input type="text" id="findInput" placeholder="Начни вводить имя..." oninput="renderFind()"></div>
+        <div id="findFilters" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--surface3);border-radius:10px;background:var(--surface2)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><label style="font-size:11px;color:var(--text3)">Возраст от</label><input type="number" id="findAgeMin" min="0" max="120" placeholder="от" oninput="renderFind()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--surface3);background:var(--surface);color:var(--text)"></div>
+            <div><label style="font-size:11px;color:var(--text3)">Возраст до</label><input type="number" id="findAgeMax" min="0" max="120" placeholder="до" oninput="renderFind()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--surface3);background:var(--surface);color:var(--text)"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            <div><label style="font-size:11px;color:var(--text3)">Пол</label><select id="findGender" onchange="renderFind()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--surface3);background:var(--surface);color:var(--text)"><option value="">Любой</option><option value="m">Мужской</option><option value="f">Женский</option></select></div>
+            <div><label style="font-size:11px;color:var(--text3)">Город</label><input type="text" id="findCity" placeholder="Город" oninput="renderFind()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--surface3);background:var(--surface);color:var(--text)"></div>
+          </div>
+          <label class="remember" style="margin-top:8px;display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="findOnline" onchange="renderFind()"> Сейчас онлайн</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn btn-outline btn-sm" style="width:auto" onclick="resetFindFilters()">Сбросить</button><span id="findCount" style="font-size:12px;color:var(--text3)"></span></div>
+        </div>
         <div id="findList" style="margin-top:8px"></div>
       </div>
       <div class="section-lbl">Мои друзья</div>
@@ -1748,6 +1760,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <div class="profile-name" id="profileName"></div>
     <div class="profile-login" id="profileLogin"></div>
     <div class="profile-status" id="profileStatus"></div>
+    <div id="profileMoodMarquee" class="mood-marquee" style="display:none" aria-label="Настроение"></div>
     <div id="profileThoughts" style="font-size:13px;color:var(--text2);margin:2px 0 6px;font-style:italic;max-width:520px;line-height:1.35"></div>
     <div id="profileMoodQuickWrap" style="width:100%;max-width:520px;margin:2px 0 8px">
       <input type="text" id="profileMoodQuick" placeholder="💭 Настроение — напиши и нажми вне поля, сохранится" maxlength="120"
@@ -2005,6 +2018,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <button class="row" onclick="closeAttachMenu();addMediaToContainer('chat')">🖼 Фото или видео</button>
       <button class="row" onclick="closeAttachMenu();toggleRecord('audio')">🎤 Голосовое сообщение</button>
       <button class="row" onclick="closeAttachMenu();toggleRecord('video')">🎥 Видео сообщение</button>
+      <button class="row" onclick="closeAttachMenu();toggleRecord('videonote')">⭕ Видеокружок</button>
       <button class="row" onclick="closeAttachMenu();addFileToContainer()">📎 Любой файл</button>
       <button class="row" onclick="closeAttachMenu();addMediaUrl('chat')">▶ Медиа по ссылке (YouTube/фото/видео)</button>
       <button class="row" onclick="closeAttachMenu();openLinkAdd('chat')">🔗 Добавить ссылку с названием</button>
@@ -2291,7 +2305,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 14:30';
+const BUILD='26.11.2026 15:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -5342,7 +5356,7 @@ function notifyIncoming(m, chatId){
   notifyBrowser('💬 '+n,prev,link,'chat-'+(chatId||currentChatId||''));
 }
 function ticksHtml(m){if(currentIsGroup||m.sender!==currentUser.uid)return '';if(m.read)return '<span class="ticks ticks-read">✓✓</span>';if(m.deliv)return '<span class="ticks">✓✓</span>';return '<span class="ticks">✓</span>';}
-function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='video'?'🎥 Видео':t==='embed'?'▶ Видео/ссылка':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
+function previewFor(t,n){return t==='image'?'🖼 Фото':t==='audio'?'🎤 Голос':t==='videonote'?'⭕ Видеокружок':t==='video'?'🎥 Видео':t==='embed'?'▶ Видео/ссылка':t==='call'?'📞 Звонок':(isSongFile(n)?'🎵 ':'📎 ')+(n||'Файл');}
 function commitMessage(chatId,key,payload,preview){
   db.ref('messages/'+chatId+'/'+key).set(payload);
   clearStaleNotif(chatId);   // ответил — напоминание больше не нужно
@@ -6105,7 +6119,7 @@ function clearHighlight(){
   }
   highlightedMsg=null;
 }
-function isMediaMsg(m){return !!(m.ext||(m.type&&(m.type==='image'||m.type==='video'||m.type==='audio')));}
+function isMediaMsg(m){return !!(m.ext||(m.type&&(m.type==='image'||m.type==='video'||m.type==='videonote'||m.type==='audio')));}
 function bubbleInner(m,key,senderInside){
   let c='';const mk=m.mediaKey||key;const d=m.data||mediaCache[mk];
   if(m.deleted)return '<div class="dl-name" style="opacity:.6">🗑 Сообщение удалено</div>';
@@ -6141,6 +6155,9 @@ function bubbleInner(m,key,senderInside){
     } else if(m.type==='image'){
       if(loaded)c+='<div class="polaroid"><img src="'+loaded+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';}
+      else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
+    } else if(m.type==='videonote'){
+      if(loaded)c+='<div style="width:220px;height:220px;border-radius:50%;overflow:hidden;margin:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12)"><video src="'+loaded+'" playsinline controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:50%;background:#000"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
       else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='video'){
       if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
@@ -6178,6 +6195,7 @@ function bubbleInner(m,key,senderInside){
   // из-за чего у пересланных сообщений пропадало «от кого изначально автор».
   else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else if(m.type==='audio'&&d)c+=songMiniHtml(key,m)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать">⬇</button></div>';
+  else if(m.type==='videonote'&&d)c+='<div style="width:220px;height:220px;border-radius:50%;overflow:hidden;margin:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12)"><video src="'+d+'" playsinline controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:50%;background:#000"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
@@ -6857,8 +6875,9 @@ function mediaPermissionError(e,kind){
 function getUserMediaSmart(mode){
   if(!window.isSecureContext)return Promise.reject(new Error('insecure'));
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject(new Error('no-api'));
-  const seq=mode==='video'
-    ?[{video:{facingMode:'user',width:{ideal:480}},audio:true},{video:{width:{ideal:480}},audio:true},{video:true,audio:true}]
+  const isVid=mode==='video'||mode==='videonote';
+  const seq=isVid
+    ?[{video:{facingMode:'user',width:{ideal:480},height:{ideal:480}},audio:true},{video:{width:{ideal:480},height:{ideal:480}},audio:true},{video:true,audio:true}]
     :[{audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}},{audio:true}];
   const t=i=>navigator.mediaDevices.getUserMedia(seq[i]).catch(e=>(i+1<seq.length)?t(i+1):Promise.reject(e));
   return t(0);
@@ -6880,7 +6899,8 @@ function toggleRecord(mode){
     try{ if(songKey&&songAudio&&!songAudio.paused){songAudio.pause();songPaused=true;paintSongBtn();paintSongProgress();} }catch(e){}
     try{
       const pa0=document.getElementById('recPreviewAudio'),pv0=document.getElementById('recPreviewVideo');
-      const el=mode==='video'?pv0:pa0,other=mode==='video'?pa0:pv0;
+      const isVidRec=mode==='video'||mode==='videonote';
+      const el=isVidRec?pv0:pa0,other=isVidRec?pa0:pv0;
       // Живой плеер во время записи НЕ показываем. Он всё равно отключён
       // (muted) и слушает только микрофон, но браузер рисует в нём СВОЁ
       // время — и оно тикало даже на паузе записи. Из-за этого в облачке
@@ -6926,7 +6946,7 @@ const REC_TYPES={
   video:['video/mp4','video/webm;codecs=vp8,opus','video/webm']
 };
 function pickRecType(mode){
-  const all=REC_TYPES[mode==='video'?'video':'audio']||REC_TYPES.audio;
+  const all=REC_TYPES[(mode==='video'||mode==='videonote')?'video':'audio']||REC_TYPES.audio;
   // На Android WebView 'audio/mp4' проходит проверку isTypeSupported, но внутри
   // отдаёт 'audio/mp4;codecs=opus' и не выдаёт ни байта: файл в 34 байта.
   // Всё, что уже признано бесполезным, выкидываем из списка целиком.
@@ -7007,7 +7027,7 @@ function finishRecording(){
     recordedDataUrl=r.result;recordedType=recMode;
     const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
     try{
-      if(recMode==='video'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';}
+      if(recMode==='video'||recMode==='videonote'){pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none'; if(recMode==='videonote'){pv.style.borderRadius='50%';pv.style.width='220px';pv.style.height='220px';pv.style.objectFit='cover';} else {pv.style.borderRadius='';pv.style.width='';pv.style.height='';pv.style.objectFit='';} }
       else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.style.display='block';pv.style.display='none';}
     }catch(e){}
     document.getElementById('recPreview').classList.add('active');
@@ -7099,9 +7119,12 @@ function sendRecorded(){
   const fk='rec'+currentChatId+'_'+key;
   const old=document.getElementById('msgInput').placeholder;
   document.getElementById('msgInput').placeholder='⏳ Отправляю голосовое…';
-  uploadChunked(fk,data,{name:(type==='video'?'video':'audio')+'.webm',size:data.length})
+  const extName = (type==='video'||type==='videonote')?'video':'audio';
+  const niceName = type==='videonote'?'Видеокружок':(type==='video'?'Голосовое видео':'Голосовое');
+  uploadChunked(fk,data,{name:extName+'.webm',size:data.length})
     .then(()=>{
-      const payload={sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:type,name:(type==='video'?'Голосовое видео':'Голосовое')};
+      const payload={sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:(type==='videonote'?'video':type),name:niceName};
+      if(type==='videonote') payload.circle=true;
       if(recTranscriptText && String(recTranscriptText).trim()) payload.transcript=String(recTranscriptText).trim().slice(0,4000);
       return commitMessage(currentChatId,key,payload,previewFor(type));
     })
@@ -7738,18 +7761,60 @@ function renderFriends(){
       d.onclick=e=>{ if(e.target.closest('select')||e.target.closest('button')) return; openUserProfile(uid); };
     l.appendChild(d);});
 }
+function resetFindFilters(){
+  ['findAgeMin','findAgeMax','findCity'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  const g=document.getElementById('findGender'); if(g) g.value='';
+  const o=document.getElementById('findOnline'); if(o) o.checked=false;
+  renderFind();
+}
 function renderFind(){
   const box=document.getElementById('findList');if(!box||!currentUser)return;
   const q=(document.getElementById('findInput').value||'').trim().toLowerCase();
+  const ageMinRaw=(document.getElementById('findAgeMin')||{}).value;
+  const ageMaxRaw=(document.getElementById('findAgeMax')||{}).value;
+  const ageMin = ageMinRaw!=='' && ageMinRaw!=null ? parseInt(ageMinRaw,10) : null;
+  const ageMax = ageMaxRaw!=='' && ageMaxRaw!=null ? parseInt(ageMaxRaw,10) : null;
+  const gRaw=((document.getElementById('findGender')||{}).value||'').trim();
+  const cityQ=((document.getElementById('findCity')||{}).value||'').trim().toLowerCase();
+  const onlineOnly=!!(document.getElementById('findOnline')||{}).checked;
   box.innerHTML='';
   let es=Object.entries(ALL_USERS).filter(([uid,i])=>uid!==currentUser.uid&&!isFriend(uid)&&!isHiddenUser(i));
   const seen=new Set();
   es=es.filter(([uid,i])=>{const nm=(displayNameOf(i)||'').trim().toLowerCase();if(seen.has(nm))return false;seen.add(nm);return true;});
-  if(q)es=es.filter(([uid,i])=>(i.name||'').toLowerCase().includes(q));
+  if(q)es=es.filter(([uid,i])=>(displayNameOf(i)||'').toLowerCase().includes(q)||(i.name||'').toLowerCase().includes(q));
+  if(gRaw){
+    es=es.filter(([uid,i])=>{
+      const g=((i.anketa&&i.anketa.gender)||'').toString().trim().toLowerCase();
+      const isM = g==='m'||g==='male'||g==='м'||g==='муж'||g==='мужской';
+      const isF = g==='f'||g==='female'||g==='ж'||g==='жен'||g==='женский';
+      if(gRaw==='m') return isM;
+      if(gRaw==='f') return isF;
+      return true;
+    });
+  }
+  if(cityQ) es=es.filter(([uid,i])=>(((i.anketa&&i.anketa.city)||'').toString().toLowerCase().includes(cityQ)));
+  if(onlineOnly) es=es.filter(([uid,i])=>isOnline(i));
+  if(ageMin!=null || ageMax!=null){
+    es=es.filter(([uid,i])=>{
+      const b=i&&i.anketa&&i.anketa.birth;
+      const age = (typeof ageFromIso==='function')?ageFromIso(b):null;
+      if(age==null) return false;
+      if(ageMin!=null && age<ageMin) return false;
+      if(ageMax!=null && age>ageMax) return false;
+      return true;
+    });
+  }
   es.sort((a,b)=>displayNameOf(a[1]).localeCompare(displayNameOf(b[1]),'ru'));
+  const fc=document.getElementById('findCount'); if(fc) fc.textContent='Найдено: '+es.length;
   es.forEach(([uid,i])=>{const fr=isFriend(uid),me=uid===currentUser.uid;
+    const age = (typeof ageFromIso==='function' && i.anketa&&i.anketa.birth)?ageFromIso(i.anketa.birth):null;
+    const metaParts=[];
+    if(age!=null) metaParts.push(age+' '+(typeof ageWord==='function'?ageWord(age):'лет'));
+    const city=(i.anketa&&i.anketa.city)?String(i.anketa.city).trim():'';
+    if(city) metaParts.push(esc(city));
+    const meta = metaParts.length?'<div style="font-size:11px;color:var(--text3)">'+metaParts.join(' · ')+'</div>':'';
     const d=document.createElement('div');d.className='user-item';d.style.cursor='pointer';
-    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+(fr?' <span style="font-size:11px;color:var(--green)">✓ друг</span>':'')+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+(isOnline(i)?'':'')+presenceHtml(i)+'</div><span style="color:var(--text3);font-size:18px">›</span>';
+    d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+(fr?' <span style="font-size:11px;color:var(--green)">✓ друг</span>':'')+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+meta+(isOnline(i)?'':'')+presenceHtml(i)+'</div><span style="color:var(--text3);font-size:18px">›</span>';
     d.onclick=(e)=>{ if(e.target.closest('button')||e.target.closest('select')) return; openUserProfile(uid); };
     box.appendChild(d);});
 }
@@ -9962,6 +10027,17 @@ function renderProfile(){
   document.getElementById('profileName').innerHTML='<span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i);
   document.getElementById('profileLogin').textContent='логин: '+(i.login||'')+' · код: '+(i.userCode||'—');
   document.getElementById('profileStatus').textContent=i.status||'без статуса';
+  const _pmm=document.getElementById('profileMoodMarquee');
+  if(_pmm){
+    const mood=(i&&i.anketa&&i.anketa.mood)?String(i.anketa.mood).trim():'';
+    if(mood){
+      const tc=(THEMES.find(t=>t.id===(i.theme||'dark'))||{}).p || colorOf(i) || '#6c5ce7';
+      _pmm.style.setProperty('--mood-c', tc);
+      const safe=esc('💭 '+mood);
+      _pmm.innerHTML='<span class="mood-marquee-track"><span>'+safe+'</span><span aria-hidden="true">'+safe+'</span><span aria-hidden="true">'+safe+'</span></span>';
+      _pmm.style.display='block';
+    } else { _pmm.style.display='none'; _pmm.innerHTML=''; }
+  }
   const _pth=document.getElementById('profileThoughts'); if(_pth) _pth.innerHTML=i.thoughts?('☁️ '+esc(i.thoughts)):'';
   renderMyRels();
   try{ const mq=document.getElementById('profileMoodQuick'); if(mq && document.activeElement!==mq) mq.value=(i.anketa&&i.anketa.mood)||''; }catch(e){}
