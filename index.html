@@ -2291,7 +2291,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 13:45';
+const BUILD='26.11.2026 14:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9778,10 +9778,14 @@ function initNavReorder(){
     const getBtns=()=>Array.from(nav.querySelectorAll('.nav-btn'));
     getBtns().forEach((b,i)=>{ if(!b.dataset.navId){ b.dataset.navId=b.dataset.screen||b.id||('nav'+i); } });
     const key=()=>'navOrder_'+(currentUser?.uid||'guest');
-    const save=()=>{ try{ localStorage.setItem(key(), JSON.stringify(getBtns().map(b=>b.dataset.navId))); }catch(e){} };
-    const applyOrder=()=>{
-      let order=[]; try{ order=JSON.parse(localStorage.getItem(key())||'[]'); }catch(e){}
-      if(!order.length) return;
+    const getOrder=()=>getBtns().map(b=>b.dataset.navId);
+    const save=()=>{
+      const order=getOrder();
+      try{ localStorage.setItem(key(), JSON.stringify(order)); }catch(e){}
+      try{ if(currentUser?.uid) db.ref('users/'+currentUser.uid+'/navOrder').set(order); }catch(e){}
+    };
+    const applyOrderArr=(order)=>{
+      if(!Array.isArray(order)||!order.length) return;
       const btns=getBtns();
       const map=new Map(btns.map(b=>[b.dataset.navId,b]));
       const all=[...btns];
@@ -9793,6 +9797,21 @@ function initNavReorder(){
       const extraBtns=ordered.filter(b=>b.classList.contains('rail-btn'));
       mainBtns.forEach(b=>{ if(railExtra) nav.insertBefore(b, railExtra); else nav.appendChild(b); });
       if(railExtra) extraBtns.forEach(b=>railExtra.appendChild(b));
+    };
+    const applyOrder=()=>{
+      let order=[]; try{ order=JSON.parse(localStorage.getItem(key())||'[]'); }catch(e){}
+      applyOrderArr(order);
+      // Аккаунт — источник истины: подгружаем из Firebase, чтобы порядок сохранялся после хард-рефреша/другого устройства
+      if(currentUser?.uid && nav._navOrderUid!==currentUser.uid){
+        nav._navOrderUid=currentUser.uid;
+        db.ref('users/'+currentUser.uid+'/navOrder').once('value').then(snap=>{
+          const remote=snap.val();
+          if(Array.isArray(remote)&&remote.length){
+            try{ localStorage.setItem(key(), JSON.stringify(remote)); }catch(e){}
+            applyOrderArr(remote);
+          }
+        }).catch(()=>{});
+      }
     };
     applyOrder();
     if(nav._navReorderBound) return;
@@ -9867,21 +9886,22 @@ function initProfileStickyScroll(){
     const col=wrap&&wrap.querySelector('.profile-identity-col');
     if(!wrap||!col||wrap._pStickyBound) return;
     wrap._pStickyBound=true; wrap._pStickyLast=wrap.scrollTop||0;
+    let userScrollCol=false, userTimer=null;
+    col.addEventListener('mouseenter',()=>{ userScrollCol=true; });
+    col.addEventListener('mouseleave',()=>{ userScrollCol=false; });
+    col.addEventListener('touchstart',()=>{ userScrollCol=true; clearTimeout(userTimer); }, {passive:true});
+    col.addEventListener('touchend',()=>{ clearTimeout(userTimer); userTimer=setTimeout(()=>{ userScrollCol=false; },800); }, {passive:true});
     const onScroll=()=>{
-      if(window.innerWidth<900){ col.style.top=''; return; }
+      col.style.top='';
+      if(window.innerWidth<900) return;
+      if(userScrollCol) return;
       const st=wrap.scrollTop;
-      const dh=st-(wrap._pStickyLast||0); wrap._pStickyLast=st;
-      const wrapH=wrap.clientHeight;
-      const colH=col.offsetHeight;
-      const pad=8;
-      if(colH+pad <= wrapH){ col.style.top=pad+'px'; return; }
-      let top=parseInt(col.style.top,10);
-      if(isNaN(top)) top=pad;
-      top = top - dh;
-      const minTop = wrapH - colH - pad;
-      const maxTop = pad;
-      top = Math.max(minTop, Math.min(maxTop, top));
-      col.style.top = top + 'px';
+      wrap._pStickyLast=st;
+      const maxScroll = col.scrollHeight - col.clientHeight;
+      const wrapMax = wrap.scrollHeight - wrap.clientHeight;
+      if(maxScroll>4 && wrapMax>4){
+        col.scrollTop = (st / wrapMax) * maxScroll;
+      }
     };
     wrap.addEventListener('scroll', onScroll, {passive:true});
     window.addEventListener('resize', onScroll);
