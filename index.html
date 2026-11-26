@@ -1429,14 +1429,14 @@ img,video,canvas{max-width:100%}
   .pet-totem-gem{position:absolute;left:50%;top:14px;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95),rgba(255,255,255,.2) 28%,transparent 30%),linear-gradient(160deg,color-mix(in srgb,var(--totem-c) 35%,white),var(--totem-c) 55%,color-mix(in srgb,var(--totem-c) 70%,#000));box-shadow:0 0 0 3px rgba(255,225,170,.35),0 8px 20px rgba(0,0,0,.35),0 0 24px color-mix(in srgb,var(--totem-c) 45%,transparent);display:flex;align-items:center;justify-content:center;font-size:24px}
   .pet-totem-base{position:absolute;left:50%;bottom:8px;width:58px;height:14px;transform:translateX(-50%);border-radius:8px;background:linear-gradient(180deg,#7a4e24,#4a2c12);box-shadow:0 4px 10px rgba(0,0,0,.35)}
   .pet-totem-runes{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:10px;color:rgba(255,225,170,.75);letter-spacing:2px;white-space:nowrap}
-  .pet-hatch-shine{position:absolute;inset:-20px;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.95),rgba(255,220,120,.55) 28%,rgba(255,220,120,.12) 55%,transparent 72%);opacity:0;transform:scale(.4);transition:opacity .45s ease,transform .45s ease;border-radius:50%;pointer-events:none}
+  .pet-hatch-shine{position:absolute;inset:-8px -20px -20px -20px;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.95),rgba(255,220,120,.55) 28%,rgba(255,220,120,.12) 55%,transparent 72%);opacity:0;transform:scale(.4);transition:opacity .45s ease,transform .45s ease;border-radius:50%;pointer-events:none}
   .pet-totem.hatched~.pet-hatch-shine,.pet-totem.hatching~.pet-hatch-shine{opacity:1;transform:scale(1)}
   .pet-hatch-pet{position:absolute;inset:-10px;display:flex;align-items:center;justify-content:center;font-size:56px;opacity:0;transform:scale(.2) rotate(-20deg);transition:opacity .5s .9s,transform .7s .9s cubic-bezier(.2,1.2,.2,1);pointer-events:none;filter:drop-shadow(0 10px 20px rgba(0,0,0,.4))}
   .pet-totem.hatched~.pet-hatch-pet{opacity:1;transform:scale(1) rotate(0)}
   .pet-hatch-ring{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2px solid color-mix(in srgb,var(--totem-c) 70%,white);opacity:0;pointer-events:none}
   .pet-totem.hatching~.pet-hatch-ring{animation:hatchRing 1.2s .8s ease-out 2}
   /* Ветви древа от яйца к кнопкам ухода */
-  .pet-egg-tree{position:relative;width:min(320px,100%);height:220px;margin:10px auto 0;max-width:100%;padding-top:10px;border-radius:18px;overflow:visible;background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.10), color-mix(in srgb,var(--totem-c,#6c5ce7) 18%, transparent) 30%, transparent 68%)}
+  .pet-egg-tree{position:relative;width:min(320px,100%);height:220px;margin:10px auto 0;max-width:100%;padding-top:10px;border-radius:18px;overflow:visible;background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.10), color-mix(in srgb,var(--totem-c,#6c5ce7) 18%, transparent) 28%, transparent 58%)}
   .pet-decor{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:18px}
   .pet-decor-i{position:absolute;font-size:18px;opacity:.22;filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
   .pet-decor-i.d0{left:8%;top:8%}.pet-decor-i.d1{right:8%;top:10%}.pet-decor-i.d2{left:4%;bottom:18%}.pet-decor-i.d3{right:4%;bottom:20%}.pet-decor-i.d4{left:46%;top:2%;font-size:16px}.pet-decor-i.d5{left:48%;bottom:4%;font-size:16px}
@@ -1675,9 +1675,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div id="friendReqWrap" style="display:none"><div class="section-lbl">👋 Заявки в друзья</div><div id="friendReqList"></div></div>
       <div id="relReqWrap" style="display:none"><div class="section-lbl">🤝 Кто ты ему/ей</div><div id="relReqList"></div></div>
       <div id="groupInvWrap" style="display:none"><div class="section-lbl">📩 Приглашения в группы</div><div id="groupInvList"></div></div>
-      <div id="newbiesWrap" style="display:none"><div class="section-lbl">🌟 Новенькие (7 дней)</div><div id="newbiesList"></div></div>
       <div class="card">
-        <div class="card-title">🔍 Найти друзей (все)</div>
+        <div class="card-title">📡 Глобальный поиск</div>
         <div class="input-group" style="margin:0"><input type="text" id="findInput" placeholder="Начни вводить имя..." oninput="renderFind()"></div>
         <div id="findList" style="margin-top:8px"></div>
       </div>
@@ -1874,7 +1873,8 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
         <div class="sw-lbl"><b>Виден в списке пользователей</b><span id="visState">—</span></div>
         <label class="sw" title="Видимый / невидимый"><input type="checkbox" id="visSw" onchange="setVisibility(this.checked)"><span class="sw-track"></span></label>
       </div>
-      <label class="remember" style="margin:0"><input type="checkbox" id="hideFromListChk" onchange="toggleHideFromList(this.checked)"> Не показывать меня в списке пользователей</label>
+      <label class="remember" style="margin:0 0 8px"><input type="checkbox" id="allowSearchChk" onchange="setAllowSearch(this.checked)"> Меня можно найти в поиске</label>
+      <label class="remember" style="margin:0"><input type="checkbox" id="allowFriendReqChk" onchange="setAllowFriendReq(this.checked)"> Меня можно добавить в друзья</label>
       <div class="sw-row" style="margin-top:12px">
         <div class="sw-lbl"><b>Уведомления о сообщениях</b><span id="notifState">—</span></div>
         <label class="sw" title="Включить / выключить"><input type="checkbox" id="notifSw" onchange="toggleNotifs(this.checked)"><span class="sw-track"></span></label>
@@ -2291,7 +2291,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 13:15';
+const BUILD='26.11.2026 13:45';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -5127,7 +5127,7 @@ function thumbFromDataUrl(data,type){if(type==='image')return compressDataUrl(da
 function getChatId(a,b){return [a,b].sort().join('_');}
 function isFriend(u){return !!((lastFriends||{})[u]);}
 function canSeeFull(uid){return currentUser.isAdmin||uid===currentUser.uid||isFriend(uid);}
-function canDM(o){if(!o||o===currentUser.uid)return true;if(currentUser.isAdmin)return true;if(lastBlocks&&lastBlocks[o])return 'Ты заблокировал(а) пользователя';return true;}
+function canDM(o){if(!o||o===currentUser.uid)return true;if(currentUser.isAdmin)return true;if(lastBlocks&&lastBlocks[o])return 'Ты заблокировал(а) пользователя';if(!isFriend(o))return 'Сначала добавьте друг друга в друзья';return true;}
 function checkBlocksAsync(o,cb){
   db.ref('blocks/'+o+'/'+currentUser.uid).once('value')
     .then(b=>cb(b.exists()?'Пользователь заблокировал тебя':true))
@@ -7463,6 +7463,8 @@ function sendFriendRequest(uid){
   if(uid===currentUser.uid){toast('Это ты 😄');return;}
   if(isFriend(uid)){toast('Уже в контактах');return;}
   if(lastBlocks&&lastBlocks[uid]){toast('Сначала разблокируй');return;}
+  const target=ALL_USERS[uid]||{};
+  if(target.allowFriendReq===false && !currentUser.isAdmin){toast('Этот пользователь не принимает заявки в друзья');return;}
   // Раньше здесь не было catch: любая ошибка прав тихо съедала цепочку,
   // и кнопка «Добавить в друзья» выглядела рабочей, но ничего не делала.
   db.ref('blocks/'+uid+'/'+currentUser.uid).once('value').then(b=>{
@@ -7779,15 +7781,7 @@ function renderPeople(){
       d.innerHTML='<div style="font-weight:600">👥 '+esc(inv.name||'Группа')+'</div><div style="color:var(--text3);font-size:12px">от '+esc(inv.fromName||'')+'</div><div class="row"><button class="btn btn-primary btn-sm" onclick="acceptGroupInv(\''+gid+'\')">✅ Принять</button><button class="btn btn-outline btn-sm" onclick="declineGroupInv(\''+gid+'\')">❌</button></div>';
       gl.appendChild(d);});
   } else gw.style.display='none';
-  const nw=document.getElementById('newbiesWrap'),nl=document.getElementById('newbiesList');
-  const cut=Date.now()-7*86400000;
-  const newbies=Object.entries(ALL_USERS).filter(([uid,i])=>uid!==currentUser.uid&&i.createdAt&&i.createdAt>=cut&&!isFriend(uid)&&!isHiddenUser(i));
-  if(newbies.length){nw.style.display='block';nl.innerHTML='';
-    newbies.forEach(([uid,i])=>{const d=document.createElement('div');d.className='user-item';d.style.cursor='pointer';
-      d.innerHTML=avatarHtml(i,'',i.name)+'<div class="user-info" style="flex:1;min-width:0"><div class="user-name"><span style="color:'+colorOf(i)+'">'+esc(displayNameOf(i))+'</span>'+totemChip(i)+(isOnline(i)?' '+esc(deviceIconOf(i)||'🟢'):'')+'</div>'+statusHtml(i)+thoughtsHtml(i,true)+presenceHtml(i)+'</div><button class="btn btn-primary btn-sm" style="width:auto;flex-shrink:0" onclick="event.stopPropagation();sendFriendRequest(\''+uid+'\')">➕</button>';
-      d.onclick=(e)=>{ if(e.target.closest('button')) return; openUserProfile(uid); };
-      nl.appendChild(d);});
-  } else nw.style.display='none';
+
 }
 function renderMeCard(){const b=document.getElementById('meCard');if(!b||!currentUser)return;const i=ALL_USERS[currentUser.uid]||currentUser;
   b.innerHTML='<div style="display:flex;align-items:center;gap:12px">'+avatarHtml(i,'',i.name)+
@@ -7834,7 +7828,8 @@ async function openUserProfile(uid){
   document.getElementById('vpColumnCard').style.display=fr?'block':'none';
   document.getElementById('vpColumnTitle').textContent='📝 Колонка: '+displayNameOf(i);
   const isMe=uid===currentUser.uid;
-  document.getElementById('vpActionAdd').style.display=(!isMe&&!isFriend(uid))?'block':'none';
+  const _canAddFriend=!isMe&&!isFriend(uid)&&(((ALL_USERS[uid]||{}).allowFriendReq!==false)||currentUser.isAdmin);
+  document.getElementById('vpActionAdd').style.display=_canAddFriend?'block':'none';
   if(!isMe&&!isFriend(uid))refreshFriendBtn(uid);
   const canWrite=(!isMe)&&(fr||currentUser.isAdmin);
   document.getElementById('vpActionWrite').style.display=canWrite?'block':'none';
@@ -8961,14 +8956,13 @@ function ruPetNameCase(name, caseName, gender){
   return ruDeclineName(name, caseName, gender);
 }
 function ruPetCarePhrase(actorName, actorGender, petName, petGender, action){
-  const verbs={feed:'покормил', play:'поиграл с', toilet:'сводил', walk:'выгулял', pet:'погладил'};
-  const emo={feed:'😋', play:'😄', toilet:'😊', walk:'😄', pet:'😄'};
+  const verbs={feed:'угостил вкусняшкой', play:'поиграл с', toilet:'сводил', walk:'погулял с', pet:'потискал', discipline:'научил добру'};
+  const emo={feed:'😋', play:'🎈', toilet:'✨', walk:'🌿', pet:'💖', discipline:'🌟'};
   const vbase = verbs[action] || 'позаботился о';
   const v2 = (actorGender==='f'||actorGender==='m') ? ruPast(vbase.split(' ')[0], actorGender) + (vbase.includes(' ')?(' '+vbase.split(' ').slice(1).join(' ')):'') : (vbase.replace(/^(\S+)/, '$1(а)'));
   const petAcc = ruPetNameCase(petName, 'acc', petGender);
   let text;
-  if(action==='toilet') text = actorName + ' ' + v2 + ' ' + petAcc + ' в туалет';
-  else if(action==='play') text = actorName + ' ' + v2 + ' ' + petAcc;
+  if(action==='toilet') text = actorName + ' ' + v2 + ' ' + petAcc + ' в туалетик';
   else text = actorName + ' ' + v2 + ' ' + petAcc;
   return text + '! ' + (emo[action]||'😄');
 }
@@ -9463,14 +9457,14 @@ function refreshPetRows(ownerUid){
 // Трехкнопочное управление (A-Menu, B-Confirm, C-Cancel)
 window._tamMenu = window._tamMenu || { ownerUid: null, idx: 0, open: false };
 const TAM_OPTIONS = [
-  {key:'feed', label:'🍖 Кормить', action:'feed'},
+  {key:'feed', label:'🍖 Вкусняшка', action:'feed'},
   {key:'play', label:'🎾 Играть', action:'play'},
-  {key:'toilet', label:'🚽 Туалет', action:'toilet'},
-  {key:'walk', label:'🚶 Выгулять', action:'walk'},
-  {key:'pet', label:'🐾 Погладить', action:'pet'},
-  {key:'discipline', label:'📚 Дисциплина', action:'discipline'},
-  {key:'sleep', label:'😴 Уложить спать', action:'sleep'},
-  {key:'check', label:'🔍 Осмотреть', action:'check'},
+  {key:'toilet', label:'🚽 Туалетик', action:'toilet'},
+  {key:'walk', label:'🌿 На прогулку', action:'walk'},
+  {key:'pet', label:'🐾 Обнимашки', action:'pet'},
+  {key:'discipline', label:'✨ Научить добру', action:'discipline'},
+  {key:'sleep', label:'😴 Баю-бай', action:'sleep'},
+  {key:'check', label:'🔍 Заглянуть', action:'check'},
 ];
 
 function tamMenuOpen(ownerUid){
@@ -9607,7 +9601,7 @@ async function petAction(ownerUid, action, ev){
     if(_petStateCache[ownerUid] && _petStateCache[ownerUid].avatar && !cur.avatar) cur.avatar = _petStateCache[ownerUid].avatar;
     await ref.set(cur);
 
-    const labels={feed:'🍖 Покормил(а)', play:'🎾 Поиграл(а)', toilet:'🚽 Свёл(а) в туалет', walk:'🚶 Выгулял(а)', pet:'🐾 Погладил(а)', discipline:'📚 Воспитал(а)', sleep:'😴 Уложил(а) спать', check:'🔍 Осмотрел(а)'};
+    const labels={feed:'🍖 Ням-ням!', play:'🎾 Играем!', toilet:'🚽 Всё чисто!', walk:'🌿 Гуляем!', pet:'🐾 Обнимашки!', discipline:'✨ Умница!', sleep:'😴 Баю-бай!', check:'🔍 Заглянул(а)'};
     _pt(labels[action]||'Готово', true);
 
     // событие для владельца
@@ -9687,13 +9681,13 @@ function renderPetTree(targetUid, petEmoji, opts){
   const decorHtml = decor.length ? '<div class="pet-decor" aria-hidden="true">'+decor.map((d,i)=>'<span class="pet-decor-i d'+i+'">'+esc(d)+'</span>').join('')+'</div>' : '';
   return '<div class="pet-egg-tree" aria-label="Уход за питомцем" style="--totem-c:'+(opts.eggColor||opts.totemColor||'#ffb347')+'">'+decorHtml+
 
-    '<div style="position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
-    btn('feed','🍖','pos-l1','Покормить','hunger')+
+    '<div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:1;pointer-events:none;width:max-content">'+center+'</div>'+
+    btn('feed','🍖','pos-l1','Угостить вкусняшкой','hunger')+
     btn('play','🎾','pos-l2','Поиграть','fun')+
-    btn('toilet','🚽','pos-l3','Туалет','toilet')+
-    btn('pet','🐾','pos-r1','Погладить','affection')+
-    btn('walk','🚶','pos-r2','Погулять','health')+
-    btn('discipline','📚','pos-r3','Воспитать','discipline')+
+    btn('toilet','🚽','pos-l3','В туалетик','toilet')+
+    btn('pet','🐾','pos-r1','Обнимашки','affection')+
+    btn('walk','🚶','pos-r2','На прогулку','health')+
+    btn('discipline','✨','pos-r3','Научить добру','discipline')+
   '</div>'+
   '<div class="pet-egg-tree-hint">'+hint+'</div>';
 }
@@ -10000,7 +9994,11 @@ function renderProfileEdit(){
   const _th=document.getElementById('editThoughtsInput'); if(_th) _th.value=i.thoughts||'';
   document.getElementById('ankBooks').value=a.books||'';document.getElementById('ankMovies').value=a.movies||'';
   document.getElementById('ankMood').value=a.mood||'';
-  document.getElementById('hideFromListChk').checked=!!i.hideFromList;
+  const _allowSearch = (i.allowSearch!==false) && !(i.hideFromList===true && i.allowSearch===undefined);
+  const asEl=document.getElementById('allowSearchChk'); if(asEl) asEl.checked = _allowSearch;
+  const afEl=document.getElementById('allowFriendReqChk'); if(afEl) afEl.checked = (i.allowFriendReq!==false);
+  const vis=document.getElementById('visSw'); if(vis) vis.checked=_allowSearch;
+  const vs=document.getElementById('visState'); if(vs) vs.textContent=_allowSearch?'виден':'скрыт';
   // Состояние уведомлений: браузер разрешает только включение, выключение
   // делается в его настройках — честно об этом и пишем.
   const np=notifPermission();
@@ -11217,11 +11215,23 @@ function geoLinkHtml2(geo,addr,place){
     (place?' <span style="font-size:11px;color:var(--text3)">по координатам</span>':'')+'</div>'+
     '<div style="font-size:11px;color:var(--text3);margin-top:2px;word-break:break-all">📐 '+esc(c)+'</div>';
 }
-function toggleHideFromList(hide){
-  db.ref('users/'+currentUser.uid+'/hideFromList').set(hide?true:null).then(()=>toast(hide?'🙈 Ты скрыт из списка пользователей':'👁 Ты снова виден в списке',true));
+function setAllowSearch(on){
+  if(!currentUser) return;
+  const updates={allowSearch:on?true:false};
+  // keep legacy in sync
+  updates.hideFromList = on ? null : true;
+  db.ref('users/'+currentUser.uid).update(updates).then(()=>{
+    const vis=document.getElementById('visSw'); if(vis) vis.checked=!!on;
+    toast(on?'👁 Тебя можно найти в поиске':'🙈 Тебя скрыли из поиска',true);
+  });
 }
+function setAllowFriendReq(on){
+  if(!currentUser) return;
+  db.ref('users/'+currentUser.uid+'/allowFriendReq').set(on?true:false).then(()=>toast(on?'🤝 Тебя можно добавить в друзья':'🔒 Заявки в друзья выключены',true));
+}
+function toggleHideFromList(hide){ setAllowSearch(!hide); }
 // Тумблер профиля: checked = виден в списке пользователей
-function setVisibility(visible){toggleHideFromList(!visible);}
+function setVisibility(visible){ setAllowSearch(!!visible); }
 // Одна кнопка «⋯» вместо пяти в шапке на телефоне: остальные выезжают вниз.
 function toggleHeaderMore(id,btn){
   const box=document.getElementById(id);if(!box)return;
@@ -11292,7 +11302,7 @@ function paintVisibilitySwitches(){
   const t2=document.getElementById('vpVisState');if(t2)t2.textContent=lbl;
 }
 // Пользователь скрыт из списка (по умолчанию — да)
-function isHiddenUser(i){return !i||i.hideFromList===true;}
+function isHiddenUser(i){return !i||i.hideFromList===true||i.allowSearch===false;}
 function visibleUsers(){
   return Object.keys(ALL_USERS).filter(uid=>uid!==currentUser.uid&&ALL_USERS[uid]&&!isHiddenUser(ALL_USERS[uid]));
 }
