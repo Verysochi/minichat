@@ -1470,6 +1470,10 @@ img,video,canvas{max-width:100%}
   .pet-tree-avatar{width:100%;height:100%;border-radius:50%;object-fit:cover}
   .pet-avatar-btn{position:absolute;right:-4px;bottom:-4px;width:30px;height:30px;border-radius:50%;border:2px solid var(--surface);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.35);z-index:5}
   .pet-avatar-btn:active{transform:scale(.94)}
+  .pet-float-hint{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,.10);padding:7px 12px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 10px 28px rgba(0,0,0,.35);z-index:6;display:flex;align-items:center;gap:6px;animation:petHintFloat 2.2s ease-in-out infinite}
+  .pet-float-hint::after{content:'';position:absolute;left:50%;top:100%;width:10px;height:10px;background:var(--surface);border-right:1px solid rgba(255,255,255,.10);border-bottom:1px solid rgba(255,255,255,.10);transform:translateX(-50%) rotate(45deg);margin-top:-5px}
+  .pet-float-hint-ico{font-size:14px}
+  @keyframes petHintFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-4px)}}
   @keyframes eggIdle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(1.2deg)}}
   @keyframes eggCrack{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-5px) rotate(-5deg)}50%{transform:translateX(5px) rotate(6deg)}75%{transform:translateX(-4px) rotate(-4deg)}}
 
@@ -2259,7 +2263,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 11:15';
+const BUILD='26.11.2026 11:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9478,15 +9482,17 @@ function hatchPet(ownerUid, totem, totemName, petGender){
 // Сигнал внимания: питомец зовит, если нужды критичны
 function petAttentionCheck(p){
   if(p.stage==='egg'||p.stage==='dead'||p.stage==='runaway') return null;
-  const crit = p.hunger<PET_CRITICAL||p.fun<PET_CRITICAL||p.toilet<PET_CRITICAL||p.affection<PET_CRITICAL||p.health<PET_CRITICAL;
-  if(!crit) return null;
-  const nowGame = gameMinutesFrom(Date.now());
-  const last = p.lastCall||0;
-  // Звать раз в 5 игровых минут, если нужда всё ещё crítica
-  if(nowGame - last >= 5){
-    return {emoji:'🔔', text:'Зову на помощь! '+(p.hunger<PET_CRITICAL?'голодно ':'')+(p.fun<PET_CRITICAL?'скучно ':'')+(p.toilet<PET_CRITICAL?'в туалет ':'')+(p.affection<PET_CRITICAL?'нужна ласка ':'')+(p.health<PET_CRITICAL?'плохое здоровье ':'')};
-  }
-  return null;
+  const needs=[];
+  if(p.hunger<PET_CRITICAL) needs.push({k:'hunger', emoji:'🍖', text:'Я хочу кушать!'});
+  if(p.fun<PET_CRITICAL) needs.push({k:'fun', emoji:'🎾', text:'Мне скучно!'});
+  if(p.toilet<PET_CRITICAL) needs.push({k:'toilet', emoji:'🚽', text:'Я хочу в туалет!'});
+  if(p.affection<PET_CRITICAL) needs.push({k:'affection', emoji:'🐾', text:'Мне нужна ласка!'});
+  if(p.health<PET_CRITICAL) needs.push({k:'health', emoji:'💊', text:'Мне плохо!'});
+  if(p.discipline<PET_CRITICAL) needs.push({k:'discipline', emoji:'📚', text:'Я хочу внимания!'});
+  if(!needs.length) return null;
+  const score={hunger:100-p.hunger,fun:100-p.fun,toilet:100-p.toilet,affection:100-p.affection,health:100-p.health,discipline:100-p.discipline};
+  needs.sort((a,b)=>(score[b.k]||0)-(score[a.k]||0));
+  return needs[0];
 }
 
 async function petAction(ownerUid, action, ev){
@@ -9608,15 +9614,20 @@ function renderPetTree(targetUid, petEmoji, opts){
   const st = opts.stats || null;
   const statVal = (k)=>{ if(!st) return ''; const v=Math.max(0,Math.min(100,Math.round(+st[k]||0))); return v+'%'; };
   const statCls = (k)=>{ if(!st) return ''; const v=Math.max(0,Math.min(100,Math.round(+st[k]||0))); return v<30?' low':(v<60?' mid':''); };
+  const bubbleHint = opts.hint ? '<div class="pet-float-hint"><span class="pet-float-hint-ico">'+esc(opts.hint.emoji||'💬')+'</span><span>'+esc(opts.hint.text||'')+'</span></div>' : '';
   const center = isEgg
-    ? '<div class="pet-egg-wrap" style="pointer-events:auto" onclick="petAction(\''+uid+'\',\'hatch\',event)" title="Нажми, чтобы вылупился">'+
-        '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
-        '<div class="pet-hatch-shine" id="petHatchLight'+uid+'"></div>'+
-        '<div class="pet-hatch-pet" id="petHatchPet'+uid+'">'+pe+'</div>'+
+    ? '<div style="position:relative">'+bubbleHint+
+        '<div class="pet-egg-wrap" style="pointer-events:auto" onclick="petAction(\''+uid+'\',\'hatch\',event)" title="Нажми, чтобы вылупился">'+
+          '<div class="pet-egg idle" id="petEgg'+uid+'"></div>'+
+          '<div class="pet-hatch-shine" id="petHatchLight'+uid+'"></div>'+
+          '<div class="pet-hatch-pet" id="petHatchPet'+uid+'">'+pe+'</div>'+
+        '</div>'+
       '</div>'
-    : '<div class="pet-tree-center" style="position:relative" title="'+esc(opts.name||'Питомец')+'">'+
-        (opts.avatar ? '<img src="'+esc(opts.avatar)+'" class="pet-tree-avatar" alt="">' : '<span class="pet-tree-emoji">'+pe+'</span>')+
-        (opts.isOwner ? '<button type="button" class="pet-avatar-btn" onclick="event.stopPropagation();setPetAvatar(\''+uid+'\')" title="Сменить аватар питомца">📷</button>' : '')+
+    : '<div style="position:relative">'+bubbleHint+
+        '<div class="pet-tree-center" style="position:relative" title="'+esc(opts.name||'Питомец')+'">'+
+          (opts.avatar ? '<img src="'+esc(opts.avatar)+'" class="pet-tree-avatar" alt="">' : '<span class="pet-tree-emoji">'+pe+'</span>')+
+          (opts.isOwner ? '<button type="button" class="pet-avatar-btn" onclick="event.stopPropagation();setPetAvatar(\''+uid+'\')" title="Сменить аватар питомца">📷</button>' : '')+
+        '</div>'+
       '</div>';
   const btn = (k,e,pos,label,statKey)=>{
     const sv = statKey ? statVal(statKey) : '';
@@ -9665,13 +9676,13 @@ function renderPetRow(targetUid, elId){
   let actionsHtml='';
   const petStats = {hunger:st.hunger, fun:st.fun, toilet:st.toilet, affection:st.affection, discipline:st.discipline, health:st.health};
   if(st.stage==='egg' && st.waitingHatch){
-    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:true, stats:petStats});
+    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:true, stats:petStats, hint:att});
   } else if(canCare && st.stage!=='dead' && st.stage!=='runaway' && st.stage!=='egg'){
-    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:false, name:petNameRaw, avatar:st.avatar||'', stats:petStats, isOwner:isOwner});
+    actionsHtml = renderPetTree(targetUid, petEmoji, {egg:false, name:petNameRaw, avatar:st.avatar||'', stats:petStats, isOwner:isOwner, hint:att});
   }
 
   const petFace = '';
-  const attHtml = att?('<div class="pet-ask" style="color:var(--red);font-weight:700;animation:pulse 1.5s infinite">'+att.emoji+' '+esc(att.text)+'</div>'):'';
+  const attHtml = ''; // подсказка теперь всплывающим пузырём над питомцем
 
   const genText = ' · Поколение: '+(+(st.generation||1));
   const ageText = st.stage!=='egg'?(' Возраст: ~'+Math.floor(st.age/60)+' игров.ч.'+genText) : (' Поколение: '+(+(st.generation||1)));
