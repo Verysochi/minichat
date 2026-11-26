@@ -133,7 +133,7 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .header-col{flex:1;min-width:0}
 .header-col h2{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-sub{font-size:11px;color:var(--text2);margin-top:1px}
-.header-btn{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:none;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.header-btn{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:none;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;align-self:center;margin:0;line-height:1}
 /* На телефоне в шапке чата до 11 кнопок — они физически не помещались и
    наезжали друг на друга и на строку «онлайн». Ужимаем и прячем дубли:
    «←» и «🏠» делают одно и то же, поэтому на телефоне оставляем «←». */
@@ -2308,7 +2308,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 15:50';
+const BUILD='26.11.2026 15:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
