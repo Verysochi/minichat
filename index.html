@@ -1481,7 +1481,7 @@ img,video,canvas{max-width:100%}
   .pet-care-btn.pet .pet-care-ico{filter:drop-shadow(0 0 6px rgba(116,185,255,.35))}
   .pet-care-btn.walk .pet-care-ico{filter:drop-shadow(0 0 6px rgba(162,155,254,.35))}
   .pet-care-btn.discipline .pet-care-ico{filter:drop-shadow(0 0 6px rgba(85,239,196,.35))}
-  .pet-tree-center{width:88px;height:88px;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.14), transparent 35%), linear-gradient(180deg,var(--surface2),var(--surface));border:2px solid rgba(255,255,255,.10);box-shadow:0 12px 30px rgba(0,0,0,.35), 0 0 0 6px rgba(108,92,231,.08), inset 0 1px 0 rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;margin-top:10px;pointer-events:auto}
+  .pet-tree-center{width:88px;height:88px;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.14), transparent 35%), linear-gradient(180deg,var(--surface2),var(--surface));border:2px solid rgba(255,255,255,.10);box-shadow:0 12px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;margin-top:10px;pointer-events:auto}
   .pet-tree-emoji{font-size:46px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
   .pet-tree-avatar{width:100%;height:100%;border-radius:50%;object-fit:cover}
   .pet-avatar-btn{position:absolute;right:-4px;bottom:-4px;width:30px;height:30px;border-radius:50%;border:2px solid var(--surface);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.35);z-index:5}
@@ -1676,7 +1676,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
       <div id="relReqWrap" style="display:none"><div class="section-lbl">🤝 Кто ты ему/ей</div><div id="relReqList"></div></div>
       <div id="groupInvWrap" style="display:none"><div class="section-lbl">📩 Приглашения в группы</div><div id="groupInvList"></div></div>
       <div class="card">
-        <div class="card-title">📡 Глобальный поиск</div>
+        <div class="card-title">📡 Глобальный поиск (Радар)</div>
         <div class="input-group" style="margin:0"><input type="text" id="findInput" placeholder="Начни вводить имя..." oninput="renderFind()"></div>
         <div id="findList" style="margin-top:8px"></div>
       </div>
@@ -2291,7 +2291,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 14:15';
+const BUILD='26.11.2026 14:30';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
