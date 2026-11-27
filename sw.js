@@ -2,7 +2,7 @@
 // Зачем: обычные Notification без воркера теряются, если вкладка выгружена,
 // по клику ничего не открывается, и нельзя поставить цифру на иконку.
 // С воркером уведомление переживает вкладку, клик открывает нужный чат.
-const CACHE = 'minichat-v4';
+const CACHE = 'minichat-v5';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

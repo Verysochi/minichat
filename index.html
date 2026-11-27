@@ -2037,6 +2037,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
     <video controls id="recPreviewVideo" style="display:none;max-width:100%"></video>
     <div id="recLiveLabel" style="font-size:11px;color:var(--text3);flex:none;max-width:120px;line-height:1.3"></div>
     <button class="preview-btn rec-stop" id="recSendBtn" title="Отправить" onclick="sendRecorded()" style="display:none;background:var(--primary);color:#fff">➤</button>
+    <button class="preview-btn rec-stop" id="recDlBtn" title="Скачать запись на устройство" onclick="downloadRecording()" style="display:none">⬇</button>
     <button class="preview-btn preview-del" title="Удалить запись" onclick="cancelRecorded()">🗑</button>
   </div>
   <div id="chatMediaContainer" class="media-container" style="display:none;margin:0 8px"></div>
@@ -2335,7 +2336,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 19:35';
+const BUILD='26.11.2026 20:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2352,6 +2353,9 @@ let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer
 // отменить (🗑) — тогда результат должен молча выброситься, а не отправиться.
 // Форматы, которые на этом устройстве молча пишут пустоту. Запоминаем между
 // запусками: иначе первый же голос на телефоне снова ушёл бы в никуда.
+// Диагностика записи: почему файл вышел пустым (часто на телефоне формат
+// «поддерживается», но не отдаёт ни байта, или трек камеры/микрофона умер).
+let recWatchdog=null,recWatchTry=0,recWatchFail=false,recWatchWhy='',recWatchSlice=true;
 function blockedTypes(){
   if(recBadList===null){
     recBadList=[];
@@ -7022,6 +7026,7 @@ function toggleRecord(mode){
   cancelRecorded();
   getUserMediaSmart(mode).then(stream=>{
     recStream=stream;recMode=mode;recSegs=[];audioChunks=[];
+    recWatchTry=0;recWatchFail=false;recWatchWhy='';recWatchSlice=true;
     recElapsed=0;recStart=Date.now();
     // Песня на время записи замолкает. Раньше она продолжала играть: её звук
     // попадал в микрофон, а таймер в верхней панели тикал и на паузе записи —
@@ -7142,16 +7147,84 @@ function startSegment(){
   audioChunks=[];
   const want=pickRecType(recMode);
   recLastWant=want;recGen++;
-  mediaRecorder=new MediaRecorder(recStream,want?{mimeType:want}:undefined);
-  mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)audioChunks.push(e.data);};
-  try{ mediaRecorder.start(250); }catch(e){ try{ mediaRecorder.start(); }catch(e2){ throw e2; } }
+  try{
+    mediaRecorder=new MediaRecorder(recStream,want?{mimeType:want}:undefined);
+    mediaRecorder.ondataavailable=e=>{ if(e.data&&e.data.size){ audioChunks.push(e.data); recWatchTry=0; recWatchFail=false; recWatchWhy=''; } };
+    // Без обработчика ошибок запись могла умереть молча: пользователь видел
+    // только «запись вышла пустой», а настоящая причина терялась.
+    mediaRecorder.onerror=e=>{ recWatchFail=true; recWatchWhy=((e&&e.error&&e.error.message)||'ошибка записи'); };
+    if(!recWatchSlice) mediaRecorder.start();
+    else { try{ mediaRecorder.start(250); }catch(e){ mediaRecorder.start(); } }
+  }catch(e){
+    // Конструктор/старт бросил — формат на этом устройстве не работает.
+    mediaRecorder=null;
+    recWatchFail=true; recWatchWhy=((e&&e.message)||'формат не поддерживается');
+    if(recLastWant){ blockType(recLastWant); recLastWant=''; }
+  }
   isRecording=true;recPaused=false;recStart=Date.now();
+  scheduleRecWatchdog();
+}
+// ===== Диагностика: почему запись вышла пустой =====
+function recDiagnose(){
+  try{
+    if(!recStream) return 'нет потока записи';
+    const a=recStream.getAudioTracks()[0];
+    if(!a) return 'микрофон не подключён';
+    if(a.readyState==='ended') return 'микрофон отключился';
+    if(a.muted) return 'микрофон не отдаёт звук';
+    if(recMode!=='audio'){
+      const v=recStream.getVideoTracks()[0];
+      if(!v) return 'камера не подключена';
+      if(v.readyState==='ended') return 'камера отключилась';
+      if(v.muted) return 'камера не отдаёт изображение';
+    }
+  }catch(e){}
+  return '';
+}
+function toastRecProblem(why){
+  const w=why||recDiagnose()||recWatchWhy||'';
+  const isVid=(recMode==='video'||recMode==='videonote');
+  let msg;
+  if(/микрофон|звук/i.test(w)) msg='🎤 Микрофон не пишет звук ('+w+'). Проверь разрешение микрофона и запиши ещё раз.';
+  else if(/камер|изображен/i.test(w)) msg='📷 Камера не даёт картинку ('+w+'). Проверь разрешение камеры и запиши ещё раз.';
+  else if(isVid) msg='⭕ Видео не записалось ('+(w||'формат не отдал данные')+'). Запиши ещё раз — формат подберётся сам.';
+  else msg='🎤 Голос не записался ('+(w||'формат не отдал данные')+'). Запиши ещё раз — формат подберётся сам.';
+  toast(msg,true);
+}
+// Через секунду смотрим: пошли ли данные. Если нет — сначала пробуем тот же
+// формат без нарезки на куски, потом другой формат, и только потом сдаёмся.
+function scheduleRecWatchdog(){
+  clearTimeout(recWatchdog);
+  const gen=recGen;
+  recWatchdog=setTimeout(function(){
+    if(gen!==recGen||!isRecording||recPaused) return;
+    if(audioChunks.length||recSegs.length) return;      // данные уже идут
+    if(recWatchFail){ toastRecProblem(); return; }
+    const why=recDiagnose();
+    if(why){ recWatchFail=true; recWatchWhy=why; toastRecProblem(why); return; }
+    if(recWatchTry===0){ recWatchTry=1; recWatchSlice=false; restartSegment(); return; }
+    if(recWatchTry===1&&recLastWant){
+      recWatchTry=2; blockType(recLastWant); recWatchSlice=true;
+      if(pickRecType(recMode)){ restartSegment(); return; }
+    }
+    recWatchFail=true; recWatchWhy='браузер не отдаёт данные записи';
+    toastRecProblem();
+  },1400);
+}
+function restartSegment(){
+  try{
+    const old=mediaRecorder;
+    if(old){ old.ondataavailable=null; old.onerror=null; try{ if(old.state&&old.state!=='inactive') old.stop(); }catch(e){} }
+  }catch(e){}
+  recElapsed+=Date.now()-recStart;
+  audioChunks=[];
+  try{ startSegment(); }catch(e){ recWatchFail=true; recWatchWhy=((e&&e.message)||'не удалось перезапустить запись'); }
 }
 // Собрать все сегменты в один файл и показать плеер. Само НЕ отправляет.
 function finishRecording(){
   const all=recSegs.concat(audioChunks.length?[audioChunks]:[]);
   recSegs=[];
-  if(!all.length){cancelRecorded();return;}
+  if(!all.length){ const w=recDiagnose()||recWatchWhy; cancelRecorded(); toastRecProblem(w); return; }
   const flat=[].concat.apply([],all).filter(Boolean);
   // Защита от ПУСТОЙ записи. Причина была не в микрофоне: MediaRecorder отдаёт
   // последний кусок асинхронно, а файл собирался раньше — выходило «голосовое»
@@ -7164,13 +7237,11 @@ function finishRecording(){
     recFailStreak++;
     const isVidRec = (recMode==='video'||recMode==='videonote');
     if(recLastWant && (isVidRec || recFailStreak>=2)) blockType(recLastWant);
+    // Причина берётся ДО cancelRecorded — там поток уже останавливается.
+    const why=recDiagnose()||recWatchWhy||'';
+    clearTimeout(recWatchdog); recWatchdog=null;
     cancelRecorded();
-    const msg = isVidRec
-      ? 'Не удалось записать видео на этом устройстве. Попробуй ещё раз — формат записи переключится автоматически.'
-      : (recFailStreak>=2
-        ? 'Не удалось записать голос. Попробуй ещё раз — формат записи переключится автоматически.'
-        : 'Запись вышла пустой — попробуй ещё раз.');
-    toast(msg,true);
+    toastRecProblem(why);
     return;
   }
   const type=(mediaRecorder&&mediaRecorder.mimeType)||pickRecType(recMode)||(recMode==='video'?'video/webm':'audio/webm');
@@ -7203,6 +7274,7 @@ function finishRecording(){
     const sb=document.getElementById('recStopBtn');if(sb)sb.style.display='none';
     const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
     const sendB=document.getElementById('recSendBtn');if(sendB)sendB.style.display='inline-flex';
+    const dlB=document.getElementById('recDlBtn');if(dlB)dlB.style.display='inline-flex';
     document.getElementById('msgInput').placeholder='Сообщение...';
     if(recAutoSend){recAutoSend=false;sendRecorded();}
   };
@@ -7236,6 +7308,21 @@ function toggleRecPause(){
     if(lb)lb.textContent='●';   // точное время проставит таймер ниже
     if(mb){mb.classList.add('recording');mb.title='Остановить запись';}
   }
+}
+// ⬇ — сохранить записанное на устройство, не отправляя. Полезно, когда отправка
+// по какой-то причине не проходит: файл хотя бы можно забрать и посмотреть.
+function downloadRecording(){
+  if(!recordedDataUrl){ toast('Сначала останови запись', true); return; }
+  try{
+    const semi=recordedDataUrl.indexOf(';');
+    const sub=semi>5?recordedDataUrl.slice(5,semi):'';
+    const fmt=(sub.split('/')[1]||'webm').split('+')[0];
+    const a=document.createElement('a');
+    a.href=recordedDataUrl;
+    a.download='minichat-rec.'+(fmt==='mp4'||fmt==='m4v'?'mp4':(fmt||'webm'));
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('✅ Файл сохранён на устройство', true);
+  }catch(e){ toast('Не удалось скачать запись', true); }
 }
 // ⏹ — просто остановить запись. Само НЕ отправляет: дальше ➤ отправит,
 // а 🗑 удалит. Раньше кнопка удаления успевала отправить голосовое.
@@ -7302,6 +7389,7 @@ function sendRecorded(){
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
 function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;recGen++;
+  clearTimeout(recWatchdog);recWatchdog=null;recWatchTry=0;recWatchFail=false;recWatchWhy='';recWatchSlice=true;
   try{stopRecSpeech();}catch(e){} recTranscriptText='';
   recordedSending=false;recSegs=[];audioChunks=[];recElapsed=0;recPausedAt=0;
   if(recStream){try{recStream.getTracks().forEach(t=>t.stop());}catch(e){}}
@@ -7314,6 +7402,7 @@ function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=fal
   if(sb)sb.style.display='none';
   const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
   const sendB=document.getElementById('recSendBtn');if(sendB)sendB.style.display='none';
+  const dlB2=document.getElementById('recDlBtn');if(dlB2)dlB2.style.display='none';
   if(lb)lb.textContent='';
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   const inp=document.getElementById('msgInput');if(inp&&inp.placeholder.indexOf('Отправляю')>=0)inp.placeholder='Сообщение...';
