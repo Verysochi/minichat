@@ -2327,7 +2327,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 16:55';
+const BUILD='26.11.2026 17:05';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3690,7 +3690,7 @@ function presenceText(i){
   const seen=i.lastSeen?fmtFull(i.lastSeen):'—';
   return 'был(а): '+seen+(dl?(' · '+dl):(di?(' · '+di):''));
 }
-function avatarHtml(i,cls,fb){const n=i?displayNameOf(i,fb):(fb||'?');const c=(cls||'')+frameCls(i)+(isOnline(i)?' online-frame':' offline-frame');
+function avatarHtml(i,cls,fb){const n=i?displayNameOf(i,fb):(fb||'?');const on=isOnline(i);const c=(cls||'')+(on?frameCls(i):'')+(on?' online-frame':' offline-frame');
   const uid=i?uidOf(i):'';
   const oc=uid?' onclick="event.stopPropagation();openUserProfile(\''+uid+'\')"':'';
   let inner;
@@ -3699,7 +3699,8 @@ function avatarHtml(i,cls,fb){const n=i?displayNameOf(i,fb):(fb||'?');const c=(c
   return wrapAvatar(inner,i,uid);
 }
 function profilePhotoHtml(i,fb){const n=i?displayNameOf(i,fb):(fb||'?');
-  const c=frameCls(i)+(isOnline(i)?' online-frame':'');
+  const on=isOnline(i);
+  const c=(on?frameCls(i):'')+(on?' online-frame':'');
   const uid=i?uidOf(i):'';
   // Подпись «Аватар: имя» убрали: она только занимала место под фото и выглядела
   // лишней. Обложки и раньше открывались без подписи — теперь так же и аватар.
