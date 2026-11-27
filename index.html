@@ -2335,7 +2335,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 19:05';
+const BUILD='26.11.2026 19:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3950,13 +3950,14 @@ function videoNoteHtml(key,m,src){
       '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
       '<button class="btn btn-ghost btn-sm" id="vn_mute_'+id+'" onclick="event.stopPropagation();vnMute(\''+keyJs+'\')" title="Звук" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">🔊</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();downloadFile(\''+keyJs+'\')" title="Скачать" style="position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">⬇</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();toggleTranscript(\''+keyJs+'\')" title="Расшифровка" style="position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:13px;font-weight:700;line-height:1">T</button>'+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:8px;padding:0 8px;margin-top:2px">'+
       '<span id="vn_time_'+id+'" style="font-size:11px;color:var(--text3);min-width:34px">0:00</span>'+
       '<input id="vn_seek_'+id+'" type="range" min="0" max="1000" value="0" oninput="vnSeek(\''+keyJs+'\',this.value)" style="flex:1;height:4px;accent-color:var(--primary)">'+
       '<span id="vn_dur_'+id+'" style="font-size:11px;color:var(--text3);min-width:34px;text-align:right">0:00</span>'+
     '</div>'+
-    (tr?'<div style="margin-top:6px;padding:6px 8px;border-radius:10px;background:var(--surface2);font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+esc(tr)+'</div>':'')+
+    '<div id="tr_'+id+'" style="display:none;margin-top:6px;padding:6px 8px;border-radius:10px;background:var(--surface2);font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+(tr?esc(tr):'Расшифровка не сохранена для этого сообщения.')+'</div>'+
   '</div>';
 }
 function vnGet(key){ return document.getElementById('vn_'+CSS_ID(key)); }
@@ -3974,6 +3975,11 @@ function vnUpdate(key){
   const t=document.getElementById('vn_time_'+id); if(t) t.textContent=fmtDur(cur);
   const d=document.getElementById('vn_dur_'+id); if(d) d.textContent=dur?fmtDur(dur):'0:00';
 }
+function toggleTranscript(key){
+  const el=document.getElementById('tr_'+CSS_ID(key));
+  if(!el) return;
+  el.style.display = (el.style.display==='none'||!el.style.display) ? 'block' : 'none';
+}
 function songMiniHtml(key,m){
   const playing=(songKey===key&&!songPaused);
   const src=songSrcFor(m,key);
@@ -3982,7 +3988,8 @@ function songMiniHtml(key,m){
   const pct=dur?Math.min(100,(cur/dur)*100):0;
   var tr=(m&&m.transcript)?String(m.transcript).trim():'';
   var isVoice=(m&&m.type==='audio'&&!isSongFile(m&&m.name));
-  return '<div class="song-mini'+(songKey===key?' active':'')+'" id="songm_'+CSS_ID(key)+'" data-key="'+CSS_ID(key)+'" style="'+(tr?'flex-wrap:wrap;':'')+'">'+
+  var keyJs=esc(key).replace(/'/g,"\\'");
+  return '<div class="song-mini'+(songKey===key?' active':'')+'" id="songm_'+CSS_ID(key)+'" data-key="'+CSS_ID(key)+'" style="flex-wrap:wrap">'+
     '<button class="song-play" onclick="event.stopPropagation();toggleSong(\''+key+'\')">'+(playing?'⏸':'▶')+'</button>'+
     '<div class="song-body">'+
       '<div class="song-name" title="'+esc(m.name||'Голосовое')+'">'+esc(isVoice?'🎤 Голосовое':shortFileName(m.name||'🎵 песня'))+'</div>'+
@@ -3990,8 +3997,9 @@ function songMiniHtml(key,m){
       '<input type="range" class="song-vol song-vol-inline" min="0" max="100" value="'+volPct()+'" oninput="setSongVol(this.value)" title="Громкость">'+
     '</div>'+
     '<div class="song-time" id="songt_'+CSS_ID(key)+'">'+(dur?fmtDur(cur)+' / '+fmtDur(dur):(src?'0:00':'…'))+'</div>'+
-    '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')">⬇</button>'+
-    (tr?'<div style="flex-basis:100%;width:100%;margin-top:6px;padding-top:6px;border-top:1px solid var(--surface3);font-size:13px;line-height:1.35;opacity:.92;white-space:pre-wrap">'+esc(tr)+'</div>':'')+
+    '<button class="song-dl" title="Расшифровка" onclick="event.stopPropagation();toggleTranscript(\''+keyJs+'\')">T</button>'+
+    '<button class="song-dl" title="Скачать" onclick="event.stopPropagation();downloadTrack(\''+keyJs+'\')">⬇</button>'+
+    '<div id="tr_'+CSS_ID(key)+'" style="display:none;flex-basis:100%;width:100%;margin-top:6px;padding-top:6px;border-top:1px solid var(--surface3);font-size:13px;line-height:1.35;opacity:.92;white-space:pre-wrap;word-break:break-word">'+(tr?esc(tr):'Расшифровка не сохранена для этого сообщения.')+'</div>'+
   '</div>';
 }
 // ===== статичный плеер под верхней рамкой чата + управление песнями =====
