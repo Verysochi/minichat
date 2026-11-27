@@ -168,6 +168,7 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .chat-item:active,.user-item:active{background:var(--surface2)}
 /* Список чатов: карточки со скруглёнными краями вместо острых прямоугольников */
 .chat-item{border-bottom:none;border-radius:14px;margin:5px 8px;background:var(--surface2);border:1px solid transparent;
+.chat-item.pinned-chat{border-color:color-mix(in srgb, var(--primary) 28%, transparent);background:color-mix(in srgb, var(--primary) 5%, var(--surface2));}
   transition:background .2s ease,border-color .2s ease,box-shadow .2s ease;position:relative}
 .chat-item:active{background:var(--surface3);border-color:rgba(124,134,255,.4)}
 /* люди в «Друзьях», поиске и списках колонки — тоже карточки, не острые прямоугольники */
@@ -2333,7 +2334,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 18:00';
+const BUILD='26.11.2026 18:15';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7515,6 +7516,20 @@ async function chooseOutput(){
 function chatPinsKey(){return 'mc_chatPins_'+(currentUser&&currentUser.uid||'anon');}
 function getChatPins(){try{return JSON.parse(localStorage.getItem(chatPinsKey())||'{}')||{};}catch(e){return {};}}
 function isChatPinned(cid){return !!getChatPins()[cid];}
+let _chatPinsLoadedFor=null;
+function ensureChatPinsLoaded(){
+  const uid=currentUser&&currentUser.uid;
+  if(!uid||_chatPinsLoadedFor===uid) return;
+  _chatPinsLoadedFor=uid;
+  db.ref('users/'+uid+'/chatPins').once('value').then(snap=>{
+    const v=snap.val()||{};
+    const p=getChatPins();
+    let changed=false;
+    Object.keys(v).forEach(k=>{ if(v[k] && !p[k]){ p[k]=v[k]; changed=true; } });
+    // if firebase has removals, respect local? keep simple: merge-add only
+    if(changed){ try{localStorage.setItem(chatPinsKey(),JSON.stringify(p));}catch(e){} renderChatList(); }
+  }).catch(()=>{});
+}
 function toggleChatPin(cid,ev){
   if(ev) ev.stopPropagation();
   const p=getChatPins();
@@ -7524,6 +7539,7 @@ function toggleChatPin(cid,ev){
   renderChatList();
 }
 function renderChatList(){
+  ensureChatPinsLoaded();
   const c=document.getElementById('chatList');c.innerHTML='';
   let dmUn=0,grUn=0,dmRows=[],grRows=[],dmCids={};
   if(lastChatData)Object.entries(lastChatData).forEach(([cid,i])=>{dmUn+=(i.unread||0);dmCids[cid]=1;dmRows.push({cid:cid,ts:i.lastTs||0,el:()=>dmItem(cid,i)});});
@@ -7590,7 +7606,8 @@ function renderChatList(){
     return;
   }
   const label=document.createElement('div');label.className='section-lbl';label.textContent=chatTab==='dm'?'💬 Личные чаты':'👥 Группы';c.appendChild(label);
-  rows.sort((a,b)=>b.ts-a.ts).forEach(r=>c.appendChild(r.el()));
+  const pins=getChatPins();
+  rows.sort((a,b)=>{ const ap=!!pins[a.cid], bp=!!pins[b.cid]; if(ap!==bp) return ap?-1:1; return (b.ts||0)-(a.ts||0); }).forEach(r=>c.appendChild(r.el()));
   // Видимые группы, где меня нет — с кнопкой «вступить» (заявка админу группы)
   if(openGroups){
     const h2=document.createElement('div');h2.className='section-lbl';h2.textContent='🌍 Видимые группы — можно вступить';c.appendChild(h2);
@@ -7605,18 +7622,28 @@ function renderChatList(){
     });
   }
 }
+function chatActionsHtml(cid, profileJs, pinTitle){
+  const pinned=isChatPinned(cid);
+  return '<div style="display:flex;gap:4px;flex:none;align-items:center;margin-left:4px">'+
+    '<button class="btn btn-ghost btn-sm" style="width:30px;height:30px;min-height:30px;padding:0;border-radius:10px;font-size:14px" title="Профиль" onclick="event.stopPropagation();'+profileJs+'">👤</button>'+
+    '<button class="btn btn-ghost btn-sm" style="width:30px;height:30px;min-height:30px;padding:0;border-radius:10px;font-size:14px;'+(pinned?'color:var(--primary);':'opacity:.75;')+'" title="'+(pinned?'Открепить чат':'Закрепить чат')+'" onclick="event.stopPropagation();toggleChatPin(\''+escA(cid)+'\',event)">'+(pinned?'📌':'📍')+'</button>'+
+  '</div>';
+}
 function dmItem(cid,i){const ou=i.otherUid,info=ALL_USERS[ou],n=nameOf(ou,i.otherName);
-  const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(cid,ou);
-  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span class="clickable" style="color:'+colorOf(info)+';cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+escA(ou)+'\')">'+esc(n)+'</span>'+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last">'+esc(i.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(i.lastTs)+'</div>'+((i.unread>0)?'<div class="chat-badge" style="margin-top:3px">'+i.unread+'</div>':'')+'</div>';
+  const pinned=isChatPinned(cid);
+  const d=document.createElement('div');d.className='chat-item'+(pinned?' pinned-chat':'');d.onclick=()=>openChat(cid,ou);
+  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span class="clickable" style="color:'+colorOf(info)+';cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+escA(ou)+'\')">'+esc(n)+'</span>'+(pinned?' <span title="Закреплён" style="font-size:11px">📌</span>':'')+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last">'+esc(i.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(i.lastTs)+'</div>'+((i.unread>0)?'<div class="chat-badge" style="margin-top:3px">'+i.unread+'</div>':'')+'</div>'+chatActionsHtml(cid,"openUserProfile('"+escA(ou)+"')");
   return d;}
 // Пустой чат: друг есть, сообщений ещё не было — пишем первым
 function dmEmptyItem(cid,ou){
   const info=ALL_USERS[ou],n=nameOf(ou);
-  const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(cid,ou);
-  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span class="clickable" style="color:'+colorOf(info)+';cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+escA(ou)+'\')">'+esc(n)+'</span>'+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last" style="opacity:.7">💬 Чат пуст — напиши первым</div></div><div style="text-align:right"><div class="chat-time" style="opacity:.5">новый</div></div>';
+  const pinned=isChatPinned(cid);
+  const d=document.createElement('div');d.className='chat-item'+(pinned?' pinned-chat':'');d.onclick=()=>openChat(cid,ou);
+  d.innerHTML=avatarHtml(info,'',n)+'<div class="chat-info"><div class="chat-name"><span class="clickable" style="color:'+colorOf(info)+';cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+escA(ou)+'\')">'+esc(n)+'</span>'+(pinned?' <span title="Закреплён" style="font-size:11px">📌</span>':'')+(isOnline(info)?' <span title="онлайн '+esc(deviceLabelOf(info)||'')+'" style="font-size:11px;opacity:.9">'+esc(deviceIconOf(info)||'🟢')+'</span>':'')+totemChip(info)+'</div><div class="chat-last" style="opacity:.7">💬 Чат пуст — напиши первым</div></div><div style="text-align:right"><div class="chat-time" style="opacity:.5">новый</div></div>'+chatActionsHtml(cid,"openUserProfile('"+escA(ou)+"')");
   return d;}
-function groupItem(gid,g,un){const d=document.createElement('div');d.className='chat-item';d.onclick=()=>openChat(gid,null);
-  d.innerHTML=groupAvatarHtml(g)+'<div class="chat-info"><div class="chat-name">'+esc(g.name||'Группа')+'</div><div class="chat-last">'+esc(g.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(g.lastTs)+'</div>'+((un>0)?'<div class="chat-badge" style="margin-top:3px">'+un+'</div>':'')+'</div>';
+function groupItem(gid,g,un){const pinned=isChatPinned(gid);
+  const d=document.createElement('div');d.className='chat-item'+(pinned?' pinned-chat':'');d.onclick=()=>openChat(gid,null);
+  d.innerHTML=groupAvatarHtml(g)+'<div class="chat-info"><div class="chat-name">'+esc(g.name||'Группа')+(pinned?' <span title="Закреплён" style="font-size:11px">📌</span>':'')+'</div><div class="chat-last">'+esc(g.lastMsg||'')+'</div></div><div style="text-align:right"><div class="chat-time">'+formatTime(g.lastTs)+'</div>'+((un>0)?'<div class="chat-badge" style="margin-top:3px">'+un+'</div>':'')+'</div>'+chatActionsHtml(gid,"openChat('"+escA(gid)+"',null);setTimeout(function(){showScreen('groupInfoScreen')},200)");
   return d;}
 
 // ===== ДРУЗЬЯ/ПРОФИЛИ =====
