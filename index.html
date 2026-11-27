@@ -2336,7 +2336,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 20:05';
+const BUILD='26.11.2026 20:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -2356,6 +2356,7 @@ let mediaRecorder=null,audioChunks=[],isRecording=false,recPaused=false,recTimer
 // Диагностика записи: почему файл вышел пустым (часто на телефоне формат
 // «поддерживается», но не отдаёт ни байта, или трек камеры/микрофона умер).
 let recWatchdog=null,recWatchTry=0,recWatchFail=false,recWatchWhy='',recWatchSlice=true;
+let recordedObjUrl=null;   // blob-адрес для превью: data: адрес проигрывается не везде
 function blockedTypes(){
   if(recBadList===null){
     recBadList=[];
@@ -3961,7 +3962,29 @@ function videoNoteHtml(key,m,src){
   '</div>';
 }
 function vnGet(key){ return document.getElementById('vn_'+CSS_ID(key)); }
-function vnError(key){ try{ toast('Не удалось воспроизвести кружок. Попробуй скачать ⬇'); }catch(e){} }
+function vnError(key){
+  try{
+    const v=vnGet(key);
+    // Первый шанс: data:-адрес перегоняем в blob — на многих телефонах именно
+    // он нормально играет. Повторно не пробуем, чтобы не зациклиться.
+    if(v&&v.currentSrc&&/^data:/i.test(v.currentSrc)&&!v.dataset.blobRetry){
+      v.dataset.blobRetry='1';
+      try{
+        const b=dataUrlToBlob(v.currentSrc);
+        if(b&&b.size>0){ v.src=URL.createObjectURL(b); v.load(); v.play().catch(()=>{}); return; }
+      }catch(e){}
+    }
+    let why='файл пустой';
+    try{
+      const ec=v&&v.error?v.error.code:0;
+      if(ec===1)why='не загрузился';
+      else if(ec===2)why='формат не поддерживается этим браузером';
+      else if(ec===3)why='файл повреждён / запись не доехала';
+      const dl=v&&v.dataset&&v.dataset.dl==='0'?'':' Скачай ⬇ и открой в плеере.';
+      toast('Кружок не воспроизводится: '+why+'.'+dl,true);
+    }catch(e){ toast('Не удалось воспроизвести кружок. Попробуй скачать ⬇'); }
+  }catch(e){}
+}
 function vnToggle(key){ const v=vnGet(key); if(!v) return; if(v.paused){ v.play().catch(()=>{ try{toast('Нажми ещё раз для воспроизведения');}catch(e){} }); } else { v.pause(); } vnUpdate(key); }
 function vnMute(key){ const v=vnGet(key); if(!v) return; v.muted=!v.muted; vnUpdate(key); }
 function vnSeek(key,val){ const v=vnGet(key); if(!v||!isFinite(v.duration)||v.duration<=0) return; v.currentTime=(Number(val)/1000)*v.duration; vnUpdate(key); }
@@ -5198,9 +5221,20 @@ function dataUrlToBlob(u){const a=u.split(','),m=(a[0].match(/:(.*?);/)||[,'appl
 // чатом + автором + временем; обычные файлы сохраняются под своим именем.
 function downloadName(m){
   const orig=m.name||('file_'+Date.now());
-  if(!(m.type==='image'||m.type==='video'||m.type==='audio'))return orig;
+  const isMedia=(m.type==='image'||m.type==='video'||m.type==='audio'||m.type==='videonote');
+  if(!isMedia)return orig;
   const dot=orig.lastIndexOf('.');
-  const ext=dot>0?orig.slice(dot):'';
+  let ext=dot>0?orig.slice(dot):'';
+  // Видеокружок раньше сохранялся БЕЗ расширения (имя «Видеокружок»): система
+  // не знала, чем его открыть — выглядело как «не скачивается, не играет».
+  if(!ext){
+    const mime=String(m.mime||m.mediaMime||'').toLowerCase();
+    if(/mp4|m4v|quicktime/.test(mime))ext='.mp4';
+    else if(/ogg|opus/.test(mime))ext='.ogg';
+    else if(/webm/.test(mime))ext='.webm';
+    else if(m.fileExt)ext='.'+String(m.fileExt).replace(/^\./,'');
+    else ext=(m.type==='image')?'.jpg':'.webm';
+  }
   const chat=(((document.getElementById('chatTitle')||{}).textContent)||m.fwdChatName||'чат').trim();
   const who=(m.fwdFromName)||nameOf(m.sender,'');
   const d=new Date(m.ts||Date.now());
@@ -7250,10 +7284,20 @@ function finishRecording(){
   const r=new FileReader();
   r.onload=()=>{
     recordedDataUrl=r.result;recordedType=recMode;
+    // Превью играем через blob: data:-адрес на части браузеров (особенно
+    // мобильных) не воспроизводится, хотя файл сам по себе нормальный.
+    let previewUrl=recordedDataUrl;
+    try{
+      const bb=dataUrlToBlob(recordedDataUrl);
+      if(bb&&bb.size>0){
+        if(recordedObjUrl){try{URL.revokeObjectURL(recordedObjUrl);}catch(e){}}
+        recordedObjUrl=URL.createObjectURL(bb); previewUrl=recordedObjUrl;
+      }
+    }catch(e){}
     const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
     try{
       if(recMode==='video'||recMode==='videonote'){
-        pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';
+        pv.srcObject=null;pv.src=previewUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';
         if(recMode==='videonote'){
           pv.controls=false; pv.style.borderRadius='50%';
           pv.style.width='min(220px,72vw)'; pv.style.height='min(220px,72vw)';
@@ -7267,10 +7311,16 @@ function finishRecording(){
           pv.controls=true; pv.onclick=null; pv.style.borderRadius='12px'; pv.style.width='min(320px,100%)'; pv.style.height='auto'; pv.style.maxHeight='240px'; pv.style.objectFit='contain'; pv.style.background='#000';
         }
       }
-      else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.controls=true;pa.style.display='block';pv.style.display='none';}
+      else{pa.srcObject=null;pa.src=previewUrl;pa.muted=false;pa.controls=true;pa.style.display='block';pv.style.display='none';}
     }catch(e){}
     const rp=document.getElementById('recPreview'); rp.classList.add('active'); rp.classList.toggle('videonote-mode', recMode==='videonote');
-    const lb=document.getElementById('recLiveLabel');if(lb)lb.textContent='Готово — ➤ отправить';
+    const lb=document.getElementById('recLiveLabel');
+    if(lb){
+      // Размер нужен не для красоты: если это десятки килобайт — запись битая,
+      // и мы сразу видим, что чинить (кодек или микрофон/камеру).
+      const kb=Math.max(1,Math.round((recordedDataUrl.length*3/4)/1024));
+      lb.textContent=(kb>=1024?(Math.round(kb/102.4)/10)+' МБ':kb+' КБ')+' · готово';
+    }
     const sb=document.getElementById('recStopBtn');if(sb)sb.style.display='none';
     const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
     const sendB=document.getElementById('recSendBtn');if(sendB)sendB.style.display='inline-flex';
@@ -7314,14 +7364,13 @@ function toggleRecPause(){
 function downloadRecording(){
   if(!recordedDataUrl){ toast('Сначала останови запись', true); return; }
   try{
+    // Через blob, а не напрямую data:-адрес: часть браузеров (мобильные)
+    // молча игнорирует <a download> с data: URL.
     const semi=recordedDataUrl.indexOf(';');
     const sub=semi>5?recordedDataUrl.slice(5,semi):'';
-    const fmt=(sub.split('/')[1]||'webm').split('+')[0];
-    const a=document.createElement('a');
-    a.href=recordedDataUrl;
-    a.download='minichat-rec.'+(fmt==='mp4'||fmt==='m4v'?'mp4':(fmt||'webm'));
-    document.body.appendChild(a); a.click(); a.remove();
-    toast('✅ Файл сохранён на устройство', true);
+    const fmt=((sub.split('/')[1]||'').split('+')[0]||'webm');
+    const ext=(/mp4|m4v|quicktime/.test(fmt))?'mp4':(/ogg|opus/.test(fmt)?'ogg':'webm');
+    downloadDataUrl(recordedDataUrl,'videonote_'+Date.now()+'.'+ext);
   }catch(e){ toast('Не удалось скачать запись', true); }
 }
 // ⏹ — просто остановить запись. Само НЕ отправляет: дальше ➤ отправит,
@@ -7377,11 +7426,18 @@ function sendRecorded(){
   document.getElementById('msgInput').placeholder='⏳ Отправляю голосовое…';
   const extName = (type==='video'||type==='videonote')?'video':'audio';
   const niceName = type==='videonote'?'Видеокружок':(type==='video'?'Голосовое видео':'Голосовое');
-  uploadChunked(fk,data,{name:extName+'.webm',size:data.length})
+  // Реальный формат берём из самой записи, а не подставляем webm наобум:
+  // иначе файл уходит с неверным расширением и у получателя не открывается.
+  const mimeRec=(String(data).match(/^data:([^;,]+)/)||[])[1]||'';
+  const realExt=/mp4|m4v|quicktime/.test(mimeRec)?'mp4':(/ogg|opus/.test(mimeRec)?'ogg':'webm');
+  uploadChunked(fk,data,{name:extName+'.'+realExt,size:data.length,mime:mimeRec||('video/' + realExt)})
     .then(()=>{
-      const payload={sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:(type==='videonote'?'video':type),name:niceName};
+      const payload={sender:currentUser.uid,ts:Date.now(),type:type,ext:1,mediaKey:fk,mediaType:(type==='videonote'?'video':type),name:niceName,mime:mimeRec||'',fileExt:realExt};
       if(type==='videonote') payload.circle=true;
       if(recTranscriptText && String(recTranscriptText).trim()) payload.transcript=String(recTranscriptText).trim().slice(0,4000);
+      // Отправителю файл сразу кладём в кэш: раньше он уходил в пустой прогруз,
+      // и свежий кружок у самого автора «не играл», пока не перезайдёшь.
+      try{ if(data && !mediaCache[fk]) mediaCache[fk]=data; }catch(e){}
       return commitMessage(currentChatId,key,payload,previewFor(type));
     })
     .then(()=>{recordedSending=false;cancelRecorded();document.getElementById('msgInput').placeholder=old;})
@@ -7389,6 +7445,7 @@ function sendRecorded(){
       console.error('sendRecorded',e);toast('❌ Голосовое не отправилось');});
 }
 function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=false;recPaused=false;recGen++;
+  if(recordedObjUrl){try{URL.revokeObjectURL(recordedObjUrl);}catch(e){} recordedObjUrl=null;}
   clearTimeout(recWatchdog);recWatchdog=null;recWatchTry=0;recWatchFail=false;recWatchWhy='';recWatchSlice=true;
   try{stopRecSpeech();}catch(e){} recTranscriptText='';
   recordedSending=false;recSegs=[];audioChunks=[];recElapsed=0;recPausedAt=0;
