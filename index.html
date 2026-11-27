@@ -824,7 +824,8 @@ img,video,canvas{max-width:100%}
 .gi-code{text-align:center;font-family:monospace;font-size:14px;color:var(--green);word-break:break-all;margin:8px 0;padding:10px;background:var(--surface2);border-radius:10px}
 .my-code{font-family:monospace;font-size:18px;color:var(--green);font-weight:700;letter-spacing:2px}
 .notif-item{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--surface);cursor:pointer;transition:background .3s ease,box-shadow .3s ease}
-.notif-item.unread{background:var(--accent-soft)}
+.notif-item.unread{background:color-mix(in srgb, var(--primary) 6%, transparent)}
+.notif-item.notif-pet.unread{background:color-mix(in srgb, var(--primary) 2%, transparent)}
 .notif-item.notif-fresh{animation:freshGlow 5s ease-out}
 .notif-title{font-size:13px;font-weight:600;color:var(--primary);margin-bottom:2px}
 .mini-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);z-index:350;align-items:center;justify-content:center;padding:20px}
@@ -2331,7 +2332,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 17:15';
+const BUILD='26.11.2026 17:20';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -9264,7 +9265,7 @@ function renderNotifsDropdown(){
     const safeText = (n.type==="chat") ? "💬 Новое сообщение" : (n.text||"");
     const isNew=!n.read||freshSet.has(key);
     const d=document.createElement("div");
-    d.className="notif-item"+(isNew?" unread":"");
+    d.className="notif-item"+(isNew?" unread":"")+(n.type==='pet'?' notif-pet':'');
     d.innerHTML='<span style="font-size:20px">'+ic+'</span><div style="flex:1;min-width:0">'+titleHtml+'<div style="font-size:13px">'+esc(safeText)+'</div><div style="color:var(--text3);font-size:11px">'+fmtFull(n.ts)+'</div></div>';
     d.onclick=()=>{ closeNotifDropdown(); _markNotifKeysRead([key],true);
       if(n.newsId){showScreen("newsScreen");renderNews();setTimeout(()=>{toggleComments("news",n.newsId);const el=document.getElementById("news_"+n.newsId);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});},300);}
@@ -9333,7 +9334,7 @@ function renderNotifs(){
     }
     const key=g.key, n=g.n||{};
     const d=document.createElement('div');
-    d.className='notif-item'+(n.read&&!freshSet.has(key)?'':' unread')+(freshSet.has(key)?' notif-fresh':'');
+    d.className='notif-item'+(n.read&&!freshSet.has(key)?'':' unread')+(freshSet.has(key)?' notif-fresh':'')+(n.type==='pet'?' notif-pet':'');
     const ic=n.type==='comment'?'💬':n.type==='reply'?'↩':n.type==='react'?'🤘':n.type==='group'?'👥':n.type==='ginvite'?'📩':n.type==='friend'?'👋':n.type==='friendok'?'✅':n.type==='call'?'📞':n.type==='proposal'?'📬':n.type==='stale'?'⏰':n.type==='relreq'||n.type==='relok'||n.type==='relno'?'🤝':n.type==='post'?'📝':'🔔';
     const titleHtml=n.title?'<div class="notif-title">'+esc(n.title)+'</div>':'';
     const safeText = (n.type==='chat') ? '💬 Новое сообщение' : (n.text||'');
