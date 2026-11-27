@@ -2335,7 +2335,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 19:15';
+const BUILD='26.11.2026 19:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3940,11 +3940,7 @@ function videoNoteHtml(key,m,src){
   const keyJs=esc(key).replace(/'/g,"\\'");
   return '<div class="video-note" id="vn_wrap_'+id+'" data-key="'+id+'" style="margin:4px 0;max-width:min(280px,100%)">'+
     '<div style="position:relative;width:min(240px,78vw);height:min(240px,78vw);min-width:min(240px,78vw);min-height:min(240px,78vw);flex:0 0 auto;margin:0 auto">'+
-      '<svg viewBox="0 0 240 240" style="position:absolute;left:50%;top:50%;width:min(232px,75vw);height:min(232px,75vw);transform:translate(-50%,-50%) rotate(-90deg);pointer-events:none;z-index:2">'+
-        '<circle cx="120" cy="120" r="115" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="4"></circle>'+
-        '<circle id="vn_ring_'+id+'" cx="120" cy="120" r="115" fill="none" stroke="var(--primary)" stroke-width="4" stroke-linecap="round" stroke-dasharray="722.57" stroke-dashoffset="722.57"></circle>'+
-      '</svg>'+
-      '<div style="width:min(220px,72vw);height:min(220px,72vw);min-width:min(220px,72vw);min-height:min(220px,72vw);max-width:min(220px,72vw);max-height:min(220px,72vw);aspect-ratio:1/1;border-radius:50%;overflow:hidden;margin:min(10px,3vw) auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative;flex:0 0 auto;z-index:1">'+
+      '<div style="width:min(220px,72vw);height:min(220px,72vw);min-width:min(220px,72vw);min-height:min(220px,72vw);max-width:min(220px,72vw);max-height:min(220px,72vw);aspect-ratio:1/1;border-radius:50%;overflow:hidden;margin:min(10px,3vw) auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative;flex:0 0 auto">'+
         '<video id="vn_'+id+'" src="'+src+'" playsinline webkit-playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000;display:block" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" ontimeupdate="vnUpdate(\''+keyJs+'\')" onplay="vnUpdate(\''+keyJs+'\')" onpause="vnUpdate(\''+keyJs+'\')" onended="vnUpdate(\''+keyJs+'\')" onloadedmetadata="vnUpdate(\''+keyJs+'\')" onerror="vnError(\''+keyJs+'\')"></video>'+
       '</div>'+
       '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
@@ -3971,7 +3967,6 @@ function vnUpdate(key){
   const mute=document.getElementById('vn_mute_'+id); if(mute) mute.textContent=v.muted?'🔇':'🔊';
   const cur=v.currentTime||0, dur=(isFinite(v.duration)&&v.duration>0)?v.duration:0;
   const seek=document.getElementById('vn_seek_'+id); if(seek && !seek.matches(':active')) seek.value=dur?String(Math.round((cur/dur)*1000)):'0';
-  const ring=document.getElementById('vn_ring_'+id); if(ring){ const C=722.57; ring.style.strokeDashoffset=String(dur?C*(1-(cur/dur)):C); }
   const t=document.getElementById('vn_time_'+id); if(t) t.textContent=fmtDur(cur);
   const d=document.getElementById('vn_dur_'+id); if(d) d.textContent=dur?fmtDur(dur):'0:00';
 }
@@ -7149,7 +7144,7 @@ function startSegment(){
   recLastWant=want;recGen++;
   mediaRecorder=new MediaRecorder(recStream,want?{mimeType:want}:undefined);
   mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)audioChunks.push(e.data);};
-  mediaRecorder.start();
+  try{ mediaRecorder.start(250); }catch(e){ try{ mediaRecorder.start(); }catch(e2){ throw e2; } }
   isRecording=true;recPaused=false;recStart=Date.now();
 }
 // Собрать все сегменты в один файл и показать плеер. Само НЕ отправляет.
@@ -7164,13 +7159,18 @@ function finishRecording(){
   // Такое сообщение не проигрывалось: 0:00 и «Формат не поддерживается».
   const bytes=flat.reduce((n,b)=>n+(b&&b.size||0),0);
   if(bytes<200){
-    // Формат отбрасываем только после ДВУХ пустых записей подряд. Раньше одна
-    // неудача навсегда выкидывала тип из списка, хотя причиной могла быть
-    // вовсе не он — и следующая запись ломалась уже по-настоящему.
+    // Формат отбрасываем: для видео/кружка после первой пустой записи (часто
+    // неподходящий кодек на устройстве), для аудио после двух подряд.
     recFailStreak++;
-    if(recFailStreak>=2&&recLastWant)blockType(recLastWant);
+    const isVidRec = (recMode==='video'||recMode==='videonote');
+    if(recLastWant && (isVidRec || recFailStreak>=2)) blockType(recLastWant);
     cancelRecorded();
-    toast(recFailStreak>=2?'🎤 Формат не пишет звук — переключила. Запиши ещё раз':'🎤 Запись вышла пустой — запиши ещё раз',true);
+    const msg = isVidRec
+      ? 'Не удалось записать видео на этом устройстве. Попробуй ещё раз — формат записи переключится автоматически.'
+      : (recFailStreak>=2
+        ? 'Не удалось записать голос. Попробуй ещё раз — формат записи переключится автоматически.'
+        : 'Запись вышла пустой — попробуй ещё раз.');
+    toast(msg,true);
     return;
   }
   const type=(mediaRecorder&&mediaRecorder.mimeType)||pickRecType(recMode)||(recMode==='video'?'video/webm':'audio/webm');
