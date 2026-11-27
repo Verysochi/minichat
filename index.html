@@ -382,7 +382,8 @@ div.profile-photo{display:flex;align-items:center;justify-content:center;font-si
 /* Голосовые теперь рисуются тем же мини-плеером, что и песни (song-mini):
    с play/pause и проматываемой полосой. Штатный <audio controls> выглядел
    уродливо и не давал нормально тыкать. Инверт оставлен только для превью записи. */
-.rec-preview audio,.rec-preview video{filter:invert(1) hue-rotate(180deg);border-radius:10px}
+.rec-preview audio{filter:invert(1) hue-rotate(180deg);border-radius:10px}
+.rec-preview video{border-radius:10px;background:#000}
 [data-theme="light"] .rec-preview audio,[data-theme="light"] .rec-preview video{filter:none}
 .song-mini{min-width:230px;max-width:100%}
 .song-mini .song-play{width:34px;height:34px;font-size:14px}
@@ -2314,7 +2315,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 16:20';
+const BUILD='26.11.2026 16:35';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3912,10 +3913,10 @@ function songSrcFor(m,key){const mk=(m&&m.mediaKey)||key;return (m&&m.data)||med
 function videoNoteHtml(key,m,src){
   const id=CSS_ID(key);
   const tr=(m&&m.transcript)?String(m.transcript).trim():'';
-  return '<div class="video-note" id="vn_wrap_'+id+'" data-key="'+id+'" style="margin:4px 0;max-width:280px">'+
-    '<div style="position:relative;width:240px;height:240px;margin:0 auto">'+
-      '<div style="width:220px;height:220px;border-radius:50%;overflow:hidden;margin:10px auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative">'+
-        '<video id="vn_'+id+'" src="'+src+'" playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" ontimeupdate="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onplay="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onpause="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onended="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onloadedmetadata="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')"></video>'+
+  return '<div class="video-note" id="vn_wrap_'+id+'" data-key="'+id+'" style="margin:4px 0;max-width:min(280px,100%)">'+
+    '<div style="position:relative;width:min(240px,78vw);height:min(240px,78vw);margin:0 auto">'+
+      '<div style="width:min(220px,72vw);height:min(220px,72vw);aspect-ratio:1/1;border-radius:50%;overflow:hidden;margin:min(10px,3vw) auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative">'+
+        '<video id="vn_'+id+'" src="'+src+'" playsinline webkit-playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000;display:block" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" ontimeupdate="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onplay="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onpause="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onended="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onloadedmetadata="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')"></video>'+
       '</div>'+
       '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
       '<button class="btn btn-ghost btn-sm" id="vn_mute_'+id+'" onclick="event.stopPropagation();vnMute(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Звук" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">🔊</button>'+
@@ -6995,8 +6996,8 @@ function toggleRecord(mode){
         el.controls=false;
         el.style.display='block';
         if(mode==='videonote'){
-          el.style.borderRadius='50%'; el.style.width='220px'; el.style.height='220px';
-          el.style.objectFit='cover'; el.style.background='#000';
+          el.style.borderRadius='50%'; el.style.width='min(220px,72vw)'; el.style.height='min(220px,72vw)';
+          el.style.objectFit='cover'; el.style.background='#000'; el.style.aspectRatio='1/1';
         } else {
           el.style.borderRadius='12px'; el.style.width='min(320px,100%)'; el.style.height='auto';
           el.style.maxHeight='240px'; el.style.objectFit='cover'; el.style.background='#000';
@@ -7130,8 +7131,8 @@ function finishRecording(){
       if(recMode==='video'||recMode==='videonote'){
         pv.srcObject=null;pv.src=recordedDataUrl;pv.muted=false;pv.style.display='block';pa.style.display='none';
         if(recMode==='videonote'){
-          pv.controls=false; pv.style.borderRadius='50%'; pv.style.width='220px'; pv.style.height='220px';
-          pv.style.objectFit='cover'; pv.style.background='#000'; pv.style.cursor='pointer';
+          pv.controls=false; pv.style.borderRadius='50%'; pv.style.width='min(220px,72vw)'; pv.style.height='min(220px,72vw)';
+          pv.style.aspectRatio='1/1'; pv.style.objectFit='cover'; pv.style.background='#000'; pv.style.cursor='pointer';
           pv.onclick=function(ev){ev.stopPropagation(); if(pv.paused) pv.play().catch(()=>{}); else pv.pause();};
           pv.title='Нажми для просмотра';
         } else {
@@ -7252,7 +7253,7 @@ function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=fal
   const pa=document.getElementById('recPreviewAudio'),pv=document.getElementById('recPreviewVideo');
   const sb=document.getElementById('recStopBtn'),lb=document.getElementById('recLiveLabel');
   if(pa){pa.pause();pa.removeAttribute('src');pa.srcObject=null;pa.style.display='none';}
-  if(pv){pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';pv.onclick=null;pv.controls=true;pv.style.borderRadius='';pv.style.width='';pv.style.height='';pv.style.objectFit='';pv.style.cursor='';pv.title='';}
+  if(pv){pv.pause();pv.removeAttribute('src');pv.srcObject=null;pv.style.display='none';pv.onclick=null;pv.controls=true;pv.style.borderRadius='';pv.style.width='';pv.style.height='';pv.style.objectFit='';pv.style.cursor='';pv.title='';pv.style.aspectRatio='';pv.style.background='';}
   if(sb)sb.style.display='none';
   const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
   const sendB=document.getElementById('recSendBtn');if(sendB)sendB.style.display='none';
@@ -9522,7 +9523,8 @@ function petCompute(state){
   const s0 = Object.assign(petDefaultState(), state||{});
   const now = Date.now();
   const realElapsed = Math.max(0, now - (s0.lastUpdated||now));
-  const gameElapsed = gameMinutesFrom(realElapsed); // игровые минуты прошло
+  // Кэп офлайн-декэя: питомец не должен "умирать" просто потому что игрок зашёл раз в день.
+  const gameElapsed = Math.min(gameMinutesFrom(realElapsed), 10*60); // макс 10 игровых часов за отсутствие
   const hours = gameElapsed / 60;                   // игровые часы
 
   // Если питомец умер/сбежал — превращаем в яйцо, которое вылупится только по тапу
