@@ -2334,7 +2334,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 18:15';
+const BUILD='26.11.2026 18:25';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3933,25 +3933,27 @@ function songSrcFor(m,key){const mk=(m&&m.mediaKey)||key;return (m&&m.data)||med
 function videoNoteHtml(key,m,src){
   const id=CSS_ID(key);
   const tr=(m&&m.transcript)?String(m.transcript).trim():'';
+  const keyJs=esc(key).replace(/'/g,"\\'");
   return '<div class="video-note" id="vn_wrap_'+id+'" data-key="'+id+'" style="margin:4px 0;max-width:min(280px,100%)">'+
     '<div style="position:relative;width:min(240px,78vw);height:min(240px,78vw);min-width:min(240px,78vw);min-height:min(240px,78vw);flex:0 0 auto;margin:0 auto">'+
       '<div style="width:min(220px,72vw);height:min(220px,72vw);min-width:min(220px,72vw);min-height:min(220px,72vw);max-width:min(220px,72vw);max-height:min(220px,72vw);aspect-ratio:1/1;border-radius:50%;overflow:hidden;margin:min(10px,3vw) auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative;flex:0 0 auto">'+
-        '<video id="vn_'+id+'" src="'+src+'" playsinline webkit-playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000;display:block" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" ontimeupdate="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onplay="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onpause="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onended="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')" onloadedmetadata="vnUpdate(\''+esc(key).replace(/'/g,"\\'")+'\')"></video>'+
+        '<video id="vn_'+id+'" src="'+src+'" playsinline webkit-playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000;display:block" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" ontimeupdate="vnUpdate(\''+keyJs+'\')" onplay="vnUpdate(\''+keyJs+'\')" onpause="vnUpdate(\''+keyJs+'\')" onended="vnUpdate(\''+keyJs+'\')" onloadedmetadata="vnUpdate(\''+keyJs+'\')" onerror="vnError(\''+keyJs+'\')"></video>'+
       '</div>'+
-      '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
-      '<button class="btn btn-ghost btn-sm" id="vn_mute_'+id+'" onclick="event.stopPropagation();vnMute(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Звук" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">🔊</button>'+
-      '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();saveFile(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать" style="position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">⬇</button>'+
+      '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
+      '<button class="btn btn-ghost btn-sm" id="vn_mute_'+id+'" onclick="event.stopPropagation();vnMute(\''+keyJs+'\')" title="Звук" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">🔊</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();downloadFile(\''+keyJs+'\')" title="Скачать" style="position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">⬇</button>'+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:8px;padding:0 8px;margin-top:2px">'+
       '<span id="vn_time_'+id+'" style="font-size:11px;color:var(--text3);min-width:34px">0:00</span>'+
-      '<input id="vn_seek_'+id+'" type="range" min="0" max="1000" value="0" oninput="vnSeek(\''+esc(key).replace(/'/g,"\\'")+'\',this.value)" style="flex:1;height:4px;accent-color:var(--primary)">'+
+      '<input id="vn_seek_'+id+'" type="range" min="0" max="1000" value="0" oninput="vnSeek(\''+keyJs+'\',this.value)" style="flex:1;height:4px;accent-color:var(--primary)">'+
       '<span id="vn_dur_'+id+'" style="font-size:11px;color:var(--text3);min-width:34px;text-align:right">0:00</span>'+
     '</div>'+
     (tr?'<div style="margin-top:6px;padding:6px 8px;border-radius:10px;background:var(--surface2);font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+esc(tr)+'</div>':'')+
   '</div>';
 }
 function vnGet(key){ return document.getElementById('vn_'+CSS_ID(key)); }
-function vnToggle(key){ const v=vnGet(key); if(!v) return; if(v.paused){ v.play().catch(()=>{}); } else { v.pause(); } vnUpdate(key); }
+function vnError(key){ try{ toast('Не удалось воспроизвести кружок. Попробуй скачать ⬇'); }catch(e){} }
+function vnToggle(key){ const v=vnGet(key); if(!v) return; if(v.paused){ v.play().catch(()=>{ try{toast('Нажми ещё раз для воспроизведения');}catch(e){} }); } else { v.pause(); } vnUpdate(key); }
 function vnMute(key){ const v=vnGet(key); if(!v) return; v.muted=!v.muted; vnUpdate(key); }
 function vnSeek(key,val){ const v=vnGet(key); if(!v||!isFinite(v.duration)||v.duration<=0) return; v.currentTime=(Number(val)/1000)*v.duration; vnUpdate(key); }
 function vnUpdate(key){
