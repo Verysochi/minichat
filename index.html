@@ -712,6 +712,7 @@ img,video,canvas{max-width:100%}
 .attach-menu .row:active{background:var(--surface3)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .rec-preview{display:none;align-items:center;gap:6px;padding:6px 10px;background:var(--surface2);flex-shrink:0}
+.rec-preview.videonote-mode{background:transparent;box-shadow:none}
 .rec-preview.active{display:flex}
 /* ⏹ прямо в плеере записи: остановить и отправить, не тянусь к ➤ внизу */
 .preview-btn.rec-stop{display:none;width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
@@ -2332,7 +2333,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 17:50';
+const BUILD='26.11.2026 18:00';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -7030,7 +7031,7 @@ function toggleRecord(mode){
       }
       el.play().catch(()=>{});
     }catch(e){console.warn('live preview failed',e);}
-    document.getElementById('recPreview').classList.add('active');
+    const rp=document.getElementById('recPreview'); rp.classList.add('active'); rp.classList.toggle('videonote-mode', mode==='videonote');
     const lb=document.getElementById('recLiveLabel');
     if(lb)lb.textContent='● 0:00';
     const sb=document.getElementById('recStopBtn');
@@ -7167,7 +7168,7 @@ function finishRecording(){
       }
       else{pa.srcObject=null;pa.src=recordedDataUrl;pa.muted=false;pa.controls=true;pa.style.display='block';pv.style.display='none';}
     }catch(e){}
-    document.getElementById('recPreview').classList.add('active');
+    const rp=document.getElementById('recPreview'); rp.classList.add('active'); rp.classList.toggle('videonote-mode', recMode==='videonote');
     const lb=document.getElementById('recLiveLabel');if(lb)lb.textContent='Готово — ➤ отправить';
     const sb=document.getElementById('recStopBtn');if(sb)sb.style.display='none';
     const pb=document.getElementById('recPauseBtn');if(pb)pb.style.display='none';
@@ -7286,7 +7287,7 @@ function cancelRecorded(){recordedDataUrl=null;recordedType=null;recAutoSend=fal
   if(lb)lb.textContent='';
   document.querySelectorAll('#chatInputBar .recording').forEach(b=>{b.classList.remove('recording');b.title='Голосовое сообщение';});
   const inp=document.getElementById('msgInput');if(inp&&inp.placeholder.indexOf('Отправляю')>=0)inp.placeholder='Сообщение...';
-  const pr=document.getElementById('recPreview');if(pr)pr.classList.remove('active');}
+  const pr=document.getElementById('recPreview');if(pr){pr.classList.remove('active');pr.classList.remove('videonote-mode');}}
 
 // ===== ЗВОНКИ =====
 // Общедоступные TURN-серверы — шанс, что хоть один отвечает. Свои бесплатно
@@ -7511,6 +7512,17 @@ async function chooseOutput(){
 }
 
 // ===== СПИСКИ ЧАТОВ =====
+function chatPinsKey(){return 'mc_chatPins_'+(currentUser&&currentUser.uid||'anon');}
+function getChatPins(){try{return JSON.parse(localStorage.getItem(chatPinsKey())||'{}')||{};}catch(e){return {};}}
+function isChatPinned(cid){return !!getChatPins()[cid];}
+function toggleChatPin(cid,ev){
+  if(ev) ev.stopPropagation();
+  const p=getChatPins();
+  if(p[cid]) delete p[cid]; else p[cid]=Date.now();
+  try{localStorage.setItem(chatPinsKey(),JSON.stringify(p));}catch(e){}
+  try{if(currentUser&&currentUser.uid) db.ref('users/'+currentUser.uid+'/chatPins/'+cid).set(p[cid]||null);}catch(e){}
+  renderChatList();
+}
 function renderChatList(){
   const c=document.getElementById('chatList');c.innerHTML='';
   let dmUn=0,grUn=0,dmRows=[],grRows=[],dmCids={};
@@ -7523,7 +7535,7 @@ function renderChatList(){
     dmCids[cid]=1;
     dmRows.push({cid:cid,ts:0,el:()=>dmEmptyItem(cid,uid)});
   });
-  Object.entries(ALL_GROUPS).forEach(([gid,g])=>{if(!g.members||!g.members[currentUser.uid])return;const un=(g.unread&&g.unread[currentUser.uid])||0;grUn+=un;grRows.push({ts:g.lastTs||0,el:()=>groupItem(gid,g,un)});});
+  Object.entries(ALL_GROUPS).forEach(([gid,g])=>{if(!g.members||!g.members[currentUser.uid])return;const un=(g.unread&&g.unread[currentUser.uid])||0;grUn+=un;grRows.push({cid:gid,ts:g.lastTs||0,el:()=>groupItem(gid,g,un)});});
   // Видимые группы, где меня нет — чтобы можно было найти и попроситься.
   // Скрытые (settings.hidden) здесь не показываются: их только по коду.
   const openGr=Object.entries(ALL_GROUPS).filter(([gid,g])=>
