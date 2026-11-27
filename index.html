@@ -785,7 +785,7 @@ img,video,canvas{max-width:100%}
 .undo-bar.show{opacity:1;transform:translate(-50%,0)}
 .undo-bar:active{transform:translate(-50%,0) scale(.97)}
 .admin-user:last-child{border:none}
-.profile-wrap{flex:1;overflow-y:auto;overflow-x:clip;padding:24px;display:flex;flex-direction:column;align-items:center;max-width:100%;box-sizing:border-box}
+.profile-wrap{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;align-items:center;max-width:100%;box-sizing:border-box}
 @media(max-width:520px){.profile-wrap{padding:12px 8px}.profile-card{padding:12px;max-width:100%}}
 .profile-name{font-size:22px;font-weight:700;margin-top:10px}
 .profile-login{color:var(--text2);font-size:13px;margin-top:2px}
@@ -1384,6 +1384,18 @@ img,video,canvas{max-width:100%}
   }
   #profileScreen .cover-avatar .edit-fab{opacity:calc(1 - var(--pcol,0));}
   #profileScreen .avatar-ts{opacity:calc(1 - var(--pcol,0));font-size:11px}
+  #profileScreen .profile-identity-card,
+  #profileScreen .profile-identity-col{max-width:100%;box-sizing:border-box}
+  #profileScreen .profile-name,
+  #profileScreen .profile-login,
+  #profileScreen .profile-status,
+  #profileScreen #profileThoughts,
+  #profileScreen #profileMoodQuickWrap,
+  #profileScreen #profilePresence,
+  #profileScreen #profileAvatarRockRow,
+  #profileScreen #profilePetRow,
+  #profileScreen #profileRockBadge{max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word}
+  #profileScreen #profileMoodQuick{max-width:100%;box-sizing:border-box}
 }
 
 
@@ -2315,7 +2327,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 16:35';
+const BUILD='26.11.2026 16:55';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3687,7 +3699,7 @@ function avatarHtml(i,cls,fb){const n=i?displayNameOf(i,fb):(fb||'?');const c=(c
   return wrapAvatar(inner,i,uid);
 }
 function profilePhotoHtml(i,fb){const n=i?displayNameOf(i,fb):(fb||'?');
-  const c=frameCls(i)+(i&&i.online?' online-frame':'');
+  const c=frameCls(i)+(isOnline(i)?' online-frame':'');
   const uid=i?uidOf(i):'';
   // Подпись «Аватар: имя» убрали: она только занимала место под фото и выглядела
   // лишней. Обложки и раньше открывались без подписи — теперь так же и аватар.
@@ -11530,8 +11542,9 @@ function visibleUsers(){
 // Поэтому берём оба: флаг выставлен при входе ИЛИ время свежее.
 function isOnline(i){
   if(!i)return false;
-  if(i.online===true)return true;
-  return !!(i.lastSeen&&(Date.now()-i.lastSeen<90000));
+  const fresh=!!(i.lastSeen&&(Date.now()-i.lastSeen<120000));
+  if(i.online===true) return fresh || !i.lastSeen;
+  return fresh;
 }
 function cleanupOfflineUsers(){
   const now=Date.now();
