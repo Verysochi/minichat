@@ -83,6 +83,12 @@ body.booting #bootLoader{position:fixed;inset:0;z-index:900;display:flex;flex-di
 .btn-danger{background:var(--red);color:#fff}
 /* min-height:32px — в админке кнопки были 29px, на телефоне в них сложно попасть */
 .btn-sm{padding:8px 14px;font-size:14px;width:auto;margin-top:0;min-height:32px;display:inline-flex;align-items:center;justify-content:center}
+/* У .btn-ghost НЕ БЫЛО стиля вовсе — браузер рисовал кнопке свою системную
+   серо-белую заливку, и на тёмных/цветных темах такие кнопки (закрепить,
+   заглушить, профиль) выбивались как белые пятна. */
+.btn-ghost{background:var(--surface3);color:inherit;border:1px solid rgba(128,128,128,.28);box-shadow:none}
+.btn-ghost:active{transform:scale(.94)}
+@media (hover:hover) and (pointer:fine){.btn-ghost:hover{background:rgba(128,128,128,.3);border-color:rgba(128,128,128,.42)}}
 /* Анимация кнопок формы входа — только там, где есть настоящая мышь.
    На тач-экране hover залипает после тапа, а прыжок выглядит как дёрганье. */
 @media (hover:hover) and (pointer:fine){
@@ -2336,7 +2342,7 @@ setTimeout(function(){document.body.classList.remove('booting');},15000);
 <script>
 // Штамп сборки: видно в самом низу админ-панели. Меняю его при каждой правке —
 // сразу понятно, залилась новая версия или на сайте ещё старая.
-const BUILD='26.11.2026 20:25';
+const BUILD='28.11.2026 09:10';
 const firebaseConfig={apiKey:"AIzaSyD1UjGlPP3BQ4xv1IMV2GXWDCcSe0Uc48A",authDomain:"minichat-40954.firebaseapp.com",databaseURL:"https://minichat-40954-default-rtdb.europe-west1.firebasedatabase.app",projectId:"minichat-40954",storageBucket:"minichat-40954.firebasestorage.app",messagingSenderId:"1044691110805",appId:"1:1044691110805:web:6a58e9196fd1f73f70849c"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
@@ -3938,7 +3944,7 @@ function ensureVideoThumb(key,m){
   }).catch(()=>{delete ensureVideoThumb.busy[key];});
 }
 // Мини-плеер песни, привязанный к сообщению
-function songSrcFor(m,key){const mk=(m&&m.mediaKey)||key;return (m&&m.data)||mediaCache[mk]||'';}
+function songSrcFor(m,key){const mk=(m&&m.mediaKey)||key;return mediaSrc((m&&m.data)||mediaCache[mk]||'');}
 function videoNoteHtml(key,m,src){
   const id=CSS_ID(key);
   const tr=(m&&m.transcript)?String(m.transcript).trim():'';
@@ -3946,7 +3952,7 @@ function videoNoteHtml(key,m,src){
   return '<div class="video-note" id="vn_wrap_'+id+'" data-key="'+id+'" style="margin:4px 0;max-width:min(280px,100%)">'+
     '<div style="position:relative;width:min(240px,78vw);height:min(240px,78vw);min-width:min(240px,78vw);min-height:min(240px,78vw);flex:0 0 auto;margin:0 auto">'+
       '<div style="width:min(220px,72vw);height:min(220px,72vw);min-width:min(220px,72vw);min-height:min(220px,72vw);max-width:min(220px,72vw);max-height:min(220px,72vw);aspect-ratio:1/1;border-radius:50%;overflow:hidden;margin:min(10px,3vw) auto;box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.12);background:#000;position:relative;flex:0 0 auto">'+
-        '<video id="vn_'+id+'" src="'+src+'" playsinline webkit-playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000;display:block" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" ontimeupdate="vnUpdate(\''+keyJs+'\')" onplay="vnUpdate(\''+keyJs+'\')" onpause="vnUpdate(\''+keyJs+'\')" onended="vnUpdate(\''+keyJs+'\')" onloadedmetadata="vnUpdate(\''+keyJs+'\')" onerror="vnError(\''+keyJs+'\')"></video>'+
+        '<video id="vn_'+id+'" src="'+mediaSrc(src)+'" playsinline webkit-playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000;display:block" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" ontimeupdate="vnUpdate(\''+keyJs+'\')" onplay="vnUpdate(\''+keyJs+'\')" onpause="vnUpdate(\''+keyJs+'\')" onended="vnUpdate(\''+keyJs+'\')" onloadedmetadata="vnUpdate(\''+keyJs+'\')" onerror="vnError(\''+keyJs+'\')"></video>'+
       '</div>'+
       '<button class="btn btn-ghost btn-sm" id="vn_play_'+id+'" onclick="event.stopPropagation();vnToggle(\''+keyJs+'\')" title="Воспроизвести" style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">▶</button>'+
       '<button class="btn btn-ghost btn-sm" id="vn_mute_'+id+'" onclick="event.stopPropagation();vnMute(\''+keyJs+'\')" title="Звук" style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:14px;line-height:1">🔊</button>'+
@@ -3978,8 +3984,9 @@ function vnError(key){
     try{
       const ec=v&&v.error?v.error.code:0;
       if(ec===1)why='не загрузился';
-      else if(ec===2)why='формат не поддерживается этим браузером';
-      else if(ec===3)why='файл повреждён / запись не доехала';
+      else if(ec===2)why='файл повреждён / запись не доехала';
+      else if(ec===3)why='файл не докачался';
+      else if(ec===4)why='формат не поддерживается этим браузером';
       const dl=v&&v.dataset&&v.dataset.dl==='0'?'':' Скачай ⬇ и открой в плеере.';
       toast('Кружок не воспроизводится: '+why+'.'+dl,true);
     }catch(e){ toast('Не удалось воспроизвести кружок. Попробуй скачать ⬇'); }
@@ -4236,7 +4243,7 @@ function toggleSong(key){
   const a=ensureSongAudio();
   const startPlay=(data)=>{
     songKey=key;songName=m.name||'🎵 песня';songPaused=false;
-    a.src=data;
+    a.src=mediaSrc(data);
     showSongBar();
     const t=document.getElementById('songBarTitle');if(t)t.textContent=songName;
     paintSongBtn();paintSongProgress();paintVol();
@@ -4705,7 +4712,7 @@ function closeLightbox(fromHistory){
 // Медиа подгрузилось — если открыт именно этот кадр, обновляем картинку на полную
 function ppRefreshKey(key){if(!key)return;
   let ch=false;
-  PP_LIST.forEach(it=>{if(it.key===key&&mediaCache[key]){it.src=mediaCache[key];ch=true;}});
+  PP_LIST.forEach(it=>{if(it.key===key&&mediaCache[key]){it.src=mediaSrc(mediaCache[key]);ch=true;}});
   if(ch&&document.getElementById('lightbox').style.display==='flex')ppShow();}
 (function ppBind(){
   const lb=document.getElementById('lightbox');if(!lb)return;
@@ -5216,7 +5223,27 @@ function afterMediaLoad(key){
   if(document.getElementById('chatScreen')&&document.getElementById('chatScreen').classList.contains('active'))scheduleChatBottom();
   ppRefreshKey(key);   // открытый кадр в фотоплеере обновляем на полное качество
 }
-function dataUrlToBlob(u){const a=u.split(','),m=(a[0].match(/:(.*?);/)||[,'application/octet-stream'])[1],b=atob(a[1]),u8=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u8[i]=b.charCodeAt(i);return new Blob([u8],{type:m});}
+// Разбор data:-адреса. Раньше тут было split(',') — и всё ломалось на
+// codecs=avc1,opus: в параметре кодека ЕСТЬ запятая, поэтому заголовком
+// считался мусор, atob падал, и файл «не скачивался» в принципе.
+function dataUrlToBlob(u){
+  u=String(u||'');
+  const bi=u.indexOf(';base64,');
+  let head,payload;
+  if(bi>=0){ head=u.slice(5,bi); payload=u.slice(bi+8); }
+  else { const i=u.lastIndexOf(','); head=u.slice(5,i); payload=u.slice(i+1); }
+  const mime=(head.split(';')[0]||'').trim()||'application/octet-stream';
+  const bin=atob(payload),u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  return new Blob([u8],{type:mime});
+}
+// Параметр codecs в адресе <video>/<audio> заставляет плеер отвергнуть файл:
+// браузер отдаёт ошибку 4 «DEMUXER_ERROR_COULD_NOT_OPEN», хотя сам файл
+// (mp4 480x480) полностью рабочий. Для показа адрес чистим, контейнер
+// определяется сам.
+function mediaSrc(d){
+  return String(d||'').replace(/^(data:[^;,]+);codecs=[^;]*;(base64,)/i,'$1;$2');
+}
 // Название файла при скачивании: медиа (фото/видео/голос) подписываются
 // чатом + автором + временем; обычные файлы сохраняются под своим именем.
 function downloadName(m){
@@ -5288,12 +5315,15 @@ function downloadImageSet(btn){
   }catch(e){toast('Не удалось скачать');}
 }
 function saveFile(key){const m=MSGS[key],d=m?(mediaCache[m.mediaKey||key]):null;if(!m||!d){toast('Сначала дождись загрузки');return;}
+  // Формат берём из самого файла: у старых сообщений mime не сохранялся,
+  // и файл мог уйти с неверным расширением (.webm вместо mp4).
+  if(!m.mime){const mm=/^data:([^;,]+)/.exec(d);if(mm)m.mime=mm[1];}
   downloadDataUrl(d,downloadName(m));}
 function compressImage(file,maxDim,q){return new Promise((res,rej)=>{const r=new FileReader();
   r.onload=e=>{const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const sc=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*sc);h=Math.round(h*sc);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',q));};img.onerror=rej;img.src=e.target.result;};
   r.onerror=rej;r.readAsDataURL(file);});}
 function compressDataUrl(dataUrl,maxDim,q){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{let w=img.width,h=img.height;const sc=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*sc);h=Math.round(h*sc);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',q));};img.onerror=rej;img.src=dataUrl;});}
-function videoThumb(dataUrl){return new Promise(res=>{let done=false;const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';v.src=dataUrl;
+function videoThumb(dataUrl){return new Promise(res=>{let done=false;const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';v.src=mediaSrc(dataUrl);
   const draw=()=>{if(done)return;done=true;try{const sc=Math.min(1,480/Math.max(v.videoWidth||1,v.videoHeight||1));const c=document.createElement('canvas');c.width=Math.round((v.videoWidth||480)*sc);c.height=Math.round((v.videoHeight||480)*sc);c.getContext('2d').drawImage(v,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.7));}catch(e){res(null);}};
   v.onloadeddata=()=>{try{v.currentTime=0.5;}catch(e){draw();}};v.onseeked=draw;v.onerror=()=>{if(!done){done=true;res(null);}};setTimeout(draw,2500);});}
 function thumbFromDataUrl(data,type){if(type==='image')return compressDataUrl(data,480,0.7);if(type==='video')return videoThumb(data);return Promise.resolve(null);}
@@ -6329,7 +6359,7 @@ function bubbleInner(m,key,senderInside){
       if(loaded)c+=videoNoteHtml(key,m,loaded);
       else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='video'){
-      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+loaded+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+      if(loaded)c+='<div class="polaroid"><video controls playsinline preload="metadata" data-mk="'+esc(mk||'')+'" src="'+mediaSrc(loaded)+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
       else if(m.thumb){THUMBS[mk]=m.thumb;c+='<div class="polaroid" style="position:relative"><img src="'+m.thumb+'" onclick="loadMedia(\''+key+'\')" style="cursor:pointer"><span class="play-badge">▶</span></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';}
       else c+=mediaWaitHtml(mk)+'<button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadFile(\''+key+'\')" title="Скачать">⬇</button>';
     } else if(m.type==='audio'){
@@ -6365,7 +6395,7 @@ function bubbleInner(m,key,senderInside){
   else if(m.type==='image'&&d)c+='<div class="polaroid"><img src="'+d+'" onclick="ppOpenChat(\''+key+'\')"></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else if(m.type==='audio'&&d)c+=songMiniHtml(key,m)+'<div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();downloadTrack(\''+esc(key).replace(/'/g,"\\'")+'\')" title="Скачать">⬇</button></div>';
   else if(m.type==='videonote'&&d)c+=videoNoteHtml(key,m,d);
-  else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+d+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
+  else if(m.type==='video'&&d)c+='<div class="polaroid"><video controls playsinline src="'+mediaSrc(d)+'"></video></div><button class="btn btn-ghost btn-sm" style="width:auto;margin:2px 0 0;padding:2px 6px;min-height:24px;font-size:12px;opacity:.7;border:none;background:transparent" onclick="event.stopPropagation();saveFile(\''+key+'\')" title="Скачать">⬇</button>';
   else c+='<div>'+mentionHtml(m.text)+'</div>';
   // Поделились новостью/постом — маленькое превью + кнопка перехода к источнику
   if(m.share)c+=shareCardHtml(m);
@@ -8587,7 +8617,7 @@ function mediaListHtml(list,small){
     }
     const src=m.data|| (m.key?mediaCache[m.key]:null) || (extUrl?u:null);
     if(m.type==='video' || (extUrl && isDirectVideoUrl(u))){
-      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+src+'"></video></div><div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(src)+'" target="_blank" rel="noopener" '+(extUrl?'':'download')+' onclick="event.stopPropagation()">⬇ '+(extUrl?'Открыть / Скачать':'Скачать')+'</a></div>');
+      if(src)vids.push('<div class="polaroid"><video controls playsinline data-mk="'+esc(m.key||'')+'" src="'+mediaSrc(src)+'"></video></div><div><a class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px;display:inline-flex;text-decoration:none" href="'+esc(src)+'" target="_blank" rel="noopener" '+(extUrl?'':'download')+' onclick="event.stopPropagation()">⬇ '+(extUrl?'Открыть / Скачать':'Скачать')+'</a></div>');
       else if(m.thumb)vids.push('<div class="polaroid"><img src="'+m.thumb+'" onclick="mediaClick(\''+m.key+'\',\'video\')" style="cursor:pointer"></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');
       else{ if(m.key) loadMediaSilent(m.key); vids.push('<div class="media-box" style="max-width:220px"><div class="ph">⏳</div></div><div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 6px" onclick="event.stopPropagation();downloadMediaListItem(\'video\',\''+esc(m.key||'')+'\',\'\',\'video_'+(idx+1)+'.mp4\')">⬇ Скачать</button></div>');}
       return;
@@ -9076,7 +9106,7 @@ function inlineMediaHtml(item,cls){
   if(item.ext&&item.mediaKey){
     // одиночное фото — тоже коллаж (можно листать, если потом добавятся кадры)
     if(item.mediaType!=='video')return mediaListHtml([{key:item.mediaKey,type:'image',thumb:item.thumb}],sm);
-    if(mediaCache[item.mediaKey])return '<div class="polaroid"><video controls playsinline data-mk="'+esc(item.mediaKey)+'" src="'+mediaCache[item.mediaKey]+'"></video></div>'+
+    if(mediaCache[item.mediaKey])return '<div class="polaroid"><video controls playsinline data-mk="'+esc(item.mediaKey)+'" src="'+mediaSrc(mediaCache[item.mediaKey])+'"></video></div>'+
       '<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadByCacheKey(\''+esc(item.mediaKey)+'\',\'video_'+String(item.mediaKey||'').slice(-6)+'.mp4\')">⬇ Скачать</button></div>';
     if(item.thumb)return '<div class="polaroid"><img src="'+item.thumb+'" onclick="mediaClick(\''+item.mediaKey+'\',\''+item.mediaType+'\')"></div>'+
       '<div><button class="btn btn-outline btn-sm" style="width:auto;margin:4px 0 0" onclick="event.stopPropagation();downloadByCacheKey(\''+esc(item.mediaKey)+'\',\'video_'+String(item.mediaKey||'').slice(-6)+'.mp4\')">⬇ Скачать</button></div>';
